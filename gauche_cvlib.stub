@@ -1,0 +1,18 @@
+;;;
+;;; gauche_cvlib.stub
+;;;
+
+"
+#include \"gauche_cv.h\"
+"
+
+;; The following entry is a dummy one.
+;; Replace it for your definitions.
+
+(define-cproc test-gauche_cv () ::<const-cstring>
+  (result "gauche_cv is working"))
+
+
+;; Local variables:
+;; mode: scheme
+;; end:
