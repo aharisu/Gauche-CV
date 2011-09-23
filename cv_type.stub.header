@@ -1,0 +1,11 @@
+
+;;make operation is not supported
+(define-type <cv-arr>
+	"CvArr*"
+	"CvArr"
+	"SCM_CVARR_P"
+	"SCM_CVARR_DATA")
+
+;;include auto generated header
+(include "cv_struct.gen.stub.header")
+

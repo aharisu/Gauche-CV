@@ -1,0 +1,6 @@
+
+/autom4te.cache
+*.log
+*.status
+*.o
+*.so
