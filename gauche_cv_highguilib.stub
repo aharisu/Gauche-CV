@@ -1,7 +1,7 @@
 "
 #include <opencv2/highgui/highgui_c.h>
 
-#include \"cv_struct.gen.h\"
+#include \"core_type.gen.h\"
 "
 
 (include "./cv_type.stub.header")

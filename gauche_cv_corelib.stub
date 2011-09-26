@@ -1,4 +1,4 @@
-;;;
+
 ;;; gauche_cvlib.stub
 ;;;
 
@@ -6,7 +6,7 @@
 #include \"gauche_cv_core.h\"
 #include <opencv2/core/core_c.h>
 
-#include \"cv_struct.gen.h\"
+#include \"core_type.gen.h\"
 
 typedef void* _pvoid_t;
 typedef unsigned char _char_t;

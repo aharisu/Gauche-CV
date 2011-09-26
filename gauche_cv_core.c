@@ -3,7 +3,7 @@
  */
 
 #include "gauche_cv_core.h"
-#include "cv_struct.gen.h"
+#include "core_type.gen.h"
 
 #include <opencv2/core/core_c.h>
 
@@ -25,7 +25,7 @@ static int CV_CDECL cv_error_handler(int status, const char* func_name,
  * Module initialization function.
  */
 extern void Scm_Init_gauche_cv_corelib(ScmModule*);
-extern void Scm_Init_cv_struct(ScmModule*);
+extern void Scm_Init_core_type(ScmModule*);
 void Scm_Init_gauche_cv_core(void)
 {
 				ScmModule *mod;
@@ -38,7 +38,7 @@ void Scm_Init_gauche_cv_core(void)
 				
 				/* Register stub-generated procedures */
 				Scm_Init_gauche_cv_corelib(mod);
-				Scm_Init_cv_struct(mod);
+				Scm_Init_core_type(mod);
 
 				//set opencv error handler
 				cvRedirectError(cv_error_handler, NULL, NULL);

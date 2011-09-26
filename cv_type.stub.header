@@ -7,5 +7,5 @@
 	"SCM_CVARR_DATA")
 
 ;;include auto generated header
-(include "cv_struct.gen.stub.header")
+(include "core_type.gen.stub.header")
 

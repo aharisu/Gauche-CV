@@ -7,15 +7,16 @@
 (use gauche.cgen)
 (use gauche.parameter)
 
-
-(define (main args)
+(define (gen-type filename 
+									struct-name-list forign-struct-name-list
+									prologue epilogue)
 	(parameterize ([cgen-current-unit 
 									 (make <cgen-unit-stub>
-												 :name (path-sans-extension (car args))
-												 :c-file (path-swap-extension (car args) "gen.c")
-												 :h-file (path-swap-extension (car args) "gen.h")
-												 :stub-file (path-swap-extension (car args) "gen.stub.header")
-												 :init-prologue "void Scm_Init_cv_struct(ScmModule* mod) {"
+												 :name filename
+												 :c-file (string-append filename ".gen.c")
+												 :h-file (string-append filename ".gen.h")
+												 :stub-file (string-append filename ".gen.stub.header")
+												 :init-prologue (format "void Scm_Init_~a(ScmModule* mod) {" filename)
 												 :init-epilogue "}"
 												 )])
 
@@ -29,9 +30,7 @@
 			(cgen-stub (format "	\"SCM_~a_DATA\"" up-name))
 			(cgen-stub (format "	\"SCM_MAKE_~a\")\n" up-name)))
 
-
 		(define (gen-struct sym-name sym-scm-type pointer? finalize finalize-ref)
-
 			(let* ([name (symbol->string sym-name)]
 						 [scm-name (string-append "Scm" name)]
 						 [scm-type (symbol->string sym-scm-type)]
@@ -128,121 +127,35 @@
 										"NULL")))
 				))
 
-
-
 		;;h file header
-		(cgen-extern "#ifndef GAUCHE_STRUCT_CV_H")
-		(cgen-extern "#define GAUCHE_STRUCT_CV_H")
+		(cgen-extern (format "#ifndef GAUCHE_~a_H" (string-upcase filename)))
+		(cgen-extern (format "#define GAUCHE_~a_H" (string-upcase filename)))
 		(cgen-extern "SCM_DECL_BEGIN")
 		(cgen-extern "")
 
 		(cgen-extern "#include<gauche.h>")
 		(cgen-extern "#include<gauche/extend.h>")
 		(cgen-extern "#include<gauche/class.h>")
-		(cgen-extern "//opencv2 header")
-		(cgen-extern "#include<opencv2/core/core_c.h>")
-		(cgen-extern "//pre defined header")
-		(cgen-extern "#include\"cv_struct_pre_include.h\"")
-		(cgen-extern "")
 
 		;;c file header
-		(cgen-decl "#include\"cv_struct.gen.h\"")
+		(cgen-decl (format "#include\"~a.gen.h\"" filename))
 		(cgen-decl "")
 
-		
+
+		;;call prologue
+		(prologue)
+
 		(for-each
 			(lambda (s) (gen-struct (car s) (cadr s) (caddr s) (cadddr s) (car (cddddr s))))
-			structs)
+			struct-name-list)
 
 		(for-each
 			(lambda (s) (gen-foreign-pointer (car s) (cadr s) (caddr s) (cadddr s)))
-			foreign-pointer)
+			forign-struct-name-list)
 
 
-
-		(cgen-extern "
-
-typedef struct ScmCvArrRec {
-	SCM_HEADER;
-	CvArr* data;
-}ScmCvArr;
-
-#define SCM_CVARR(obj) ((ScmCvArr*)obj)
-#define SCM_CVARR_P(obj) \
-				(SCM_XTYPEP(obj, SCM_CLASS_IPLIMAGE) ||	\
-				SCM_XTYPEP(obj, SCM_CLASS_CVMAT) ||	\
-				SCM_XTYPEP(obj, SCM_CLASS_CVMATND) ||	\
-				SCM_XTYPEP(obj, SCM_CLASS_CVSPARSEMAT))
-
-#define SCM_CVARR_DATA(obj) \
-				((SCM_CVARR(obj)->data) ? \
-						(SCM_CVARR(obj)->data) :	\
-						(Scm_Error(\"already been released. object is invalied.\"), NULL))
-
-")
-
-		(cgen-body "
-
-//---------------
-//CvArr
-//---------------
-SCM_DEFINE_BUILTIN_CLASS(Scm_CvArrClass,
-							 	NULL, NULL, NULL, NULL, SCM_CLASS_DEFAULT_CPL);
-")
-		(cgen-init "
-			Scm_InitBuiltinClass(&Scm_CvArrClass,
-										 	\"<cv-arr>\", NULL, FALSE, mod);
-")
-
-		;;generate OpenCv condition type
-		(cgen-extern "
-typedef struct ScmOpenCvErrorRec {
-	ScmError common;
-}ScmOpenCvError;
-SCM_CLASS_DECL(Scm_OpenCvErrorClass);
-#define SCM_CLASS_OPENCV_ERROR (&Scm_OpenCvErrorClass)
-")
-
-		(cgen-body "
-
-static void condition_print(ScmObj obj, ScmPort* port, ScmWriteContext* ctx)
-{
-	ScmClass* k = Scm_ClassOf(obj);
-	Scm_Printf(port, \"#<%A \\\"%30.1A\\\">\",
-				Scm__InternalClassName(k),
-				SCM_ERROR_MESSAGE(obj));
-}
-
-static ScmObj condition_allocate(ScmClass* klass, ScmObj initargs)
-{
-	ScmOpenCvError* e = SCM_ALLOCATE(ScmOpenCvError, klass);
-	SCM_SET_CLASS(e, klass);
-	SCM_ERROR_MESSAGE(e) = SCM_FALSE;
-	return SCM_OBJ(e);
-}
-
-static ScmClass* condition_cpl[] = {
-	SCM_CLASS_STATIC_PTR(Scm_ErrorClass),
-	SCM_CLASS_STATIC_PTR(Scm_MessageConditionClass),
-	SCM_CLASS_STATIC_PTR(Scm_SeriousConditionClass),
-	SCM_CLASS_STATIC_PTR(Scm_ConditionClass),
-	SCM_CLASS_STATIC_PTR(Scm_TopClass),
-	NULL
-};
-
-SCM_DEFINE_BASE_CLASS(Scm_OpenCvErrorClass, ScmOpenCvError,
-				condition_print, NULL, NULL,
-				condition_allocate, condition_cpl);
-")
-
-		(cgen-init "
-	Scm_InitStaticClassWithMeta(SCM_CLASS_OPENCV_ERROR,
-					\"<opencv-error>\",
-					mod,
-					Scm_ClassOf(SCM_OBJ(SCM_CLASS_CONDITION)),
-					SCM_FALSE,
-					NULL, 0);
-")
+		;;call epilogue
+		(epilogue)
 
 		(cgen-extern "")
 		(cgen-extern "SCM_DECL_END")
@@ -251,50 +164,6 @@ SCM_DEFINE_BASE_CLASS(Scm_OpenCvErrorClass, ScmOpenCvError,
 		(cgen-emit-h (cgen-current-unit))
 		(cgen-emit-c (cgen-current-unit))
 		(cgen-emit-stub (cgen-current-unit))
-		0))
+	))
 
 
-
-(define structs 
-	'(
-		(IplImage <iplimage> #t "cvReleaseImage" "&")
-		(CvMat <cv-mat> #t "cvReleaseMat" "&")
-		(CvMatND <cv-matnd> #t "cvReleaseMatND" "&")
-		(CvSparseMat <cv-sparse-mat> #t "cvReleaseSparseMat" "&")
-		(CvRect <cv-rect> #f #f "")
-		(CvTermCriteria <cv-term-criteria> #f #f "")
-		(CvPoint <cv-point> #f #f "")
-		(CvPoint2D32f <cv-point-2d32f> #f #f "")
-		(CvPoint3D32f <cv-point-3d32f> #f #f "")
-		(CvPoint2D64f <cv-point-2d64f> #f #f "")
-		(CvPoint3D64f <cv-point-3d64f> #f #f "")
-		(CvSize <cv-size> #f #f "")
-		(CvSize2D32f <cv-size-2d32f> #f #f "")
-		(CvBox2D <cv-box-2d> #f #f "")
-		(CvSlice <cv-slice> #f #f "")
-		(CvScalar <cv-scalar> #f #f "")
-		(CvRNG <cv-rng> #t #f "")
-
-		(CvSeqBlock <cv-seq-block> #t #f "")
-		(CvTreeNode <cv-tree-node> #t #f "")
-		(CvSeq <cv-seq> #t #f "")
-		(CvSet <cv-set> #t #f "")
-		(CvGraph <cv-graph> #t #f "")
-		(CvChain <cv-chain> #t #f "")
-		(CvContour <cv-contour> #t #f "")
-
-		))
-
-(define foreign-pointer 
-	'(
-		(CvSparseNode <cv-sparse-node> #f "")
-		(CvSparseMatIterator <cv-sparse-mat-iterator> #f "")
-		(CvMemBlock <cv-mem-block> #f "")
-		(CvMemStorage <cv-mem-storage> "cvReleaseMemStorage" "&")
-		(CvMemStoragePos <cv-mem-storage-pos> #f "")
-		(CvSeqWriter <cv-seq-writer> #f "")
-		(CvSeqReader <cv-seq-reader> #f "")
-		(CvLineIterator <cv-line-iterator> #f "")
-		(CvFont <cv-font> #f "")
-
-		))
