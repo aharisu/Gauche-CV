@@ -1878,7 +1878,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 			(set! (SCM_VECTOR_ELEMENT pts-vec i) (SCM_MAKE_CVPOINT (aref pts i))))
 		(result nb-pts pts-vec)))
 
-(define-cproc cv-draaw-contours (img::<cv-arr> contour::<cv-seq> external-color::<cv-scalar> 
+(define-cproc cv-draw-contours (img::<cv-arr> contour::<cv-seq> external-color::<cv-scalar> 
 																 hole-color::<cv-scalar> max-level::<int> 
 																 :optional (thickness::<int> 1) (line-type::<int> 8)
 																 (offset-obj ())) ::<void>
