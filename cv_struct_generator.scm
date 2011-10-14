@@ -83,14 +83,15 @@
 
 			))
 
-		(define (gen-foreign-pointer sym-name sym-scm-type finalize finalize-ref)
+		(define (gen-foreign-pointer sym-name sym-scm-type pointer? finalize finalize-ref)
 			(let* ([name (symbol->string sym-name)]
 						 [scm-type (symbol->string sym-scm-type)]
 						 [scm-name (string-append "Scm" name)]
+						 [ster (if pointer? "*" "")]
 						 [up-name (string-upcase name)])
 
 				;;stub file
-				(gen-stub-type name #t scm-type up-name)
+				(gen-stub-type name pointer? scm-type up-name)
 
 				;;h file
 				(cgen-extern "//---------------")
@@ -98,7 +99,7 @@
 				(cgen-extern "//---------------")
 				(cgen-extern (format "extern ScmClass* Scm_~aClass;" name))
 				(cgen-extern (format "#define SCM_~a_P(obj) SCM_XTYPEP(obj, Scm_~aClass)" up-name name))
-				(cgen-extern (format "#define SCM_~a_DATA(obj) SCM_FOREIGN_POINTER_REF(~a*, obj)" up-name name))
+				(cgen-extern (format "#define SCM_~a_DATA(obj) SCM_FOREIGN_POINTER_REF(~a~a, obj)" up-name name ster))
 				(cgen-extern (format "#define SCM_MAKE_~a(data) Scm_MakeForeignPointer(Scm_~aClass, data)" up-name name))
 				(cgen-body "")
 
@@ -108,7 +109,7 @@
 				(cgen-body "//---------------")
 				(when (string? finalize)
 					(cgen-body (format "static void Scm_cleanup_~a(ScmObj obj){" name))
-					(cgen-body (format "	~a* o = SCM_~a_DATA(obj);" name up-name))
+					(cgen-body (format "	~a~a o = SCM_~a_DATA(obj);" name ster up-name))
 					(cgen-body "	if(o) {")
 					(cgen-body (format "		~a(~ao);" finalize finalize-ref))
 					(cgen-body "		SCM_FOREIGN_POINTER(obj)->ptr = NULL;")
@@ -150,7 +151,7 @@
 			struct-name-list)
 
 		(for-each
-			(lambda (s) (gen-foreign-pointer (car s) (cadr s) (caddr s) (cadddr s)))
+			(lambda (s) (gen-foreign-pointer (car s) (cadr s) (caddr s) (cadddr s) (car (cddddr s))))
 			forign-struct-name-list)
 
 

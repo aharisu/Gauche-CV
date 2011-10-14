@@ -132,16 +132,18 @@ Scm_InitStaticClassWithMeta(SCM_CLASS_OPENCV_ERROR,
 		(CvContour <cv-contour> #t #f "")
 		))
 
-;;sym-name sym-scm-type finalize finalize-ref
+;;sym-name sym-scm-type pointer? finalize finalize-ref 
 (define foreign-pointer 
 	'(
-		(CvSparseNode <cv-sparse-node> #f "")
-		(CvSparseMatIterator <cv-sparse-mat-iterator> #f "")
-		(CvMemBlock <cv-mem-block> #f "")
-		(CvMemStorage <cv-mem-storage> "cvReleaseMemStorage" "&")
-		(CvMemStoragePos <cv-mem-storage-pos> #f "")
-		(CvSeqWriter <cv-seq-writer> #f "")
-		(CvSeqReader <cv-seq-reader> #f "")
-		(CvLineIterator <cv-line-iterator> #f "")
-		(CvFont <cv-font> #f "")
+		(CvSparseNode <cv-sparse-node> #t #f "")
+		(CvSparseMatIterator <cv-sparse-mat-iterator> #t #f "")
+                (CvHistogram <cv-histogram> #t #f "")
+		(CvMemBlock <cv-mem-block> #t #f "")
+		(CvMemStorage <cv-mem-storage> #t "cvReleaseMemStorage" "&")
+		(CvMemStoragePos <cv-mem-storage-pos> #t #f "")
+		(CvSeqWriter <cv-seq-writer> #t #f "")
+		(CvSeqReader <cv-seq-reader> #t #f "")
+		(CvLineIterator <cv-line-iterator> #t #f "")
+		(CvFont <cv-font> #t #f "")
+		(CvCapture <cv-capture> #t "cvReleaseCapture" "&")
 		))
