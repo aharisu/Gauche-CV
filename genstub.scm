@@ -40,12 +40,12 @@
 ;;
 ;;標準ライブラリのgauche.cgen.stubを修正しているためgenstubも修正して利用する
 (add-load-path ".")
-;(load "stub-extend")
+(load "stub-extend.scm")
 
 (use gauche.parseopt)
 (use gauche.parameter)
 (use gauche.cgen)
-(use stub-extend)
+(import gauche.cgen.stub)
 (use file.util)
 (use util.match)
 
