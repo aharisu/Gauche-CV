@@ -27,7 +27,8 @@ typedef struct ScmCvArrRec {
 	(SCM_XTYPEP(obj, SCM_CLASS_IPLIMAGE) ||	\
 	SCM_XTYPEP(obj, SCM_CLASS_CVMAT) ||	\
 	SCM_XTYPEP(obj, SCM_CLASS_CVMATND) ||	\
-	SCM_XTYPEP(obj, SCM_CLASS_CVSPARSEMAT))
+	SCM_XTYPEP(obj, SCM_CLASS_CVSPARSEMAT) || \
+        SCM_XTYPEP(obj, SCM_CLASS_CVTREENODE))
 
 #define SCM_CVARR_DATA(obj) \
 	((SCM_CVARR(obj)->data) ? \
@@ -137,7 +138,7 @@ Scm_InitStaticClassWithMeta(SCM_CLASS_OPENCV_ERROR,
 	'(
 		(CvSparseNode <cv-sparse-node> #t #f "")
 		(CvSparseMatIterator <cv-sparse-mat-iterator> #t #f "")
-                (CvHistogram <cv-histogram> #t #f "")
+                (CvHistogram <cv-histogram> #t "cvReleaseHist" "&")
 		(CvMemBlock <cv-mem-block> #t #f "")
 		(CvMemStorage <cv-mem-storage> #t "cvReleaseMemStorage" "&")
 		(CvMemStoragePos <cv-mem-storage-pos> #t #f "")

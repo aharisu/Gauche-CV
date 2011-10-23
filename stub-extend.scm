@@ -194,4 +194,7 @@
       (p ""))))
 
 
+(define-form-parser eval-in-current-module exprs
+  (let ([m (current-module)])
+    (for-each (lambda (f) (eval f m)) exprs)))
 

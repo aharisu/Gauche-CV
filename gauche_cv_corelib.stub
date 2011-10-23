@@ -294,6 +294,15 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 							(call "cvGetNextSparseNode"))
 
 ;;---------------
+;; CvHistogram
+;;
+
+(define-enum CV_HIST_ARRAY)
+(define-enum CV_HIST_SPARSE)
+(define-enum CV_HIST_TREE)
+;(define-enum CV_HIST_UNIFORM)
+
+;;---------------
 ;; CvTermCriteria
 ;;
 
