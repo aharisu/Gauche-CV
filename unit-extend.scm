@@ -31,11 +31,12 @@
         [((? (cut eq? <> <cgen-node>))) #f]
         [_ #t])))
   (define (with-cpp-condition gf)
-    (cond [(~ node'cpp-condition)
+    (cond [(~ node'cpp-conditions)
            => (^(cppc) (cond [(method-overridden? gf)
-                              (print "#if "cppc)
+                              (for-each (cut print "#if " <>) cppc)
                               (gf node)
-                              (print "#endif /* "cppc" */")]
+                              (for-each (cut print "#endif /* "<>" */")
+                                        (reverse cppc))]
                          [else (gf node)]))]
       [else (gf node)]))
   (case part

@@ -131,12 +131,13 @@
     ;;h file header
     (cgen-extern (format "#ifndef GAUCHE_~a_H" (string-upcase filename)))
     (cgen-extern (format "#define GAUCHE_~a_H" (string-upcase filename)))
-    (cgen-extern "SCM_DECL_BEGIN")
-    (cgen-extern "")
 
     (cgen-extern "#include<gauche.h>")
     (cgen-extern "#include<gauche/extend.h>")
     (cgen-extern "#include<gauche/class.h>")
+
+    (cgen-extern "SCM_DECL_BEGIN")
+    (cgen-extern "")
 
     ;;c file header
     (cgen-decl (format "#include\"~a.gen.h\"" filename))
