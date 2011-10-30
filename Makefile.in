@@ -22,7 +22,10 @@ OPENCV_LIBS = @OPENCV_LIBS@
 SOEXT  = @SOEXT@
 OBJEXT = @OBJEXT@
 EXEEXT = @EXEEXT@
+LDFLAGS = @LDFLAGS@
 LOCAL_PATHS = "@LOCAL_PATHS@"
+
+core_LIBS = @CORE_LIBS@
 
 # Module-specific stuff
 PACKAGE   = gauche-cv-core gauche-cv-highgui gauche-cv-imgproc
@@ -91,7 +94,7 @@ core_type.gen.c core_type.gen.h core_type.gen.stub.header: $(srcdir)/cv_struct_g
 #compile core
 gauche_cv_core.$(SOEXT): $(cv_CORE_SRCS) $(cv_TYPE_HDRS) $(cv_STUB_TYPE_HDRS)
 	$(GAUCHE_PACKAGE) compile \
-	  --local=$(LOCAL_PATHS) --verbose --cflags="$(OPENCV_CFLAGS)" --libs="$(OPENCV_LIBS)" gauche_cv_core $(cv_CORE_SRCS)
+	  --local=$(LOCAL_PATHS) --verbose --cflags="$(OPENCV_CFLAGS)" --ldflags="$(LDFLAGS)" --libs="$(OPENCV_LIBS)" gauche_cv_core $(cv_CORE_SRCS)
 
 
 ##
@@ -104,7 +107,7 @@ gauche_cv_corelib.c: $(cv_STUB_TYPE_HDRS)
 #compile highgui
 gauche_cv_highgui.$(SOEXT): $(cv_HIGHGUI_SRCS) $(cv_TYPE_HDRS) $(cv_STUB_TYPE_HDRS)
 	$(GAUCHE_PACKAGE) compile \
-	  --local=$(LOCAL_PATHS) --verbose --cflags="$(OPENCV_CFLAGS)" --libs="$(OPENCV_LIBS)" gauche_cv_highgui $(cv_HIGHGUI_SRCS)
+	  --local=$(LOCAL_PATHS) --verbose --cflags="$(OPENCV_CFLAGS)" --ldflags="$(LDFLAGS)" --libs="$(OPENCV_LIBS) $(core_LIBS)" gauche_cv_highgui $(cv_HIGHGUI_SRCS)
 
 
 ##
@@ -120,7 +123,7 @@ imgproc_type.gen.c imgproc_type.gen.h imgproc_type.gen.stub.header: $(srcdir)/cv
 #compile imgproc
 gauche_cv_imgproc.$(SOEXT): $(cv_IMGPROC_SRCS) $(cv_TYPE_HDRS)
 	$(GAUCHE_PACKAGE) compile \
-	  --local=$(LOCAL_PATHS) --verbose --cflags="$(OPENCV_CFLAGS)" --libs="$(OPENCV_LIBS)" gauche_cv_imgproc $(cv_IMGPROC_SRCS)
+	  --local=$(LOCAL_PATHS) --verbose --cflags="$(OPENCV_CFLAGS)" --ldflags="$(LDFLAGS)" --libs="$(OPENCV_LIBS) $(core_LIBS)" gauche_cv_imgproc $(cv_IMGPROC_SRCS)
 
 check : all
 	@rm -f test.log

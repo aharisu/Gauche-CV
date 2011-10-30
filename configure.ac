@@ -8,7 +8,7 @@ AC_INIT(gauche-cv, 0.1, foo.yobina@gmail.com)
 dnl If you want to use the system name (OS, architecture, etc) in the
 dnl configure, uncomment the following line.  In such a case, you need
 dnl to copy config.guess and config.sub from automake distribution.
-dnl AC_CANONICAL_SYSTEM
+AC_CANONICAL_SYSTEM
 
 dnl Replace @LOCAL_PATHS@ by --with-local option.
 AC_ARG_WITH(local,
@@ -65,6 +65,18 @@ dnl Add your macro calls to check required libraries, if you have any.
 PKG_CHECK_MODULES([OPENCV], [opencv])
 AC_SUBST(OPENCV_CFLAGS)
 AC_SUBST(OPENCV_LIBS)
+
+LDFLAGS=""
+CORE_LIBS=""
+case "$target" in
+	*mingw*)
+		LDFLAGS="$LDFLAGS -L."
+		CORE_LIBS="-lgauche_cv_core"
+	;;
+esac
+AC_SUBST(CORE_LIBS)
+AC_SUBST(LDFLAGS)
+
 
 dnl Creating gpd (gauche package description) file
 GAUCHE_PACKAGE_CONFIGURE_ARGS="`echo ""$ac_configure_args"" | sed 's/[\\""\`\$]/\\\&/g'`"

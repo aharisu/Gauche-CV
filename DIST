@@ -16,6 +16,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "$gen" = "yes" ]; then
+  aclocal
   autoconf
 fi
 
