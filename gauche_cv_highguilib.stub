@@ -18,14 +18,14 @@
 (define-enum CV_LOAD_IMAGE_ANYCOLOR)
 
 (define-cise-expr (zero? val)
-	`(== ,val 0))
+  `(== ,val 0))
 
 (define-cproc cv-load-image (name::<const-cstring> 
-														 :optional (flags::<int> 1)) ::<iplimage>
-	(let* ([img::IplImage* (cvLoadImage name flags)])
-		(if (zero? img)
-			(Scm_Error "load failed.")
-			(result img))))
+                              :optional (flags::<int> 1)) ::<iplimage>
+  (let* ([img::IplImage* (cvLoadImage name flags)])
+    (if (zero? img)
+      (Scm_Error "load failed.")
+      (result img))))
 
 ;;-----------------
 ;; Constants
@@ -33,18 +33,18 @@
 (define-enum CV_WINDOW_NORMAL)
 (define-enum CV_WINDOW_AUTOSIZE)
 (define-cproc cv-named-window (name::<const-cstring> 
-															 :optional (flags::<int> 1)) ::<int>
-	(result (cvNamedWindow name flags)))
+                                :optional (flags::<int> 1)) ::<int>
+  (result (cvNamedWindow name flags)))
 
 (define-cproc cv-show-image (name::<const-cstring> image::<iplimage>) ::<void>
-	(cvShowImage name image))
+  (cvShowImage name image))
 
 (define-cproc cv-destroy-window (name::<const-cstring>) ::<void>
-	(cvDestroyWindow name))
+  (cvDestroyWindow name))
 
 (define-cproc cv-destroy-all-windows () ::<void>
-	(cvDestroyAllWindows))
+  (cvDestroyAllWindows))
 
 (define-cproc cv-wait-key (delay::<int>) ::<int>
-	(result (cvWaitKey delay)))
+  (result (cvWaitKey delay)))
 

@@ -10,15 +10,15 @@
               (cgen-extern "//opencv2 header")
               (cgen-extern "#include<opencv2/imgproc/imgproc_c.h>")
               (cgen-extern "")
-              
+
               (cgen-extern "
-typedef struct CvFeatureTree CvFeatureTree;
-typedef struct CvLSH CvLSH;
-")
-              )
-            (lambda () ;;epilogue
-              ))
-  0)
+                           typedef struct CvFeatureTree CvFeatureTree;
+                           typedef struct CvLSH CvLSH;
+                           ")
+                           )
+              (lambda () ;;epilogue
+                ))
+            0)
 
 ;;sym-name sym-scm-type pointer? finalize-name finalize-ref
 (define structs 

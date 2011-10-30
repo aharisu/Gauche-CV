@@ -1,6 +1,6 @@
 (define-module cv.highgui
-	(export-all)
-	)
+  (export-all)
+  )
 (select-module cv.highgui)
 
 ;; Loads extension

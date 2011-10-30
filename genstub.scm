@@ -50,13 +50,13 @@
 (use util.match)
 
 (define (main args)
-	(if (= (length (cdr args)) 0)
-		(usage))
-	(for-each
-		(lambda (file) (guard (e [(<cgen-stub-error> e) (exit 1 "~a" (ref e'message))])
-													(cgen-genstub file)))
-		(cdr args))
-	0)
+  (if (= (length (cdr args)) 0)
+    (usage))
+  (for-each
+    (lambda (file) (guard (e [(<cgen-stub-error> e) (exit 1 "~a" (ref e'message))])
+                     (cgen-genstub file)))
+    (cdr args))
+  0)
 
 (define (usage)
   (exit 1 "Usage: genstub [-D symbol] FILE.stub"))

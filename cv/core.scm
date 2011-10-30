@@ -1,6 +1,6 @@
 (define-module cv.core
-	(export-all)
-	)
+  (export-all)
+  )
 (select-module cv.core)
 
 ;; Loads extension

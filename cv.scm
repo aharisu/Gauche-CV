@@ -3,7 +3,7 @@
 ;;;
 
 (define-module cv
-	(extend cv.core cv.highgui cv.imgproc)
+  (extend cv.core cv.highgui cv.imgproc)
   )
 (select-module cv)
 

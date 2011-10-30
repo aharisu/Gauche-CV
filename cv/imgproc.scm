@@ -1,6 +1,6 @@
 (define-module cv.imgproc
-	(export-all)
-	)
+  (export-all)
+  )
 (select-module cv.imgproc)
 
 ;; Loads extension
