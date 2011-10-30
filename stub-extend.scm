@@ -1,6 +1,11 @@
+(add-load-path ".")
+
+
 (load "gauche/cgen/stub.scm")
 (select-module gauche.cgen.stub)
 
+(load "cise-extend.scm")
+(use gauche.cgen.cise)
 
 (define-class <cclass> (<stub>)
   ((cpa        :init-keyword :cpa       :init-value '())
