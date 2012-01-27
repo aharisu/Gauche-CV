@@ -20,8 +20,9 @@ typedef double _double_t;
 
 "
 
-(include "./cv_type.stub.header")
-(include "./macro.stub.header")
+(include "cv_type.stub.header")
+(include "core_type.gen.stub.header")
+(include "macro.stub.header")
 
 
 
@@ -178,26 +179,6 @@ typedef double _double_t;
 (define-cproc cv-reset-image-roi (image::<iplimage>) ::<void>
   (call "cvResetImageROI"))
 
-(define-cmethod object-apply ((obj::<iplimage> "Scm_IplImageClass") idx::<int>) ::<cv-scalar>
-  (c-generic-name "Scm_GenericObjectApply")
-  (ENSURE_NOT_NULL obj)
-  (result (cvGet1D obj idx)))
-
-(define-cmethod object-apply ((obj::<iplimage> "Scm_IplImageClass") idx::<int> (v::<cv-scalar> "Scm_CvScalarClass")) ::<void>
-  (c-generic-name "Scm_GenericObjectApply")
-  (ENSURE_NOT_NULL obj)
-  (cvSet1D obj idx v))
-
-(define-cmethod object-apply ((obj::<iplimage> "Scm_IplImageClass") y::<int> x::<int>) ::<cv-scalar>
-  (c-generic-name "Scm_GenericObjectApply")
-  (ENSURE_NOT_NULL obj)
-  (result (cvGet2D obj y x)))
-
-(define-cmethod object-apply ((obj::<iplimage> "Scm_IplImageClass") y::<int> x::<int> (v::<cv-scalar> "Scm_CvScalarClass")) ::<void>
-  (c-generic-name "Scm_GenericObjectApply")
-  (ENSURE_NOT_NULL obj)
-  (cvSet2D obj y x v))
-
 ;;-------------
 ;; CvMat
 ;;
@@ -230,26 +211,6 @@ typedef double _double_t;
         }"))
 (define-cproc cv-clone-mat (mat::<cv-mat>) ::<cv-mat>
   (call "cvCloneMat"))
-
-(define-cmethod object-apply ((obj::<cv-mat> "Scm_CvMatClass") idx::<int>) ::<cv-scalar>
-  (c-generic-name "Scm_GenericObjectApply")
-  (ENSURE_NOT_NULL obj)
-  (result (cvGet1D obj idx)))
-
-(define-cmethod object-apply ((obj::<cv-mat> "Scm_CvMatClass") idx::<int> (v::<cv-scalar> "Scm_CvScalarClass")) ::<void>
-  (c-generic-name "Scm_GenericObjectApply")
-  (ENSURE_NOT_NULL obj)
-  (cvSet1D obj idx v))
-
-(define-cmethod object-apply ((obj::<cv-mat> "Scm_CvMatClass") y::<int> x::<int>) ::<cv-scalar>
-  (c-generic-name "Scm_GenericObjectApply")
-  (ENSURE_NOT_NULL obj)
-  (result (cvGet2D obj y x)))
-
-(define-cmethod object-apply ((obj::<cv-mat> "Scm_CvMatClass") y::<int> x::<int> (v::<cv-scalar> "Scm_CvScalarClass")) ::<void>
-  (c-generic-name "Scm_GenericObjectApply")
-  (ENSURE_NOT_NULL obj)
-  (cvSet2D obj y x v))
 
 ;;-------------
 ;; CvMatND

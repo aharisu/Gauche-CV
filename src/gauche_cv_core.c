@@ -24,7 +24,7 @@ static int CV_CDECL cv_error_handler(int status, const char* func_name,
 /*
  * Module initialization function.
  */
-extern void Scm_Init_gauche_cv_corelib(ScmModule*);
+extern void Scm_Init_cv_corelib(ScmModule*);
 extern void Scm_Init_core_type(ScmModule*);
 void Scm_Init_gauche_cv_core(void)
 {
@@ -37,7 +37,7 @@ void Scm_Init_gauche_cv_core(void)
 				mod = SCM_MODULE(SCM_FIND_MODULE("cv.core", TRUE));
 				
 				/* Register stub-generated procedures */
-				Scm_Init_gauche_cv_corelib(mod);
+				Scm_Init_cv_corelib(mod);
 				Scm_Init_core_type(mod);
 
 				//set opencv error handler

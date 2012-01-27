@@ -3,7 +3,7 @@
 #include \"gauche_cv_imgproc.h\"
 #include <opencv2/imgproc/imgproc_c.h>
 
-#include \"core_type.gen.h\"
+#include \"../core_type.gen.h\"
 #include \"imgproc_type.gen.h\"
 
 typedef void* _pvoid_t;
@@ -18,9 +18,10 @@ typedef double _double_t;
 
 "
 
-(include "./cv_type.stub.header")
-(include "./imgproc_type.gen.stub.header")
-(include "./macro.stub.header")
+(include "imgproc_type.gen.stub.header")
+(include "../cv_type.stub.header")
+(include "../core_type.gen.stub.header")
+(include "../macro.stub.header")
 
 ;;*************Background statistics accumulation*********
 (define-cproc cv-acc (image::<cv-arr> sum::<cv-arr>
@@ -585,6 +586,12 @@ return (x < y) ? y : x;
 ;;Planar subdivisions
 ;;******************
 
+;;;;;
+;; @type cmd
+;; @@class-c->scm Scm_CvGraphClass <cv-graph>
+;; @@class-c->scm Scm_CvSetClass <cv-set>
+;; @@class-c->scm Scm_CvSeqClass <cv-seq>
+;; @@class-c->scm Scm_CvTreeNodeClass <cv-tree-node>
 
 (define-cclass <cv-subdiv-2d>
   :built-in
@@ -904,7 +911,7 @@ Scm_Error(\"internal error\");
       (cvReleaseMat (& output-mat)))
 
     (if create-mat?
-      (cvReleaseMat (& input)))
+      (cvReleaseMat (cast CvMat** (& input))))
     ))
 
 
@@ -914,7 +921,7 @@ Scm_Error(\"internal error\");
     (obj-to-cvarr contour (& input) 0 (& create-mat?) 0)
     (result (cvCheckContourConvexity input))
     (if create-mat?
-      (cvReleaseMat (& input)))))
+      (cvReleaseMat (cast CvMat** (& input))))))
 
 
 ;;not support cvConvexityDefects

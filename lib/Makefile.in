@@ -1,0 +1,63 @@
+.PHONY: test clean install
+
+# General info
+SHELL       = @SHELL@
+prefix      = @prefix@
+exec_prefix = @exec_prefix@
+bindir      = @bindir@
+libdir      = @libdir@
+datadir     = @datadir@
+datarootdir = @datarootdir@
+srcdir      = @srcdir@
+VPATH       = $(srcdir)
+
+
+DESTDIR        =
+GOSH           = "@GOSH@"
+GAUCHE_CONFIG  = "@GAUCHE_CONFIG@"
+INSTALL        = "@GAUCHE_INSTALL@" -C
+
+GAUCHE_PKGLIBDIR  = "$(DESTDIR)@GAUCHE_PKGLIBDIR@"
+
+TARGET = 
+
+STUBDIR=@STUBDIR@
+SCRIPTDIR=@SCRIPTDIR@
+GENDOC="@GENDOC@"
+OUTDIR = "@OUTDIR@"
+
+SCMFILES = cv.scm
+GENERATED = 
+
+CONFIG_GENERATED = Makefile
+
+all : $(TARGET)
+	cd cv ; $(MAKE) all
+
+
+test :
+
+install :
+	$(INSTALL) -m 444 -T $(GAUCHE_PKGLIBDIR) $(SCMFILES) 
+	cd cv ; $(MAKE) install
+
+uninstall :
+	$(INSTALL) -U $(GAUCHE_PKGLIBDIR) $(SCMFILES) 
+	cd cv ; $(MAKE) uninstall
+
+clean :
+	rm -rf core *~ $(GENERATED)
+	cd cv ; $(MAKE) clean
+
+realclean : clean
+	rm -rf $(CONFIG_GENERATED)
+	cd cv ; $(MAKE) realclean
+
+maintainer-clean : clean
+	rm -rf $(CONFIG_GENERATED)
+	cd cv ; $(MAKE) maintainer-clean
+
+collect :
+	@if test "$(SCMFILES)" != ""; then (cp -p -u $(SCMFILES) $(OUTDIR)/scm/); fi
+	cd cv ; $(MAKE) collect
+

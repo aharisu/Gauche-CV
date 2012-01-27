@@ -4,7 +4,7 @@
 /*
  * Module initialization function.
  */
-extern void Scm_Init_gauche_cv_imgproclib(ScmModule *mod);
+extern void Scm_Init_cv_imgproclib(ScmModule *mod);
 extern void Scm_Init_imgproc_type(ScmModule *mod);
 void Scm_Init_gauche_cv_imgproc(void)
 {
@@ -17,6 +17,6 @@ void Scm_Init_gauche_cv_imgproc(void)
 				mod = SCM_MODULE(SCM_FIND_MODULE("cv.imgproc", TRUE));
 				
 				/* Register stub-generated procedures */
-				Scm_Init_gauche_cv_imgproclib(mod);
+				Scm_Init_cv_imgproclib(mod);
 				Scm_Init_imgproc_type(mod);
 }

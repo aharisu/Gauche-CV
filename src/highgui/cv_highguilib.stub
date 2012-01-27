@@ -2,10 +2,12 @@
 #include \"gauche_cv_highgui.h\"
 #include <opencv2/highgui/highgui_c.h>
 
-#include \"core_type.gen.h\"
+#include \"../core_type.gen.h\"
 "
 
-(include "./cv_type.stub.header")
+(include "../cv_type.stub.header")
+(include "../core_type.gen.stub.header")
+(include "../macro.stub.header")
 
 
 ;;-----------------

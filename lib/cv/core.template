@@ -1,0 +1,32 @@
+(define-module cv.core
+	(export-all)
+	)
+(select-module cv.core)
+
+;; Loads extension
+(dynamic-load "gauche_cv_core")
+
+(define-method object-apply ((obj <iplimage>) idx)
+  (cv-get-1d obj idx))
+
+(define-method object-apply ((obj <iplimage>) idx (v <cv-scalar>))
+  (cv-set-1d obj idx v))
+
+(define-method object-apply ((obj <iplimage>) x y)
+  (cv-get-2d obj x y))
+
+(define-method object-apply ((obj <iplimage>) x y (v <cv-scalar>))
+  (cv-set-2d obj x y v))
+
+(define-method object-apply ((obj <cv-mat>) idx)
+  (cv-get-1d obj idx))
+
+(define-method object-apply ((obj <cv-mat>) idx (v <cv-scalar>))
+  (cv-set-1d obj idx v))
+
+(define-method object-apply ((obj <cv-mat>) x y)
+  (cv-get-2d obj x y))
+
+(define-method object-apply ((obj <cv-mat>) x y (v <cv-scalar>))
+  (cv-set-2d obj x y v))
+

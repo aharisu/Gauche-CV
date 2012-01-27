@@ -1,0 +1,75 @@
+.PHONY: test clean install
+
+# General info
+SHELL       = @SHELL@
+prefix      = @prefix@
+exec_prefix = @exec_prefix@
+bindir      = @bindir@
+libdir      = @libdir@
+datadir     = @datadir@
+datarootdir = @datarootdir@
+srcdir      = @srcdir@
+VPATH       = $(srcdir)
+
+
+DESTDIR        =
+GOSH           = "@GOSH@"
+GAUCHE_CONFIG  = "@GAUCHE_CONFIG@"
+INSTALL        = "@GAUCHE_INSTALL@" -C
+
+GAUCHE_PKGLIBDIR  = "$(DESTDIR)@GAUCHE_PKGLIBDIR@"
+
+STUBDIR=@STUBDIR@
+SCRIPTDIR=@SCRIPTDIR@
+GENDOC="@GENDOC@"
+OUTDIR = "@OUTDIR@"
+
+
+
+SCMFILES = core.scm highgui.scm imgproc.scm 
+GENERATED = core.scm highgui.scm imgproc.scm 
+
+CONFIG_GENERATED = Makefile
+
+all : $(SCMFILES)
+
+core.scm: $(STUBDIR)/cv_corelib.stub core.template
+	$(GOSH) -I$(SCRIPTDIR) $(GENDOC) -s $(STUBDIR)/cv_corelib.stub -t core.template -o core.scm
+
+highgui.scm: $(STUBDIR)/highgui/cv_highguilib.stub highgui.template
+	$(GOSH) -I$(SCRIPTDIR) $(GENDOC) -s $(STUBDIR)/highgui/cv_highguilib.stub -t highgui.template -o highgui.scm
+
+imgproc.scm: $(STUBDIR)/imgproc/cv_imgproclib.stub imgproc.template
+	$(GOSH) -I$(SCRIPTDIR) $(GENDOC) -s $(STUBDIR)/imgproc/cv_imgproclib.stub -t imgproc.template -o imgproc.scm
+
+test :
+
+install :
+	@if test ! -d $(GAUCHE_PKGLIBDIR)/cv ; then \
+	  $(INSTALL) -d $(GAUCHE_PKGLIBDIR)/cv; \
+	fi
+	@for f in $(SCMFILES) _end; do \
+	  if test $$f != _end; then \
+	    $(INSTALL) -m 444 $$f $(GAUCHE_PKGLIBDIR)/cv/$$f; \
+	  fi; \
+	done
+
+uninstall :
+	@for f in $(SCMFILES) _end; do \
+	  if test $$f != _end; then \
+	    $(INSTALL) -U $(GAUCHE_PKGLIBDIR)/cv $$f; \
+	  fi; \
+	done
+
+clean :
+	rm -rf core *~ $(GENERATED)
+
+realclean : clean
+	rm -rf $(CONFIG_GENERATED)
+
+maintainer-clean : clean
+	rm -rf $(CONFIG_GENERATED)
+
+collect :
+	@mkdir -p $(OUTDIR)/scm/cv
+	@if test "$(SCMFILES)" != ""; then (cp -p -u $(SCMFILES) $(OUTDIR)/scm/cv/); fi

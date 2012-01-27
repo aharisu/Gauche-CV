@@ -6,6 +6,3 @@
 	"SCM_CVARR_P"
 	"SCM_CVARR_DATA")
 
-;;include auto generated header
-(include "core_type.gen.stub.header")
-

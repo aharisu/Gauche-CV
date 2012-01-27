@@ -66,17 +66,24 @@ PKG_CHECK_MODULES([OPENCV], [opencv])
 AC_SUBST(OPENCV_CFLAGS)
 AC_SUBST(OPENCV_LIBS)
 
-LDFLAGS=""
 CORE_LIBS=""
+PWD="pwd"
 case "$target" in
 	*mingw*)
-		LDFLAGS="$LDFLAGS -L."
 		CORE_LIBS="-lgauche_cv_core"
+    PWD="pwd -W"
 	;;
 esac
 AC_SUBST(CORE_LIBS)
-AC_SUBST(LDFLAGS)
 
+AC_SUBST(STUBDIR, "`$PWD`/src")
+SCRIPTDIR="`$PWD`/script"
+AC_SUBST(COREDIR, "-L$STUBDIR")
+AC_SUBST(SCRIPTDIR)
+AC_SUBST(GENSTUB, "$SCRIPTDIR/genstub.scm")
+AC_SUBST(GENDOC, "$SCRIPTDIR/gendoc.scm")
+
+AC_SUBST(OUTDIR, "`$PWD`/out")
 
 dnl Creating gpd (gauche package description) file
 GAUCHE_PACKAGE_CONFIGURE_ARGS="`echo ""$ac_configure_args"" | sed 's/[\\""\`\$]/\\\&/g'`"
@@ -87,5 +94,5 @@ AC_MSG_NOTICE([creating ${PACKAGE_NAME}.gpd])
 
 dnl Output
 echo $PACKAGE_VERSION > VERSION
-AC_OUTPUT(Makefile)
+AC_OUTPUT(Makefile src/Makefile src/highgui/Makefile src/imgproc/Makefile lib/Makefile lib/cv/Makefile)
 

@@ -7,7 +7,7 @@
 /*
  * Module initialization function.
  */
-extern void Scm_Init_gauche_cv_highguilib(ScmModule *mod);
+extern void Scm_Init_cv_highguilib(ScmModule *mod);
 void Scm_Init_gauche_cv_highgui(void)
 {
 				ScmModule *mod;
@@ -19,5 +19,5 @@ void Scm_Init_gauche_cv_highgui(void)
 				mod = SCM_MODULE(SCM_FIND_MODULE("cv.highgui", TRUE));
 				
 				/* Register stub-generated procedures */
-				Scm_Init_gauche_cv_highguilib(mod);
+				Scm_Init_cv_highguilib(mod);
 }

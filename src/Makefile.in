@@ -1,0 +1,112 @@
+# General info
+SHELL       = @SHELL@
+prefix      = @prefix@
+exec_prefix = @exec_prefix@
+bindir      = @bindir@
+libdir      = @libdir@
+datadir     = @datadir@
+datarootdir = @datarootdir@
+srcdir      = @srcdir@
+VPATH       = $(srcdir)
+
+# These may be overridden by make invocators
+DESTDIR        =
+GOSH           = "@GOSH@"
+GAUCHE_CONFIG  = "@GAUCHE_CONFIG@"
+GAUCHE_PACKAGE = "@GAUCHE_PACKAGE@"
+INSTALL        = "@GAUCHE_INSTALL@" -C
+
+# Other parameters
+OPENCV_CFLAGS = @OPENCV_CFLAGS@
+OPENCV_LIBS = @OPENCV_LIBS@
+SOEXT  = @SOEXT@
+OBJEXT = @OBJEXT@
+EXEEXT = @EXEEXT@
+LOCAL_PATHS = "@LOCAL_PATHS@"
+
+ARCHFILES = gauche_cv_core.$(SOEXT) 
+
+TARGET    = $(ARCHFILES)
+GENERATED = *.o *.gen.* *lib.c gauche_cv_core.$(SOEXT)
+CONFIG_GENERATED = Makefile 
+
+GAUCHE_PKGINCDIR  = "$(DESTDIR)@GAUCHE_PKGINCDIR@"
+GAUCHE_PKGLIBDIR  = "$(DESTDIR)@GAUCHE_PKGLIBDIR@"
+GAUCHE_PKGARCHDIR = "$(DESTDIR)@GAUCHE_PKGARCHDIR@"
+
+SCRIPTDIR = "@SCRIPTDIR@"
+OUTDIR = "@OUTDIR@"
+GENSTUB = "@GENSTUB@"
+
+cv_TYPE_HDRS = core_type.gen.h	\
+							 macro.stub.header	\
+							 cv_struct_pre_include.h	\
+
+cv_STUB_TYPE_HDRS = cv_type.stub.header	\
+										core_type.gen.stub.header \
+
+cv_CORE_SRCS = gauche_cv_core.c \
+							 cv_corelib.c \
+							 core_type.gen.c	\
+
+all : $(TARGET)
+	cd highgui; $(MAKE) all
+	cd imgproc; $(MAKE) all
+
+
+#generate sutb -> c file
+.SUFFIXES:.stub .c
+
+.stub.c:
+	$(GOSH) -I$(SCRIPTDIR) $(GENSTUB) $<
+
+
+cv_corelib.c: $(cv_STUB_TYPE_HDRS)
+
+#generate type file
+core_type.gen.c core_type.gen.h core_type.gen.stub.header: core_type.scm
+	$(GOSH) -I$(SCRIPTDIR) core_type.scm
+
+#compile core
+gauche_cv_core.$(SOEXT): $(cv_CORE_SRCS) $(cv_TYPE_HDRS) $(cv_STUB_TYPE_HDRS)
+	$(GAUCHE_PACKAGE) compile \
+	  --local=$(LOCAL_PATHS) --verbose --cflags="$(OPENCV_CFLAGS)" --libs="$(OPENCV_LIBS)" gauche_cv_core $(cv_CORE_SRCS)
+
+
+check :
+	@rm -f test.log
+	$(GOSH) -I. -I$(srcdir) test.scm > test.log
+	cd highgui; $(MAKE) check
+	cd imgproc; $(MAKE) check
+
+install :
+	$(INSTALL) -m 555 -T $(GAUCHE_PKGARCHDIR) $(ARCHFILES)
+	cd highgui; $(MAKE) install
+	cd imgproc; $(MAKE) install
+
+uninstall :
+	$(INSTALL) -U $(GAUCHE_PKGARCHDIR) $(ARCHFILES)
+	cd highgui; $(MAKE) uninstall
+	cd imgproc; $(MAKE) uninstall
+
+clean :
+	$(GAUCHE_PACKAGE) compile --clean $(cv_CORE_SRCS) 
+	rm -rf $(TARGET) $(GENERATED) *~ test.log so_locations
+	cd highgui; $(MAKE) clean
+	cd imgproc; $(MAKE) clean
+
+distclean : clean
+	rm -rf $(CONFIG_GENERATED)
+	cd highgui; $(MAKE) distclean
+	cd imgproc; $(MAKE) distclean
+
+maintainer-clean : clean
+	rm -rf $(CONFIG_GENERATED) configure VERSION
+	cd highgui; $(MAKE) maintainer-clean
+	cd imgproc; $(MAKE) maintainer-clean
+
+collect :
+	@if test "$(ARCHFILES)" != ""; then (cp -p -u $(ARCHFILES) $(OUTDIR)/dll/); fi
+	cd highgui; $(MAKE) collect
+	cd imgproc; $(MAKE) collect
+
