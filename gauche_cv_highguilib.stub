@@ -1,11 +1,11 @@
 "
+#include \"gauche_cv_highgui.h\"
 #include <opencv2/highgui/highgui_c.h>
 
 #include \"core_type.gen.h\"
 "
 
 (include "./cv_type.stub.header")
-
 
 
 ;;-----------------
@@ -21,17 +21,22 @@
   `(== ,val 0))
 
 (define-cproc cv-load-image (name::<const-cstring> 
-                              :optional (flags::<int> 1)) ::<iplimage>
-  (let* ([img::IplImage* (cvLoadImage name flags)])
+                              :optional (iscolor::<int> 1)) ::<iplimage>
+  (let* ([img::IplImage* (cvLoadImage name iscolor)])
     (if (zero? img)
       (Scm_Error "load failed.")
       (result img))))
+
+(define-cproc cv-save-image (name::<const-cstring> image::<iplimage>) ::<boolean>
+  (result (cvSaveImage name image 0)))
+
 
 ;;-----------------
 ;; Constants
 ;;
 (define-enum CV_WINDOW_NORMAL)
 (define-enum CV_WINDOW_AUTOSIZE)
+
 (define-cproc cv-named-window (name::<const-cstring> 
                                 :optional (flags::<int> 1)) ::<int>
   (result (cvNamedWindow name flags)))
@@ -47,4 +52,27 @@
 
 (define-cproc cv-wait-key (delay::<int>) ::<int>
   (result (cvWaitKey delay)))
+
+(define-cproc cv-create-camera-capture (index::<int>) ::<cv-capture>
+  (result (cvCreateCameraCapture index)))
+
+(define-cproc cv-grab-frame (capture::<cv-capture>) ::<boolean>
+  (ENSURE_NOT_NULL capture)
+  (result (cvGrabFrame capture)))
+
+(define-cproc cv-retrieve-frame (capture::<cv-capture>
+                                  :optional (streamIdx::<int> 0)) ::<iplimage>
+  (ENSURE_NOT_NULL capture)
+  (result (cvRetrieveFrame capture streamIdx)))
+
+(define-cproc cv-query-frame (capture::<cv-capture>) ::<iplimage>
+  (ENSURE_NOT_NULL capture)
+  (result (cvQueryFrame capture)))
+
+(define-cproc cv-release-capture (capture::<cv-capture>) ::<void>
+  (if capture
+    (begin
+      (cvReleaseCapture (& capture))
+      (set! (-> (SCM_FOREIGN_POINTER capture_scm) ptr) NULL))))
+
 

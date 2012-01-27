@@ -18,16 +18,12 @@ typedef unsigned int _uint_t;
 typedef float _float_t;
 typedef double _double_t;
 
-
-#define ARY_SRC_COUNT 10
-static CvArr* ary_src_global[ARY_SRC_COUNT];
-#define ARY_DEST_COUNT 5
-static CvArr* ary_dst_global[ARY_DEST_COUNT];
-#define ARY_FROM_TO_COUNT 10 
-static int ary_from_to_global[ARY_FROM_TO_COUNT];
 "
 
 (include "./cv_type.stub.header")
+(include "./macro.stub.header")
+
+
 
 ;;--------------------------------------
 ;; Constants
@@ -182,6 +178,25 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 (define-cproc cv-reset-image-roi (image::<iplimage>) ::<void>
   (call "cvResetImageROI"))
 
+(define-cmethod object-apply ((obj::<iplimage> "Scm_IplImageClass") idx::<int>) ::<cv-scalar>
+  (c-generic-name "Scm_GenericObjectApply")
+  (ENSURE_NOT_NULL obj)
+  (result (cvGet1D obj idx)))
+
+(define-cmethod object-apply ((obj::<iplimage> "Scm_IplImageClass") idx::<int> (v::<cv-scalar> "Scm_CvScalarClass")) ::<void>
+  (c-generic-name "Scm_GenericObjectApply")
+  (ENSURE_NOT_NULL obj)
+  (cvSet1D obj idx v))
+
+(define-cmethod object-apply ((obj::<iplimage> "Scm_IplImageClass") y::<int> x::<int>) ::<cv-scalar>
+  (c-generic-name "Scm_GenericObjectApply")
+  (ENSURE_NOT_NULL obj)
+  (result (cvGet2D obj y x)))
+
+(define-cmethod object-apply ((obj::<iplimage> "Scm_IplImageClass") y::<int> x::<int> (v::<cv-scalar> "Scm_CvScalarClass")) ::<void>
+  (c-generic-name "Scm_GenericObjectApply")
+  (ENSURE_NOT_NULL obj)
+  (cvSet2D obj y x v))
 
 ;;-------------
 ;; CvMat
@@ -215,6 +230,26 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
         }"))
 (define-cproc cv-clone-mat (mat::<cv-mat>) ::<cv-mat>
   (call "cvCloneMat"))
+
+(define-cmethod object-apply ((obj::<cv-mat> "Scm_CvMatClass") idx::<int>) ::<cv-scalar>
+  (c-generic-name "Scm_GenericObjectApply")
+  (ENSURE_NOT_NULL obj)
+  (result (cvGet1D obj idx)))
+
+(define-cmethod object-apply ((obj::<cv-mat> "Scm_CvMatClass") idx::<int> (v::<cv-scalar> "Scm_CvScalarClass")) ::<void>
+  (c-generic-name "Scm_GenericObjectApply")
+  (ENSURE_NOT_NULL obj)
+  (cvSet1D obj idx v))
+
+(define-cmethod object-apply ((obj::<cv-mat> "Scm_CvMatClass") y::<int> x::<int>) ::<cv-scalar>
+  (c-generic-name "Scm_GenericObjectApply")
+  (ENSURE_NOT_NULL obj)
+  (result (cvGet2D obj y x)))
+
+(define-cmethod object-apply ((obj::<cv-mat> "Scm_CvMatClass") y::<int> x::<int> (v::<cv-scalar> "Scm_CvScalarClass")) ::<void>
+  (c-generic-name "Scm_GenericObjectApply")
+  (ENSURE_NOT_NULL obj)
+  (cvSet2D obj y x v))
 
 ;;-------------
 ;; CvMatND
@@ -642,6 +677,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 (define-enum CV_SEQ_POLYGON)
 (define-enum CV_SEQ_CONTOUR)
 (define-enum CV_SEQ_SIMPLE_POLYGON)
+(define-enum CV_SEQ_ELTYPE_PTR)
 
 ;;chain-coded curves
 (define-enum CV_SEQ_CHAIN)
@@ -657,9 +693,10 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 (define-enum CV_SEQ_INDEX)
 
 (define-cproc make-cv-seq (storage::<cv-mem-storage>
-                            :optional (flag::<int> -1)) ::<cv-seq>
+                            :optional (flag::<int> 7)) ;flag 7 is CV_SEQ_ELTYPE_PTR
+  ::<cv-seq>
   (let* ([size::int])
-    (if (< flag 0)
+    (if (== flag CV_SEQ_ELTYPE_PTR)
       (set! size (sizeof ScmObj))
       (begin
         (set! size (CV_MAT_CN (logand flag CV_SEQ_ELTYPE_MASK)))
@@ -763,27 +800,47 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 (define-enum CV_FRONT)
 (define-enum CV_BACK)
 
-(define-cise-stmt (seq-multi-push ary-type unboxer)
+(define-cise-stmt (seq-multi-push ary-type unboxer tmp-ary tmp-count)
   (let ([p-type (string-append (symbol->string ary-type) "*")])
-    `(let* ([count::int (/ (* (sizeof _pvoid_t) ARY_SRC_COUNT) (sizeof ,ary-type))]
+    `(let* ([count::int (/ (* (sizeof _pvoid_t) ,tmp-count) (sizeof ,ary-type))]
             [ary::,p-type (?: (< count vec-size)
                               (SCM_MALLOC (* (sizeof ,ary-type) vec-size))
-                              (cast ,p-type ary_src_global))])
+                              (cast ,p-type ,tmp-ary))])
        (dotimes [i vec-size] (set! (aref ary i)
                                (,unboxer (SCM_VECTOR_ELEMENT elements i))))
        (set! p-elem ary))))
 
-(define-cproc cv-seq-push-multi (seq::<cv-seq> elements::<vector>
-                                               :optional (in-front::<int> 0)) ::<void>
-  (let* ([vec-size::int (SCM_VECTOR_SIZE elements)]
-         [p-elem::void*])
-    (case-seq-type seq
-                   (seq-multi-push CvPoint SCM_CVPOINT_DATA)
-                   (seq-multi-push _char_t Scm_GetIntegerU)
-                   (seq-multi-push _int_t Scm_GetInteger)
-                   (seq-multi-push CvPoint3D32f SCM_CVPOINT3D32F_DATA)
-                   (seq-multi-push ScmObj SCM_OBJ))
-    (cvSeqPushMulti seq p-elem vec-size in-front)))
+"
+#define TMP_ARY_SIZE 10
+"
+(eval-in-current-module
+  (gen-elem-assign <cv-point>)
+  (gen-elem-assign <cv-point-3d32f>)
+  (gen-elem-assign <uint8>)
+  (gen-elem-assign <int>)
+  )
+(define-cproc cv-seq-push-multi (seq::<cv-seq> elements
+                                               :optional (in-front::<boolean> #f)) ::<void>
+  (let* ([size::int]
+         [p-elem::void*]
+         [tmp-ary :: (.array void* (TMP_ARY_SIZE))])
+    (cond
+      [(is-type? elements <vector>)
+       (set! size (SCM_VECTOR_SIZE elements))
+       (case-seq-type seq
+                      (vector-to-ary elements p-elem tmp-ary TMP_ARY_SIZE CvPoint <cv-point>-elem-assign)
+                      (vector-to-ary elements p-elem tmp-ary TMP_ARY_SIZE _char_t <uint8>-elem-assign)
+                      (vector-to-ary elements p-elem tmp-ary TMP_ARY_SIZE _int_t <int>-elem-assign)
+                      (vector-to-ary elements p-elem tmp-ary TMP_ARY_SIZE CvPoint3D32f <cv-point-3d32f>-elem-assign)
+                      (vector-to-ary elements p-elem tmp-ary TMP_ARY_SIZE ScmObj <top>-elem-assign))]
+      [(is-type? elements <list>)
+       (case-seq-type seq
+                      (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size CvPoint <cv-point>-elem-assign)
+                      (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size _char_t <uint8>-elem-assign)
+                      (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size _int_t <int>-elem-assign)
+                      (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size CvPoint3D32f <cv-point-3d32f>-elem-assign)
+                      (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size ScmObj <top>-elem-assign))])
+    (cvSeqPushMulti seq p-elem size in-front)))
 
 (define-cise-stmt (seq-multi-pop ary-type boxer)
   (let ([p-type (string-append (symbol->string ary-type) "*")])
@@ -792,7 +849,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
                             (,boxer (aref t-ary i)))))))
 
 (define-cproc cv-seq-pop-multi (seq::<cv-seq> count::<int>
-                                              :optional (in-front::<int> 0)) ::<vector>
+                                              :optional (in-front::<boolean> #f)) ::<vector>
   (let* ([vec::ScmVector* (cast ScmVector* (Scm_MakeVector count SCM_UNDEFINED))]
          [ary::void*])
     (case-seq-type seq
@@ -883,7 +940,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 
 
 (define-cproc cv-start-read-seq (seq::<cv-seq>
-                                  :optional (reverse::<boolean> 0)) ::<cv-seq-reader>
+                                  :optional (reverse::<boolean> #f)) ::<cv-seq-reader>
   (let* ([reader::CvSeqReader* (SCM_MALLOC (sizeof reader))])
     (cvStartReadSeq seq reader reverse)
     (result reader)))
@@ -892,7 +949,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
   (result (cvGetSeqReaderPos reader)))
 
 (define-cproc cv-set-seq-reader-pos (reader::<cv-seq-reader> index::<int>
-                                                             :optional (relative?::<boolean> 0)) ::<void>
+                                                             :optional (relative?::<boolean> #f)) ::<void>
   (cvSetSeqReaderPos reader index relative?))
 
 (define-cproc cv-next-seq-elem (reader::<cv-seq-reader>) ::<void>
@@ -919,6 +976,16 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
                    (CV_READ_SEQ_ELEM obj (* reader))
                    (result obj))))
 
+;;gauche-cv original function
+(define-cproc cv-ref-seq-elem (reader::<cv-seq-reader>) ::<top>
+  (case-seq-type (-> reader seq)
+                 (result (SCM_MAKE_CVPOINT (* (cast CvPoint* (-> reader ptr)))))
+                 (result (Scm_MakeIntegerFromUI (* (cast u_int* (-> reader ptr)))))
+                 (result (Scm_MakeInteger (* (cast int* (-> reader ptr)))))
+                 (result (SCM_MAKE_CVPOINT3D32F (* (cast CvPoint3D32f* (-> reader ptr)))))
+                 (result (* (cast ScmObj* (-> reader ptr))))))
+
+
 (define-cproc cv-rev-read-seq-elem (reader::<cv-seq-reader>) ::<top>
   (case-seq-type (-> reader seq)
                  (let* ([pt::CvPoint])
@@ -944,7 +1011,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 ;;CV_READ_EDGE
 
 
-;;next cvCvtSeqToArray
+;;TODO cvCvtSeqToArray
 
 (define-cclass <cv-set>
   :built-in
@@ -993,11 +1060,13 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 (define-cproc cv-get-elemtype (arr::<cv-arr>) ::<int>
   (result (cvGetElemType arr)))
 
-(define-cproc cv-get-dims (arr::<cv-arr>)::(<int> <top>)
-  (body (<int> <top>)
-        "ScmObj vec = Scm_MakeS32Vector(CV_MAX_DIM, 0);"
-        "int dims = cvGetDims(arr, SCM_S32VECTOR_ELEMENTS(vec));"
-        (result dims vec)))
+(define-cproc cv-get-dims (arr::<cv-arr>)::<s32vector>
+  (let* ([sizes :: (.array int (CV_MAX_DIM))]
+         [dims :: int (cvGetDims arr sizes)]
+         [vec :: ScmUVector* (SCM_S32VECTOR (Scm_MakeS32Vector dims 0))])
+    (dotimes [i dims]
+      (set! (SCM_S32VECTOR_ELEMENT vec i) (aref sizes i)))
+    (result vec)))
 
 (define-cproc cv-get-dimsize (arr::<cv-arr> index::<int>)::<int>
   (result (cvGetDimSize arr index)))
@@ -1043,7 +1112,9 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
   (cvClearND arr (SCM_S32VECTOR_ELEMENTS idx)))
 
 (define-cproc cv-get-mat(arr::<cv-arr> :optional (allow-nd::<boolean> #f)) ::<cv-mat>
-  (let* ([tmp::CvMat* (cvCreateMatHeader 1 1 CV_8UC1)])
+  (let* ([tmp::CvMat* (?: (is-type? arr_scm <cv-mat>)
+                        NULL
+                        (cvCreateMatHeader 1 1 CV_8UC1))])
     (result (cvGetMat arr tmp NULL allow-nd))))
 
 (define-cproc cv-get-image(arr::<cv-arr>) ::<iplimage>
@@ -1051,25 +1122,29 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
     (result (cvGetImage arr tmp))))
 
 (define-cproc cv-reshape-mat-nd(arr::<cv-arr> new-cn::<int> new-dims::<s32vector>) ::<top>
-  (let* ([size::int (?: (== 0 (SCM_S32VECTOR_SIZE new-dims)) 0 (- (SCM_S32VECTOR_SIZE new-dims) 1))]
+  (let* ([size::int (?: (== 0 (SCM_S32VECTOR_SIZE new-dims)) 
+                        0 
+                        (- (SCM_S32VECTOR_SIZE new-dims) 1))]
          [ret::ScmObj])
     (cond
       [(CV_IS_IMAGE_HDR arr) 
        (let* ([tmp::IplImage* (cvCreateImageHeader (cvSize 1 1) IPL_DEPTH_8U 1)])
-         (set! ret (SCM_MAKE_IPLIMAGE
-                     (cvReshapeMatND arr (sizeof (* tmp)) tmp 
-                                     new-cn size (SCM_S32VECTOR_ELEMENTS new-dims)))))]
+         (set! ret (boxing (cvReshapeMatND arr (sizeof (* tmp)) tmp 
+                                           new-cn size (SCM_S32VECTOR_ELEMENTS new-dims))
+                           <iplimage>)))]
       [(CV_IS_MAT_HDR arr)
        (let* ([tmp::CvMat* (cvCreateMatHeader 1 1 CV_8UC1)])
-         (set! ret (SCM_MAKE_CVMAT (cvReshapeMatND arr (sizeof (* tmp)) tmp 
-                                                   new-cn size (SCM_S32VECTOR_ELEMENTS new-dims)))))]
+         (set! ret (boxing (cvReshapeMatND arr (sizeof (* tmp)) tmp 
+                                           new-cn size (SCM_S32VECTOR_ELEMENTS new-dims))
+                           <cv-mat>)))]
       [(CV_IS_MATND_HDR arr)
        (let* ([sizes::(.array int (1))]
               [tmp::CvMatND*])
          (set! (aref sizes 0) 1)
          (set! tmp (cvCreateMatNDHeader 1 sizes CV_8UC1))
-         (set! ret (SCM_MAKE_CVMATND (cvReshapeMatND arr (sizeof (* tmp)) tmp 
-                                                     new-cn size (SCM_S32VECTOR_ELEMENTS new-dims)))))])
+         (set! ret (boxing (cvReshapeMatND arr (sizeof (* tmp)) tmp 
+                                                     new-cn size (SCM_S32VECTOR_ELEMENTS new-dims))
+                                     <cv-matnd>)))])
     (result ret)))
 
 (define-cproc cv-reshape (arr::<cv-arr> new-cn::<int> :optional (new_rows::<int> 0)) ::<cv-mat>
@@ -1084,20 +1159,6 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 
 (define-cproc cv-get-size (arr::<cv-arr>) ::<cv-size>
   (call "cvGetSize"))
-
-(define-cise-stmt (nil-or-obj to from sym-type obj)
-  (let* ([type (cgen-type-from-name sym-type)])
-    `(cond
-       [(SCM_NULLP ,to) (set! ,from ,obj)]
-       [(,(string->symbol (~ type'c-predicate)) ,to) (set! ,from (,(string->symbol (~ type'unboxer)),to))]
-       [else (Scm_Error ,#`",(~ type'description) or () required, but got %S" ,to)])))
-
-
-(define-cise-stmt (nil-or-cvarr to from)
-  `(cond
-     [(SCM_NULLP ,to) (set! ,from NULL)]
-     [(SCM_CVARR_P ,to) (set! ,from (SCM_CVARR_DATA ,to))]
-     [else (Scm_Error "CvArr or () required, but got %S" ,to)]))
 
 (define-cproc cv-copy (src::<cv-arr> dest::<cv-arr> :optional (mask-obj ())) ::<void>
   (let* ([mask::CvArr*])
@@ -1137,27 +1198,55 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
     (nil-or-cvarr src3-obj src3)
     (cvMerge src0 src1 src2 src3 dest)))
 
-(define-cproc cv-mix-channels (src-vec::<vector>
-                                dst-vec::<vector>
-                                from-to-vec::<vector>) ::<void>
-  (let* ([src-cnt::int (SCM_VECTOR_SIZE src-vec)]
-         [src::CvArr** (?: (< ARY_SRC_COUNT src-cnt)
-                           (SCM_MALLOC (* (sizeof src) src-cnt))
-                           ary_src_global)]
-         [dst-cnt::int (SCM_VECTOR_SIZE dst-vec)]
-         [dst::CvArr** (?: (< ARY_DEST_COUNT dst-cnt)
-                           (SCM_MALLOC (* (sizeof dst) dst-cnt))
-                           ary_dst_global)]
-         [from-to-cnt::int (SCM_VECTOR_SIZE from-to-vec)]
-         [from-to::int* (?: (< ARY_FROM_TO_COUNT from-to-cnt)
-                            (SCM_MALLOC (* (sizeof from-to) from-to-cnt))
-                            ary_dst_global)])
-    (dotimes [i src-cnt] (set! (aref src i) 
-                           (SCM_CVARR_DATA (SCM_VECTOR_ELEMENT src-vec i))))
-    (dotimes [i dst-cnt] (set! (aref dst i) 
-                           (SCM_CVARR_DATA (SCM_VECTOR_ELEMENT dst-vec i))))
-    (dotimes [i from-to-cnt] (set! (aref from-to i) 
-                               (Scm_GetInteger (SCM_VECTOR_ELEMENT from-to-vec i))))
+(eval-in-current-module
+  (gen-elem-assign <cv-arr>)
+  )
+
+(define-cproc cv-mix-channels (src-obj
+                                dst-obj
+                                from-to-obj) ::<void>
+  (let* ([src-cnt::int]
+         [src::CvArr**]
+         [src-tmp-ary::(.array void* (TMP_ARY_SIZE))]
+         [dst-cnt::int]
+         [dst::CvArr**]
+         [dst-tmp-ary::(.array void* (TMP_ARY_SIZE))]
+         [from-to-cnt::int]
+         [from-to::int*]
+         [from-to-tmp-ary::(.array void* (TMP_ARY_SIZE))])
+    (cond ;src
+      [(is-type? src-obj <vector>)
+       (set! src-cnt (SCM_VECTOR_SIZE src-obj))
+       (vector-to-ary src-obj src src-tmp-ary TMP_ARY_SIZE CvArr* <cv-arr>-elem-assign)]
+      [(is-type? src-obj <list>)
+       (list-to-ary src-obj src src-tmp-ary TMP_ARY_SIZE src-cnt CvArr* <cv-arr>-elem-assign)]
+      [(is-type? src-obj <cv-arr>)
+       (set! src-cnt 1)
+       (set! (aref src-tmp-ary 0) (unboxing src-obj <cv-arr>))
+       (set! src src-tmp-ary)]
+      [else (Scm_Error "<list> or <vector> or <cv-arr> required, but got %S" src-obj)])
+    (cond ;dst
+      [(is-type? dst-obj <vector>)
+       (set! dst-cnt (SCM_VECTOR_SIZE dst-obj))
+       (vector-to-ary dst-obj dst dst-tmp-ary TMP_ARY_SIZE CvArr* <cv-arr>-elem-assign)]
+      [(is-type? dst-obj <list>)
+       (list-to-ary dst-obj dst dst-tmp-ary TMP_ARY_SIZE dst-cnt CvArr* <cv-arr>-elem-assign)]
+      [(is-type? dst-obj <cv-arr>)
+       (set! dst-cnt 1)
+       (set! (aref dst-tmp-ary 0) (unboxing dst-obj <cv-arr>))
+       (set! dst dst-tmp-ary)]
+      [else (Scm_Error "<list> or <vector> or <cv-arr> required, but got %S" dst-obj)])
+    (cond ;from-to
+      [(is-type? from-to-obj <vector>)
+       (set! from-to-cnt (SCM_VECTOR_SIZE from-to-obj))
+       (vector-to-ary from-to-obj from-to from-to-tmp-ary TMP_ARY_SIZE _int_t <int>-elem-assign)]
+      [(is-type? from-to-obj <list>)
+       (list-to-ary from-to-obj from-to from-to-tmp-ary TMP_ARY_SIZE from-to-cnt _int_t <int>-elem-assign)]
+      [(is-type? from-to-obj <s32vector>)
+       (set! from-to-cnt (SCM_S32VECTOR_SIZE from-to-obj))
+       (uvector.int-elem-assign from-to from-to-obj)]
+      [else (Scm_Error "<list> or <vector> of <s32vector> required, but got %S" from-to-obj)])
+
     (cvMixChannels (cast (const CvArr**) src) src-cnt 
                    dst dst-cnt 
                    (cast (const int*) from-to) (/ from-to-cnt 2))))
@@ -1370,12 +1459,12 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 (define-enum CV_CHECK_RANGE)
 (define-enum CV_CHECK_QUIET)
 (define-cproc cv-check-arr (arr::<cv-arr>
-                             :optional (flags::<int> 0) 
+                             :optional (flags::<fixnum> 0) 
                              (min-val::<int> 0) (max-val::<int> 0)) ::<int>
   (result (cvCheckArr arr flags min-val max-val)))
 
 (define-cproc cv-check-array (arr::<cv-arr>
-                               :optional (flags::<int> 0) 
+                               :optional (flags::<fixnum> 0) 
                                (min-val::<int> 0) (max-val::<int> 0)) ::<int>
   (result (cvCheckArr arr flags min-val max-val)))
 
@@ -1404,7 +1493,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 
 (define-cproc cv-sort (src::<cv-arr>
                         :optional (dst-obj ()) (idxmat-obj ())
-                        (flags::<int> 0)) ::<void>
+                        (flags::<fixnum> 0)) ::<void>
   (let* ([dst::CvArr*]
          [idxmat::CvArr*])
     (nil-or-cvarr dst-obj dst)
@@ -1438,7 +1527,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
                                       :optional (t-abc::<int> 0)) ::<void>
   (cvGEMM src1 src2 alpha src3 beta dst t-abc))
 
-(define-cproc cv-MatMulAddEx (src1::<cv-arr> src2::<cv-arr> alpha::<double>
+(define-cproc cv-mat-mul-add-ex (src1::<cv-arr> src2::<cv-arr> alpha::<double>
                                              src3::<cv-arr> beta::<double> dst::<cv-arr>
                                              :optional (t-abc::<int> 0)) ::<void>
   (cvMatMulAddEx src1 src2 alpha src3 beta dst t-abc))
@@ -1481,13 +1570,13 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
   (cvCompleteSymm matrix l-to-r))
 
 (define-cproc cv-flip (src::<cv-arr>
-                        :optional (dst-obj ()) (flip-mode::<int> 0)) ::<void>
+                        :optional (dst-obj ()) (flip-mode::<fixnum> 0)) ::<void>
   (let* ([dst::CvArr*])
     (nil-or-cvarr dst-obj dst)
     (cvFlip src dst flip-mode)))
 
 (define-cproc cv-mirror (src::<cv-arr>
-                          :optional (dst-obj ()) (flip-mode::<int> 0)) ::<void>
+                          :optional (dst-obj ()) (flip-mode::<fixnum> 0)) ::<void>
   (let* ([dst::CvArr*])
     (nil-or-cvarr dst-obj dst)
     (cvMirror src dst flip-mode)))
@@ -1501,7 +1590,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 (define-enum CV_SVD_V_T)
 
 (define-cproc cv-svd (a::<cv-arr> w::<cv-arr>
-                                  :optional (u-obj ()) (v-obj ()) (flags::<int> 0)) ::<void>
+                                  :optional (u-obj ()) (v-obj ()) (flags::<fixnum> 0)) ::<void>
   (let* ([u::CvArr*]
          [v::CvArr*])
     (nil-or-cvarr u-obj u)
@@ -1525,15 +1614,15 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 
 ;;CV_LU 0
 (define-cproc cv-invert (src::<cv-arr> dst::<cv-arr>
-                                       :optional (method::<int> 0)) ::<double>
+                                       :optional (method::<fixnum> 0)) ::<double>
   (result (cvInvert src dst method)))
 
 (define-cproc cv-inv (src::<cv-arr> dst::<cv-arr>
-                                    :optional (method::<int> 0)) ::<double>
+                                    :optional (method::<fixnum> 0)) ::<double>
   (result (cvInv src dst method)))
 
 (define-cproc cv-solve (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
-                                       :optional (method::<int> 0)) ::<int>
+                                       :optional (method::<fixnum> 0)) ::<int>
   (result (cvSolve src1 src2 dst method)))
 
 (define-cproc cv-det (mat::<cv-arr>) ::<double>
@@ -1566,14 +1655,13 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 (define-enum CV_COVAR_ROWS)
 (define-enum CV_COVAR_COLS)
 
+;;tmp ary
 (define-cproc cv-calc-covar-matrix (vects-vec::<vector> cov-mat::<cv-arr> 
-                                                        avg::<cv-arr> flags::<int>) ::<void>
+                                                        avg::<cv-arr> flags::<fixnum>) ::<void>
   (let* ([vect-cnt::int (SCM_VECTOR_SIZE vects-vec)]
-         [vects::CvArr** (?: (< ARY_SRC_COUNT vect-cnt)
-                             (SCM_MALLOC (* (sizeof vects) vect-cnt))
-                             ary_src_global)])
-    (dotimes [i vect-cnt] (set! (aref vects i) 
-                            (SCM_CVARR_DATA (SCM_VECTOR_ELEMENT vects-vec i))))
+         [vects::CvArr** (SCM_MALLOC (* (sizeof vects) vect-cnt))])
+    (dotimes [i vect-cnt] 
+      (set! (aref vects i) (SCM_CVARR_DATA (SCM_VECTOR_ELEMENT vects-vec i))))
     (cvCalcCovarMatrix (cast (const CvArr**) vects) vect-cnt cov-mat avg flags)))
 
 ;;----------------
@@ -1584,7 +1672,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 (define-enum CV_PCA_USE_AVG)
 
 (define-cproc cv-calc-pca (data::<cv-arr> mean::<cv-arr>
-                                          eigenvals::<cv-arr> eigenvects::<cv-arr> flags::<int>) ::<void>
+                                          eigenvals::<cv-arr> eigenvects::<cv-arr> flags::<fixnum>) ::<void>
   (cvCalcPCA data mean eigenvects eigenvects flags))
 
 (define-cproc cv-project-pca (data::<cv-arr> mean::<cv-arr>
@@ -1660,7 +1748,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 
 (define-cproc cv-norm (arr1::<cv-arr> 
                         :optional (arr2-obj ())
-                        (norm-type::<int> CV_L2)
+                        (norm-type::<fixnum> 4) ;norm-type 4 is CV_L2
                         (mask-obj ())) ::<double>
   (let* ([arr2::CvArr*]
          [mask::CvArr*])
@@ -1670,7 +1758,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 
 (define-cproc cv-normalize (src::<cv-arr> dst::<cv-arr>
                                           :optional (a::<double> 1.0) (b::<double> 0.0)
-                                          (norm-type::<int> CV_L2)
+                                          (norm-type::<fixnum> 4) ;norm-type 4 is CV_L2
                                           (mask-obj ())) ::<void>
   (let* ([mask::CvArr*])
     (nil-or-cvarr mask-obj mask)
@@ -1687,7 +1775,8 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 
 (define-cproc cv-reduce (src::<cv-arr> dst::<cv-arr>
                                        :optional (dim::<int> -1)
-                                       (op::<int> CV_REDUCE_SUM)) ::<void>
+                                       (op::<fixnum> 0)) ;op 0 is CV_REDUCE_SUM
+  ::<void>
   (cvReduce src dst dim op))
 
 
@@ -1708,22 +1797,22 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 (define-enum CV_DXT_ROWS)
 (define-enum CV_DXT_MUL_CONJ)
 
-(define-cproc cv-dft (src::<cv-arr> dst::<cv-arr> flags::<int>
-                                    :optional (nonzero-rows::<int> 0)) ::<void>
+(define-cproc cv-dft (src::<cv-arr> dst::<cv-arr> flags::<fixnum>
+                                    :optional (nonzero-rows::<fixnum> 0)) ::<void>
   (cvDFT src dst flags nonzero-rows))
 
-(define-cproc cv-fft (src::<cv-arr> dst::<cv-arr> flags::<int>
-                                    :optional (nonzero-rows::<int> 0)) ::<void>
+(define-cproc cv-fft (src::<cv-arr> dst::<cv-arr> flags::<fixnum>
+                                    :optional (nonzero-rows::<fixnum> 0)) ::<void>
   (cvFFT src dst flags nonzero-rows))
 
 (define-cproc cv-mul-spectrums (src1::<cv-arr> src2::<cv-arr>
-                                               dst::<cv-arr> flags::<int>) ::<void>
+                                               dst::<cv-arr> flags::<fixnum>) ::<void>
   (cvMulSpectrums src1 src2 dst flags))
 
-(define-cproc cv-get-optimal-dft-size (size0::<int>) ::<int>
+(define-cproc cv-get-optimal-dft-size (size0::<fixnum>) ::<fixnum>
   (cvGetOptimalDFTSize size0))
 
-(define-cproc cv-dct (src::<cv-arr> dst::<cv-arr> flags::<int>) ::<void>
+(define-cproc cv-dct (src::<cv-arr> dst::<cv-arr> flags::<fixnum>) ::<void>
   (cvDCT src dst flags))
 
 ;;-----------------------
@@ -1733,35 +1822,35 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 (define-enum CV_AA)
 
 (define-cproc cv-rgb (r::<int> g::<int> b::<int>) ::<cv-scalar>
-  (CV_RGB r g b))
+  (result (CV_RGB r g b)))
 
 (define-cproc cv-line (img::<cv-arr> pt1::<cv-point> pt2::<cv-point> color::<cv-scalar>
-                                     :optional (thickness::<int> 1) (line-type::<int> 8) (shift::<int> 0)) ::<void>
+                                     :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
   (cvLine img pt1 pt2 color thickness line-type shift))
 
 (define-cproc cv-rectangle (img::<cv-arr> pt1::<cv-point> pt2::<cv-point> color::<cv-scalar>
-                                          :optional (thickness::<int> 1) (line-type::<int> 8) (shift::<int> 0)) ::<void>
+                                          :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
   (cvRectangle img pt1 pt2 color thickness line-type shift))
 
 (define-cproc cv-rectangle-r (img::<cv-arr> r::<cv-rect> color::<cv-scalar>
-                                            :optional (thickness::<int> 1) (line-type::<int> 8) (shift::<int> 0)) ::<void>
+                                            :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
   (cvRectangleR img r color thickness line-type shift))
 
 (define-cproc cv-circle (img::<cv-arr> center::<cv-point> radius::<int> color::<cv-scalar>
-                                       :optional (thickness::<int> 1) (line-type::<int> 8) (shift::<int> 0)) ::<void>
+                                       :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
   (cvCircle img center radius color thickness line-type shift))
 
 (define-cproc cv-ellipse (img::<cv-arr> center::<cv-point> axes::<cv-size> 
                                         angle::<double> start-angle::<double> end-angle::<double> color::<cv-scalar>
-                                        :optional (thickness::<int> 1) (line-type::<int> 8) (shift::<int> 0)) ::<void>
+                                        :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
   (cvEllipse img center axes angle start-angle end-angle color thickness line-type shift))
 
 (define-cproc cv-ellipse-box (img::<cv-arr> box::<cv-box-2d> color::<cv-scalar>
-                                            :optional (thickness::<int> 1) (line-type::<int> 8) (shift::<int> 0)) ::<void>
+                                            :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
   (cvEllipseBox img box color thickness line-type shift))
 
 (define-cproc cv-fill-convex-poly (img::<cv-arr> pts-vec::<vector> color::<cv-scalar>
-                                                 :optional (line-type::<int> 8) (shift::<int> 0)) ::<void>
+                                                 :optional (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
   (let* ([pts::CvPoint* (SCM_NEW_ARRAY CvPoint (SCM_VECTOR_SIZE pts-vec))])
     (dotimes [i (SCM_VECTOR_SIZE pts-vec)]
       (if (SCM_CVPOINT_P (SCM_VECTOR_ELEMENT pts-vec i))
@@ -1771,7 +1860,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
     (cvFillConvexPoly img pts (SCM_VECTOR_SIZE pts-vec) color line-type shift)))
 
 (define-cproc cv-fill-poly (img::<cv-arr> pts-vec::<vector> contours::<int> color::<cv-scalar>
-                                          :optional (line-type::<int> 8) (shift::<int> 0)) ::<void>
+                                          :optional (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
   (let* ([vec-size::int (SCM_VECTOR_SIZE pts-vec)]
          [pts::CvPoint** (cast CvPoint** (SCM_NEW_ARRAY _pvoid_t vec-size))]
          [npts::int* (SCM_NEW_ARRAY _int_t vec_size)])
@@ -1791,7 +1880,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 
 (define-cproc cv-poly-line (img::<cv-arr> pts-vec::<vector> contours::<int> 
                                           is-closed::<boolean> color::<cv-scalar>
-                                          :optional (thickness::<int> 1) (line-type::<int> 8) (shift::<int> 0)) ::<void>
+                                          :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
   (let* ([vec-size::int (SCM_VECTOR_SIZE pts-vec)]
          [pts::CvPoint** (cast CvPoint** (SCM_NEW_ARRAY _pvoid_t vec-size))]
          [npts::int* (SCM_NEW_ARRAY _int_t vec_size)])
@@ -1824,7 +1913,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 
 
 (define-cproc cv-init-line-iterator (image::<cv-arr> pt1::<cv-point> pt2::<cv-point>
-                                                     :optional (connectivity::<int> 8) (left-to-right::<boolean> 0))
+                                                     :optional (connectivity::<fixnum> 8) (left-to-right::<boolean> #f))
   ::(<int> <cv-line-iterator>)
   (let* ([it::CvLineIterator* (SCM_NEW CvLineIterator)])
     (result (cvInitLineIterator image pt1 pt2 it connectivity left-to-right)
@@ -1853,13 +1942,13 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 (define-enum CV_FONT_VECTOR0)
 
 (define-cproc cv-make-font (font-face::<int> hscale::<double> vscale::<double>
-                                             :optional (shear::<double> 0) (thickness::<int> 1) (line-type::<int> 8)) ::<cv-font>
+                                             :optional (shear::<double> 0.0) (thickness::<fixnum> 1) (line-type::<fixnum> 8)) ::<cv-font>
   (let* ([font::CvFont* (SCM_NEW CvFont)])
     (cvInitFont font font-face hscale vscale shear thickness line-type)
     (result font)))
 
 (define-cproc cv-font (scale::<double>
-                        :optional (thickness::<int> 1)) ::<cv-font>
+                        :optional (thickness::<fixnum> 1)) ::<cv-font>
   (let* ([font::CvFont* (SCM_NEW CvFont)])
     (cvInitFont font CV_FONT_HERSHEY_PLAIN scale scale 0 thickness CV_AA)
     (result font)))
@@ -1868,7 +1957,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
                                          font::<cv-font> color::<cv-scalar>) ::<void>
   (cvPutText img text org font color))
 
-(define-cproc cv-get-text-size (text::<const-cstring> font::<cv-font>) ::(<cv-size> <int>)
+(define-cproc cv-get-text-size (text::<const-cstring> font::<cv-font>) ::(<cv-size> <fixnum>)
   (let* ([size::CvSize]
          [baseline::int])
     (cvGetTextSize text font (& size) (& baseline))
@@ -1889,7 +1978,7 @@ static int ary_from_to_global[ARY_FROM_TO_COUNT];
 
 (define-cproc cv-draw-contours (img::<cv-arr> contour::<cv-seq> external-color::<cv-scalar> 
                                               hole-color::<cv-scalar> max-level::<int> 
-                                              :optional (thickness::<int> 1) (line-type::<int> 8)
+                                              :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8)
                                               (offset-obj ())) ::<void>
   (let* ([offset::CvPoint])
     (nil-or-obj offset-obj offset <cv-point> (cvPoint 0 0))

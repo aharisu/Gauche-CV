@@ -1,0 +1,190 @@
+
+(eval-in-current-module
+  (use srfi-13)
+  )
+
+(define-cise-stmt list-to-ary
+  [(_ l a c-elem-type elem-assign)
+   (let ([c (gensym "img__")]
+         [ary (gensym "img__")]
+         [index (gensym "img__")]
+         [pair (gensym "img__")]
+         [c-ary-type (string-append (symbol->string c-elem-type) "*")]
+         [ary-sizeof-type (if (string-suffix? "*" (symbol->string c-elem-type))
+                            '_pvoid_t c-elem-type)])
+     `(let* ([,c :: int (Scm_Length ,l)]
+             [,ary :: ,c-ary-type (SCM_MALLOC (* (sizeof ,ary-sizeof-type) ,c))]
+             [,pair :: ScmObj ,l])
+        (dotimes [,index ,c]
+          (,elem-assign (aref ,ary ,index) (SCM_CAR ,pair))
+          (set! ,pair (SCM_CDR ,pair)))
+        (set! ,a ,ary)))]
+  [(_ l a tmp tmp-size c-elem-type elem-assign)
+   (let ([c (gensym "img__")]
+         [ary (gensym "img__")]
+         [index (gensym "img__")]
+         [pair (gensym "img__")]
+         [tmp-count (gensym "img__")]
+         [c-ary-type (string-append (symbol->string c-elem-type) "*")]
+         [ary-sizeof-type (if (string-suffix? "*" (symbol->string c-elem-type))
+                            '_pvoid_t c-elem-type)])
+     `(let* ([,c :: int (Scm_Length ,l)]
+             [,tmp-count :: int (/ (* (sizeof _pvoid_t) ,tmp-size) (sizeof ,ary-sizeof-type))]
+             [,ary :: ,c-ary-type (?: (< ,tmp-count ,c)
+                                      (SCM_MALLOC (* (sizeof ,ary-sizeof-type) ,c))
+                                      (cast ,c-ary-type ,tmp))]
+             [,pair :: ScmObj ,l])
+        (dotimes [,index ,c]
+          (,elem-assign (aref ,ary ,index) (SCM_CAR ,pair))
+          (set! ,pair (SCM_CDR ,pair)))
+        (set! ,a ,ary)))]
+  [(_ l a tmp tmp-size setted-list-size c-elem-type elem-assign)
+   (let ([c (gensym "img__")]
+         [ary (gensym "img__")]
+         [index (gensym "img__")]
+         [pair (gensym "img__")]
+         [tmp-count (gensym "img__")]
+         [c-ary-type (string-append (symbol->string c-elem-type) "*")]
+         [ary-sizeof-type (if (string-suffix? "*" (symbol->string c-elem-type))
+                            '_pvoid_t c-elem-type)])
+     `(let* ([,c :: int (Scm_Length ,l)]
+             [,tmp-count :: int (/ (* (sizeof _pvoid_t) ,tmp-size) (sizeof ,ary-sizeof-type))]
+             [,ary :: ,c-ary-type (?: (< ,tmp-count ,c)
+                                      (SCM_MALLOC (* (sizeof ,ary-sizeof-type) ,c))
+                                      (cast ,c-ary-type ,tmp))]
+             [,pair :: ScmObj ,l])
+        (dotimes [,index ,c]
+          (,elem-assign (aref ,ary ,index) (SCM_CAR ,pair))
+          (set! ,pair (SCM_CDR ,pair)))
+        (set! ,a ,ary)
+        (set! ,setted-list-size ,c)))]
+  )
+
+(define-cise-stmt vector-to-ary 
+  [(_ v a c-elem-type elem-assign)
+   (let ([c (gensym "img__")]
+         [vec (gensym "img__")]
+         [ary (gensym "img__")]
+         [index (gensym "img__")]
+         [c-ary-type (string-append (symbol->string c-elem-type) "*")]
+         [ary-sizeof-type (if (string-suffix? "*" (symbol->string c-elem-type))
+                            '_pvoid_t c-elem-type)])
+     `(let* ([,c :: int (SCM_VECTOR_SIZE ,v)]
+             [,ary :: ,c-ary-type (SCM_MALLOC (* (sizeof ,ary-sizeof-type) ,c))])
+        (dotimes [,index ,c]
+          (,elem-assign (aref ,ary ,index) (SCM_VECTOR_ELEMENT ,v ,index)))
+        (set! ,a ,ary)))]
+  [(_ v a tmp tmp-size c-elem-type elem-assign)
+   (let ([c (gensym "img__")]
+         [vec (gensym "img__")]
+         [ary (gensym "img__")]
+         [index (gensym "img__")]
+         [tmp-count (gensym "img__")]
+         [c-ary-type (string-append (symbol->string c-elem-type) "*")]
+         [ary-sizeof-type (if (string-suffix? "*" (symbol->string c-elem-type))
+                            '_pvoid_t c-elem-type)])
+     `(let* ([,c :: int (SCM_VECTOR_SIZE ,v)]
+             [,tmp-count :: int (/ (* (sizeof _pvoid_t) ,tmp-size) (sizeof ,ary-sizeof-type))]
+             [,ary :: ,c-ary-type (?: (< ,tmp-count ,c)
+                                      (SCM_MALLOC (* (sizeof ,ary-sizeof-type) ,c))
+                                      (cast ,c-ary-type ,tmp))])
+        (dotimes [,index ,c]
+          (,elem-assign (aref ,ary ,index) (SCM_VECTOR_ELEMENT ,v ,index)))
+        (set! ,a ,ary)))])
+
+
+(eval-in-current-module
+  (define-macro (gen-elem-assign type)
+      `(define-cise-stmt (,(string->symbol (string-append 
+                                             (x->string type) 
+                                             "-elem-assign"))
+                           var obj)
+         (let ([t (cgen-type-from-name (quote ,type))])
+           `(if (,(string->symbol (~ t 'c-predicate)) ,obj)
+              (set! ,var (,(string->symbol (~ t 'unboxer)) ,obj))
+              (Scm_Error ,#`",(~ t 'description) required, but got %S" ,obj)))))
+  )
+
+
+(define-cise-stmt (<top>-elem-assign var obj)
+  `(set! ,var (SCM_OBJ ,obj)))
+
+(define-cise-stmt (int-elem-assign var obj)
+  (let* ([type (cgen-type-from-name '<int>)])
+    `(if (,(string->symbol (~ type 'c-predicate)) ,obj)
+       (set! ,var (,(string->symbol (~ type 'unboxer)) ,obj))
+       (Scm_Error ,#`",(~ type 'description) required, but got %S" ,obj))))
+
+(define-cise-stmt (float-elem-assign var obj)
+  (let* ([type (cgen-type-from-name '<float>)])
+    `(if (,(string->symbol (~ type 'c-predicate)) ,obj)
+       (set! ,var (,(string->symbol (~ type 'unboxer)) ,obj))
+       (Scm_Error ,#`",(~ type 'description) required, but got %S" ,obj))))
+
+(define-cise-stmt (list.float-elem-assign var obj)
+  (let* ([type (cgen-type-from-name '<list>)])
+    `(if (,(string->symbol (~ type 'c-predicate)) ,obj)
+       (list-to-ary ,obj ,var _float_t float-elem-assign)
+       (Scm_Error ,#`",(~ type 'description) required, but got %S" ,obj))))
+
+(define-cise-stmt (vector.float-elem-assign var obj)
+  (let* ([type (cgen-type-from-name '<vector>)])
+    `(if (,(string->symbol (~ type 'c-predicate)) ,obj)
+       (vector-to-ary ,obj ,var _float_t float-elem-assign)
+       (Scm_Error ,#`",(~ type 'description) required, but got %S" ,obj))))
+
+(define-cise-stmt (uvector.int-elem-assign var obj)
+  (let* ([type (cgen-type-from-name '<s32vector>)])
+    `(if (,(string->symbol (~ type 'c-predicate)) ,obj)
+       (set! ,var (SCM_S32VECTOR_ELEMENTS (,(string->symbol (~ type 'unboxer)) ,obj)))
+       (Scm_Error ,#`",(~ type 'description) required, but got %S" ,obj))))
+
+(define-cise-stmt (uvector.float-elem-assign var obj)
+  (let* ([type (cgen-type-from-name '<f32vector>)])
+    `(if (,(string->symbol (~ type 'c-predicate)) ,obj)
+       (set! ,var (SCM_F32VECTOR_ELEMENTS (,(string->symbol (~ type 'unboxer)) ,obj)))
+       (Scm_Error ,#`",(~ type 'description) required, but got %S" ,obj))))
+
+
+(define-cise-expr (null? obj)
+  `(SCM_NULLP ,obj))
+
+(define-cise-expr (zero? num)
+  `(== ,num 0))
+
+
+(define-cise-expr (to-c-type sym-type)
+  (let ([type (cgen-type-from-name sym-type)])
+    (string->symbol (~ type 'c-type))))
+
+(define-cise-expr (boxing val sym-type)
+  (let ([type (cgen-type-from-name sym-type)])
+    `(,(string->symbol (~ type 'boxer)) ,val)))
+
+(define-cise-expr (unboxing val sym-type)
+  (let ([type (cgen-type-from-name sym-type)])
+    `(,(string->symbol (~ type 'unboxer)) ,val)))
+
+(define-cise-expr (is-type? obj sym-type)
+  (let ([type (cgen-type-from-name sym-type)])
+    `(,(string->symbol (~ type 'c-predicate)) ,obj)))
+
+(define-cise-stmt (assign-obj var obj sym-type)
+  (let* ([type (cgen-type-from-name sym-type)])
+    `(if (,(string->symbol (~ type'c-predicate)) ,obj)
+       (set! ,var (,(string->symbol (~ type'unboxer)) ,obj))
+       (Scm_Error ,#`",(~ type'description) required, but got %S" ,obj))))
+
+(define-cise-stmt (nil-or-obj to from sym-type obj)
+  (let* ([type (cgen-type-from-name sym-type)])
+    `(cond
+       [(SCM_NULLP ,to) (set! ,from ,obj)]
+       [(,(string->symbol (~ type'c-predicate)) ,to) (set! ,from (,(string->symbol (~ type'unboxer)),to))]
+       [else (Scm_Error ,#`",(~ type'description) or () required, but got %S" ,to)])))
+
+(define-cise-stmt (nil-or-cvarr to from)
+  `(cond
+     [(SCM_NULLP ,to) (set! ,from NULL)]
+     [(SCM_CVARR_P ,to) (set! ,from (SCM_CVARR_DATA ,to))]
+     [else (Scm_Error "CvArr or () required, but got %S" ,to)]))
+
