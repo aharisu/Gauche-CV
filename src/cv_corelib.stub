@@ -111,10 +111,10 @@ typedef double _double_t;
   "ScmCvRect" "Scm_CvRectClass"
   ()
   (;;slot
-   (x :type <int>)
-   (y :type <int>)
-   (width :type <int>)
-   (height :type <int>)
+   (x :type <fixnum>)
+   (y :type <fixnum>)
+   (width :type <fixnum>)
+   (height :type <fixnum>)
    )
   (printer #t)
   (compare #t)
@@ -131,23 +131,23 @@ typedef double _double_t;
   "ScmIplImage*" "Scm_IplImageClass"
   () ;cpa
   (;;slot
-   (nChannels :type <int>
+   (nChannels :type <fixnum>
               :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->nChannels);"
               :setter #f)
    (depth :type <int>
           :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->depth);"
           :setter #f)
-   (width :type <int>
+   (width :type <fixnum>
           :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->width);"
           :setter #f)
-   (height :type <int>
+   (height :type <fixnum>
            :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->height);"
            :setter #f)
    (image-size :type <int>
                :c-name "imageSize"
                :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->imageSize);"
                :setter #f)
-   (width-step :type <int>
+   (width-step :type <fixnum>
                :c-name "widthStep"
                :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->widthStep);"
                :setter #f)
@@ -161,7 +161,7 @@ typedef double _double_t;
 
    )
 
-(define-cproc make-image (width::<int> height::<int> depth::<int> nchannels::<int>) ::<iplimage>
+(define-cproc make-image (width::<fixnum> height::<fixnum> depth::<int> nchannels::<fixnum>) ::<iplimage>
   (expr "cvCreateImage(cvSize(width, height), depth, nchannels)"))
 (define-cproc cv-release-image (obj::<iplimage>) ::<void>
   (body  <void> 
@@ -195,17 +195,17 @@ typedef double _double_t;
    (type :type <int>
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(CV_MAT_TYPE(obj->type));"
          :setter #f)
-   (step :type <int>
+   (step :type <fixnum>
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->step);"
          :setter #f)
-   (rows :type <int>
+   (rows :type <fixnum>
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->rows);"
          :setter #f)
-   (cols :type <int>
+   (cols :type <fixnum>
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->cols);"
          :setter #f)
    ))
-(define-cproc make-cv-mat (rows::<int> cols::<int> type::<int>) ::<cv-mat>
+(define-cproc make-cv-mat (rows::<fixnum> cols::<fixnum> type::<int>) ::<cv-mat>
   (call "cvCreateMat"))
 (define-cproc cv-release-mat (mat::<cv-mat>) ::<void>
   (body <void>
@@ -228,17 +228,17 @@ typedef double _double_t;
    (type :type <int>
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(CV_MAT_TYPE(obj->type));"
          :setter #f)
-   (dims :type <int>
+   (dims :type <fixnum>
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->dims);"
          :setter #f)
    ))
-(define-cproc cv-get-matnd-dim (matnd::<cv-matnd> index::<int>) ::(<int> <int>)
+(define-cproc cv-get-matnd-dim (matnd::<cv-matnd> index::<fixnum>) ::(<int> <int>)
   (body (<int> <int>)
         "ENSURE_NOT_NULL(matnd)" 
         "int size = matnd->dim[index].size;"
         "int step = matnd->dim[index].step;"
         (result size step)))
-(define-cproc make-cv-matnd (dims::<int> sizes::<s32vector> type::<int>) ::<cv-matnd>
+(define-cproc make-cv-matnd (dims::<fixnum> sizes::<s32vector> type::<int>) ::<cv-matnd>
   (expr "cvCreateMatND(dims, SCM_S32VECTOR_ELEMENTS(sizes), type)"))
 (define-cproc cv-release-matnd (mat::<cv-matnd>) ::<void>
   (body <void>
@@ -260,11 +260,11 @@ typedef double _double_t;
    (type :type <int>
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(CV_MAT_TYPE(obj->type));"
          :setter #f)
-   (dims :type <int>
+   (dims :type <fixnum>
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->dims);"
          :setter #f)
    ))
-(define-cproc make-cv-sparse-mat (dims::<int> sizes::<s32vector> type::<int>) ::<cv-sparse-mat>
+(define-cproc make-cv-sparse-mat (dims::<fixnum> sizes::<s32vector> type::<int>) ::<cv-sparse-mat>
   (expr "cvCreateSparseMat(dims, SCM_S32VECTOR_ELEMENTS(sizes), type)"))
 (define-cproc cv-release-sparse (mat::<cv-sparse-mat>) ::<void>
   (body <void>
@@ -483,15 +483,15 @@ typedef double _double_t;
   "ScmCvSlice" "Scm_CvSliceClass"
   ()
   (;;slot
-   (start :type <int>
+   (start :type <fixnum>
           :c-name "start_index")
-   (end :type <int>
+   (end :type <fixnum>
         :c-name "end_index")
    )
   (printer #t)
   (compare #t)
   )
-(define-cproc make-cv-slice (start::<int> end::<int>) ::<cv-slice>
+(define-cproc make-cv-slice (start::<fixnum> end::<fixnum>) ::<cv-slice>
   (call "cvSlice"))
 
 ;;---------------
@@ -529,7 +529,7 @@ typedef double _double_t;
 ;;   Memory storage
 ;;
 
-(define-cproc make-cv-mem-storage (:optional (block-size::<int> 0)) ::<cv-mem-storage>
+(define-cproc make-cv-mem-storage (:optional (block-size::<fixnum> 0)) ::<cv-mem-storage>
   (call "cvCreateMemStorage"))
 
 (define-cproc make-cv-child-mem-storage (parent::<cv-mem-storage>) ::<cv-mem-storage>
@@ -571,10 +571,10 @@ typedef double _double_t;
          :setter #f)
    (next :type <cv-seq-block>
          :setter #f)
-   (start-index :type <int>
+   (start-index :type <fixnum>
                 :setter #f
                 :c-name "start_index")
-   (count :type <int>
+   (count :type <fixnum>
           :setter #f)
    ))
 
@@ -602,7 +602,7 @@ typedef double _double_t;
    (v-next :type <cv-seq>
            :setter #f
            :c-name "v_next")
-   (total	:type <int>
+   (total	:type <fixnum>
                 :setter #f)
    ))
 
@@ -661,7 +661,7 @@ typedef double _double_t;
 (define-enum CV_SEQ_INDEX)
 
 (define-cproc make-cv-seq (storage::<cv-mem-storage>
-                            :optional (flag::<int> 7)) ;flag 7 is CV_SEQ_ELTYPE_PTR
+                            :optional (flag::<fixnum> 7)) ;flag 7 is CV_SEQ_ELTYPE_PTR
   ::<cv-seq>
   (ENSURE_NOT_NULL storage)
   (let* ([size::int])
@@ -678,7 +678,7 @@ typedef double _double_t;
           (else (Scm_Error "todo error message")))))
     (result (cvCreateSeq flag (sizeof CvSeq) size storage))))
 
-(define-cproc cv-set-seq-blocksize (seq::<cv-seq> delta_elems::<int>) ::<void>
+(define-cproc cv-set-seq-blocksize (seq::<cv-seq> delta_elems::<fixnum>) ::<void>
   (cvSetSeqBlockSize seq delta_elems))
 
 (define-cise-stmt (case-seq-type-set seq obj point code index point3d user)
@@ -817,7 +817,7 @@ typedef double _double_t;
        (dotimes [i count] (set! (SCM_VECTOR_ELEMENT vec i)
                             (,boxer (aref t-ary i)))))))
 
-(define-cproc cv-seq-pop-multi (seq::<cv-seq> count::<int>
+(define-cproc cv-seq-pop-multi (seq::<cv-seq> count::<fixnum>
                                               :optional (in-front::<boolean> #f)) ::<vector>
   (let* ([vec::ScmVector* (cast ScmVector* (Scm_MakeVector count SCM_UNDEFINED))]
          [ary::void*])
@@ -836,7 +836,7 @@ typedef double _double_t;
                    (seq-multi-pop ScmObj SCM_OBJ))
     (result vec)))
 
-(define-cproc cv-seq-insert (seq::<cv-seq> before-index::<int> obj) ::<void>
+(define-cproc cv-seq-insert (seq::<cv-seq> before-index::<fixnum> obj) ::<void>
   (case-seq-type-set seq obj
                      (cvSeqInsert seq before-index (& (SCM_CVPOINT_DATA obj)))
                      (let* ([code::u_int (Scm_GetIntegerU obj)])
@@ -846,13 +846,13 @@ typedef double _double_t;
                      (cvSeqInsert seq before-index (& (SCM_CVPOINT3D32F_DATA obj)))
                      (cvSeqInsert seq before-index (& obj))))
 
-(define-cproc cv-seq-remove (seq::<cv-seq> index::<int>) ::<void>
+(define-cproc cv-seq-remove (seq::<cv-seq> index::<fixnum>) ::<void>
   (cvSeqRemove seq index))
 
 (define-cproc cv-clear-seq (seq::<cv-seq>) ::<void>
   (cvClearSeq seq))
 
-(define-cproc cv-get-seq-elem (seq::<cv-seq> index::<int>) ::<top>
+(define-cproc cv-get-seq-elem (seq::<cv-seq> index::<fixnum>) ::<top>
   (case-seq-type seq
                  (let* ([pt::CvPoint* (CV_GET_SEQ_ELEM CvPoint seq index)])
                    (result (SCM_OBJ (SCM_MAKE_CVPOINT (* pt)))))
@@ -864,7 +864,7 @@ typedef double _double_t;
                    (result (SCM_OBJ (SCM_MAKE_CVPOINT3D32F (* pt)))))
                  (result (SCM_OBJ (CV_GET_SEQ_ELEM _pvoid_t seq index)))))
 
-(define-cproc cv-seq-elem-idx (seq::<cv-seq> obj) ::(<int> <cv-seq-block>)
+(define-cproc cv-seq-elem-idx (seq::<cv-seq> obj) ::(<fixnum> <cv-seq-block>)
   (let* ([block::CvSeqBlock* (SCM_MALLOC (sizeof block))])
     (case-seq-type-set seq obj
                        (result (cvSeqElemIdx seq (& (SCM_CVPOINT_DATA obj)) (& block))
@@ -914,10 +914,10 @@ typedef double _double_t;
     (cvStartReadSeq seq reader reverse)
     (result reader)))
 
-(define-cproc cv-get-seq-reader-pos (reader::<cv-seq-reader>) ::<int>
+(define-cproc cv-get-seq-reader-pos (reader::<cv-seq-reader>) ::<fixnum>
   (result (cvGetSeqReaderPos reader)))
 
-(define-cproc cv-set-seq-reader-pos (reader::<cv-seq-reader> index::<int>
+(define-cproc cv-set-seq-reader-pos (reader::<cv-seq-reader> index::<fixnum>
                                                              :optional (relative?::<boolean> #f)) ::<void>
   (cvSetSeqReaderPos reader index relative?))
 
@@ -987,7 +987,7 @@ typedef double _double_t;
   "ScmCvSet*" "Scm_CvSetClass"
   ("Scm_CvSeqClass" "Scm_CvTreeNodeClass")
   (;;slot
-   (active-count :type <int>
+   (active-count :type <fixnum>
                  :setter #f
                  :c-name "active_count")
    ))
@@ -1017,7 +1017,7 @@ typedef double _double_t;
   (;;slot
    (rect	:type <cv-rect>
                 :setter #f)
-   (color :type <int>
+   (color :type <fixnum>
           :setter #f)
    ))
 
@@ -1039,7 +1039,7 @@ typedef double _double_t;
       (set! (SCM_S32VECTOR_ELEMENT vec i) (aref sizes i)))
     (result vec)))
 
-(define-cproc cv-get-dimsize (arr::<cv-arr> index::<int>)::<int>
+(define-cproc cv-get-dimsize (arr::<cv-arr> index::<fixnum>)::<int>
   (ENSURE_NOT_NULL arr)
   (result (cvGetDimSize arr index)))
 
@@ -1047,10 +1047,10 @@ typedef double _double_t;
 (define-cproc cv-get-1d (arr::<cv-arr> idx0::<int>)::<cv-scalar>
   (ENSURE_NOT_NULL arr)
   (result (cvGet1D arr idx0)))
-(define-cproc cv-get-2d (arr::<cv-arr> idx0::<int> idx1::<int>)::<cv-scalar>
+(define-cproc cv-get-2d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum>)::<cv-scalar>
   (ENSURE_NOT_NULL arr)
   (result (cvGet2D arr idx0 idx1)))
-(define-cproc cv-get-3d (arr::<cv-arr> idx0::<int> idx1::<int> idx2::<int>)::<cv-scalar>
+(define-cproc cv-get-3d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum> idx2::<fixnum>)::<cv-scalar>
   (ENSURE_NOT_NULL arr)
   (result (cvGet3D arr idx0 idx1 idx2)))
 (define-cproc cv-get-nd (arr::<cv-arr> idx::<s32vector>)::<cv-scalar>
@@ -1060,10 +1060,10 @@ typedef double _double_t;
 (define-cproc cv-get-real1d (arr::<cv-arr> idx0::<int>)::<double>
   (ENSURE_NOT_NULL arr)
   (result (cvGetReal1D arr idx0)))
-(define-cproc cv-get-real2d (arr::<cv-arr> idx0::<int> idx1::<int>)::<double>
+(define-cproc cv-get-real2d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum>)::<double>
   (ENSURE_NOT_NULL arr)
   (result (cvGetReal2D arr idx0 idx1)))
-(define-cproc cv-get-real3d (arr::<cv-arr> idx0::<int> idx1::<int> idx2::<int>)::<double>
+(define-cproc cv-get-real3d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum> idx2::<fixnum>)::<double>
   (ENSURE_NOT_NULL arr)
   (result (cvGetReal3D arr idx0 idx1 idx2)))
 (define-cproc cv-get-realnd (arr::<cv-arr> idx::<s32vector>)::<double>
@@ -1073,10 +1073,10 @@ typedef double _double_t;
 (define-cproc cv-set-1d (arr::<cv-arr> idx0::<int> value::<cv-scalar>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSet1D arr idx0 value))
-(define-cproc cv-set-2d (arr::<cv-arr> idx0::<int> idx1::<int> value::<cv-scalar>)::<void>
+(define-cproc cv-set-2d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum> value::<cv-scalar>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSet2D arr idx0 idx1 value))
-(define-cproc cv-set-3d (arr::<cv-arr> idx0::<int> idx1::<int> idx2::<int> value::<cv-scalar>)::<void>
+(define-cproc cv-set-3d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum> idx2::<fixnum> value::<cv-scalar>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSet3D arr idx0 idx1 idx2 value))
 (define-cproc cv-set-nd (arr::<cv-arr> idx::<s32vector> value::<cv-scalar>)::<void>
@@ -1086,10 +1086,10 @@ typedef double _double_t;
 (define-cproc cv-set-real1d (arr::<cv-arr> idx0::<int> value::<double>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSetReal1D arr idx0 value))
-(define-cproc cv-set-real2d (arr::<cv-arr> idx0::<int> idx1::<int> value::<double>)::<void>
+(define-cproc cv-set-real2d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum> value::<double>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSetReal2D arr idx0 idx1 value))
-(define-cproc cv-set-real3d (arr::<cv-arr> idx0::<int> idx1::<int> idx2::<int> value::<double>)::<void>
+(define-cproc cv-set-real3d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum> idx2::<fixnum> value::<double>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSetReal3D arr idx0 idx1 idx2 value))
 (define-cproc cv-set-realnd (arr::<cv-arr> idx::<s32vector> value::<double>)::<void>
@@ -1112,7 +1112,7 @@ typedef double _double_t;
   (let* ([tmp::IplImage* (cvCreateImageHeader (cvSize 1 1) IPL_DEPTH_8U 1)])
     (result (cvGetImage arr tmp))))
 
-(define-cproc cv-reshape-mat-nd(arr::<cv-arr> new-cn::<int> new-dims::<s32vector>) ::<top>
+(define-cproc cv-reshape-mat-nd(arr::<cv-arr> new-cn::<fixnum> new-dims::<s32vector>) ::<top>
   (ENSURE_NOT_NULL arr)
   (let* ([size::int (?: (== 0 (SCM_S32VECTOR_SIZE new-dims)) 
                         0 
@@ -1139,7 +1139,7 @@ typedef double _double_t;
                                      <cv-matnd>)))])
     (result ret)))
 
-(define-cproc cv-reshape (arr::<cv-arr> new-cn::<int> :optional (new_rows::<int> 0)) ::<cv-mat>
+(define-cproc cv-reshape (arr::<cv-arr> new-cn::<fixnum> :optional (new_rows::<fixnum> 0)) ::<cv-mat>
   (ENSURE_NOT_NULL arr)
   (let* ([tmp::CvMat* (cvCreateMatHeader 1 1 CV_8UC1)])
     (result (cvReshape arr tmp new-cn new-rows))))
@@ -1150,7 +1150,7 @@ typedef double _double_t;
   (cvRepeat src dest))
 
 ;;TODO use nnvector
-(define-cproc cv-set-data (arr::<cv-arr> data::<uvector> step::<int>) ::<void>
+(define-cproc cv-set-data (arr::<cv-arr> data::<uvector> step::<fixnum>) ::<void>
   (ENSURE_NOT_NULL arr)
   (cvSetData arr (SCM_UVECTOR_ELEMENTS data) step))
 
@@ -1297,7 +1297,7 @@ typedef double _double_t;
   (cvConvertScaleAbs src dst scale shift))
 
 (define-cproc cv-check-term-criteria (criteria::<cv-term-criteria>
-                                       def-eps::<double> def-max-iters::<int>) ::<cv-term-criteria>
+                                       def-eps::<double> def-max-iters::<fixnum>) ::<cv-term-criteria>
   (result (cvCheckTermCriteria criteria def-eps def-max-iters)))
 
 
@@ -1469,13 +1469,13 @@ typedef double _double_t;
 (define-enum CV_CMP_LE)
 (define-enum CV_CMP_NE)
 
-(define-cproc cv-cmp (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr> cmp-op::<int>) ::<void>
+(define-cproc cv-cmp (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr> cmp-op::<fixnum>) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
   (cvCmp src1 src2 dst cmp-op))
 
-(define-cproc cv-cmp-s (src::<cv-arr> value::<double> dst::<cv-arr> cmp-op::<int>) ::<void>
+(define-cproc cv-cmp-s (src::<cv-arr> value::<double> dst::<cv-arr> cmp-op::<fixnum>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvCmpS src value dst cmp-op))
@@ -1524,7 +1524,7 @@ typedef double _double_t;
 ;;
 
 (define-cproc cv-cart-to-polar (x::<cv-arr> y::<cv-arr> magnitude::<cv-arr>
-                                            :optional (angle-obj ()) (angle-in-degrees::<int> 0)) ::<void>
+                                            :optional (angle-obj ()) (angle-in-degrees::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL x)
   (ENSURE_NOT_NULL y)
   (ENSURE_NOT_NULL magnitude)
@@ -1534,7 +1534,7 @@ typedef double _double_t;
 
 (define-cproc cv-polar-to-cart (magnitude::<cv-arr> angle::<cv-arr>
                                                     x::<cv-arr> y::<cv-arr>
-                                                    :optional (angle-in-degrees::<int> 0)) ::<void>
+                                                    :optional (angle-in-degrees::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL magnitude)
   (ENSURE_NOT_NULL angle)
   (ENSURE_NOT_NULL x)
@@ -1570,13 +1570,13 @@ typedef double _double_t;
 (define-enum CV_CHECK_QUIET)
 (define-cproc cv-check-arr (arr::<cv-arr>
                              :optional (flags::<fixnum> 0) 
-                             (min-val::<int> 0) (max-val::<int> 0)) ::<int>
+                             (min-val::<fixnum> 0) (max-val::<fixnum> 0)) ::<int>
   (ENSURE_NOT_NULL arr)
   (result (cvCheckArr arr flags min-val max-val)))
 
 (define-cproc cv-check-array (arr::<cv-arr>
                                :optional (flags::<fixnum> 0) 
-                               (min-val::<int> 0) (max-val::<int> 0)) ::<int>
+                               (min-val::<fixnum> 0) (max-val::<fixnum> 0)) ::<int>
   (ENSURE_NOT_NULL arr)
   (result (cvCheckArr arr flags min-val max-val)))
 
@@ -1587,7 +1587,7 @@ typedef double _double_t;
 (define-enum CV_RAND_UNI)
 (define-enum CV_RAND_NORMAL)
 
-(define-cproc cv-rand-arr (rng::<cv-rng> arr::<cv-arr> dist-type::<int>
+(define-cproc cv-rand-arr (rng::<cv-rng> arr::<cv-arr> dist-type::<fixnum>
                                          param1::<cv-scalar> param2::<cv-scalar>) ::<void>
   (ENSURE_NOT_NULL arr)
   (cvRandArr rng arr dist-type param1 param2))
@@ -1621,7 +1621,7 @@ typedef double _double_t;
   (result (cvSolveCubic coeffs roots)))
 
 (define-cproc cv-solve-poly (coeffs::<cv-mat> roots2::<cv-mat>
-                                              :optional (maxiter::<int> 20) (fig::<int> 100)) ::<void>
+                                              :optional (maxiter::<fixnum> 20) (fig::<fixnum> 100)) ::<void>
   (ENSURE_NOT_NULL coeffs)
   (ENSURE_NOT_NULL roots2)
   (cvSolvePoly coeffs roots2 maxiter fig))
@@ -1646,7 +1646,7 @@ typedef double _double_t;
 
 (define-cproc cv-gemm (src1::<cv-arr> src2::<cv-arr> alpha::<double>
                                       src3::<cv-arr> beta::<double> dst::<cv-arr>
-                                      :optional (t-abc::<int> 0)) ::<void>
+                                      :optional (t-abc::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL src3)
@@ -1655,7 +1655,7 @@ typedef double _double_t;
 
 (define-cproc cv-mat-mul-add-ex (src1::<cv-arr> src2::<cv-arr> alpha::<double>
                                              src3::<cv-arr> beta::<double> dst::<cv-arr>
-                                             :optional (t-abc::<int> 0)) ::<void>
+                                             :optional (t-abc::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL src3)
@@ -1699,7 +1699,7 @@ typedef double _double_t;
   (ENSURE_NOT_NULL mat)
   (cvPerspectiveTransform src dst mat))
 
-(define-cproc cv-mul-transposed(src::<cv-arr> dst::<cv-arr> order::<int>
+(define-cproc cv-mul-transposed(src::<cv-arr> dst::<cv-arr> order::<fixnum>
                                               :optional (delta-obj ()) (scale::<double> 1.0)) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
@@ -1718,7 +1718,7 @@ typedef double _double_t;
   (cvT src dst))
 
 (define-cproc cv-complete-symm (matrix::<cv-mat> 
-                                 :optional (l-to-r::<int> 0)) ::<void>
+                                 :optional (l-to-r::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL matrix)
   (cvCompleteSymm matrix l-to-r))
 
@@ -1755,7 +1755,7 @@ typedef double _double_t;
     (cvSVD a w u v flags)))
 
 (define-cproc cv-svbksb (w::<cv-arr> u::<cv-arr> v::<cv-arr> 
-                                     b::<cv-arr> x::<cv-arr> flags::<int>) ::<void>
+                                     b::<cv-arr> x::<cv-arr> flags::<fixnum>) ::<void>
   (ENSURE_NOT_NULL w)
   (ENSURE_NOT_NULL u)
   (ENSURE_NOT_NULL v)
@@ -1804,7 +1804,7 @@ typedef double _double_t;
 
 (define-cproc cv-eigen-vv (mat::<cv-arr> evects::<cv-arr> evals::<cv-arr>
                                          :optional (eps::<double> 0.0) 
-                                         (lowindex::<int> -1) (highindex::<int> -1)) ::<void>
+                                         (lowindex::<fixnum> -1) (highindex::<fixnum> -1)) ::<void>
   (ENSURE_NOT_NULL mat)
   (ENSURE_NOT_NULL evects)
   (ENSURE_NOT_NULL evals)
@@ -1990,7 +1990,7 @@ typedef double _double_t;
 (define-enum CV_REDUCE_MIN)
 
 (define-cproc cv-reduce (src::<cv-arr> dst::<cv-arr>
-                                       :optional (dim::<int> -1)
+                                       :optional (dim::<fixnum> -1)
                                        (op::<fixnum> 0)) ;op 0 is CV_REDUCE_SUM
   ::<void>
   (ENSURE_NOT_NULL src)
@@ -2048,43 +2048,43 @@ typedef double _double_t;
 
 (define-enum CV_AA)
 
-(define-cproc cv-rgb (r::<int> g::<int> b::<int>) ::<cv-scalar>
+(define-cproc cv-rgb (r::<fixnum> g::<fixnum> b::<fixnum>) ::<cv-scalar>
   (result (CV_RGB r g b)))
 
 (define-cproc cv-line (img::<cv-arr> pt1::<cv-point> pt2::<cv-point> color::<cv-scalar>
-                                     :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
+                                     :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (cvLine img pt1 pt2 color thickness line-type shift))
 
 (define-cproc cv-rectangle (img::<cv-arr> pt1::<cv-point> pt2::<cv-point> color::<cv-scalar>
-                                          :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
+                                          :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (cvRectangle img pt1 pt2 color thickness line-type shift))
 
 (define-cproc cv-rectangle-r (img::<cv-arr> r::<cv-rect> color::<cv-scalar>
-                                            :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
+                                            :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (cvRectangleR img r color thickness line-type shift))
 
-(define-cproc cv-circle (img::<cv-arr> center::<cv-point> radius::<int> color::<cv-scalar>
-                                       :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
+(define-cproc cv-circle (img::<cv-arr> center::<cv-point> radius::<fixnum> color::<cv-scalar>
+                                       :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (cvCircle img center radius color thickness line-type shift))
 
 (define-cproc cv-ellipse (img::<cv-arr> center::<cv-point> axes::<cv-size> 
                                         angle::<double> start-angle::<double> end-angle::<double> color::<cv-scalar>
-                                        :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
+                                        :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (cvEllipse img center axes angle start-angle end-angle color thickness line-type shift))
 
 (define-cproc cv-ellipse-box (img::<cv-arr> box::<cv-box-2d> color::<cv-scalar>
-                                            :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
+                                            :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (cvEllipseBox img box color thickness line-type shift))
 
 ;;TODO use tmp ary
 (define-cproc cv-fill-convex-poly (img::<cv-arr> pts-vec::<vector> color::<cv-scalar>
-                                                 :optional (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
+                                                 :optional (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (let* ([pts::CvPoint* (SCM_NEW_ARRAY CvPoint (SCM_VECTOR_SIZE pts-vec))])
     (dotimes [i (SCM_VECTOR_SIZE pts-vec)]
@@ -2095,8 +2095,8 @@ typedef double _double_t;
     (cvFillConvexPoly img pts (SCM_VECTOR_SIZE pts-vec) color line-type shift)))
 
 ;;TODO use tmp ary
-(define-cproc cv-fill-poly (img::<cv-arr> pts-vec::<vector> contours::<int> color::<cv-scalar>
-                                          :optional (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
+(define-cproc cv-fill-poly (img::<cv-arr> pts-vec::<vector> contours::<fixnum> color::<cv-scalar>
+                                          :optional (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (let* ([vec-size::int (SCM_VECTOR_SIZE pts-vec)]
          [pts::CvPoint** (cast CvPoint** (SCM_NEW_ARRAY _pvoid_t vec-size))]
@@ -2116,9 +2116,9 @@ typedef double _double_t;
     (cvFillPoly img pts npts contours color line-type shift)))
 
 ;;TODO use tmp ary
-(define-cproc cv-poly-line (img::<cv-arr> pts-vec::<vector> contours::<int> 
+(define-cproc cv-poly-line (img::<cv-arr> pts-vec::<vector> contours::<fixnum> 
                                           is-closed::<boolean> color::<cv-scalar>
-                                          :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<int> 0)) ::<void>
+                                          :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (let* ([vec-size::int (SCM_VECTOR_SIZE pts-vec)]
          [pts::CvPoint** (cast CvPoint** (SCM_NEW_ARRAY _pvoid_t vec-size))]
@@ -2181,7 +2181,7 @@ typedef double _double_t;
 (define-enum CV_FONT_ITALIC)
 (define-enum CV_FONT_VECTOR0)
 
-(define-cproc cv-make-font (font-face::<int> hscale::<double> vscale::<double>
+(define-cproc cv-make-font (font-face::<fixnum> hscale::<double> vscale::<double>
                                              :optional (shear::<double> 0.0) (thickness::<fixnum> 1) (line-type::<fixnum> 8)) ::<cv-font>
   (let* ([font::CvFont* (SCM_NEW CvFont)])
     (cvInitFont font font-face hscale vscale shear thickness line-type)
@@ -2207,8 +2207,8 @@ typedef double _double_t;
 (define-cproc cv-color-to-scalar (packed-color::<double> arrtype::<int>) ::<cv-scalar>
   (result (cvColorToScalar packed-color arrtype)))
 
-(define-cproc cv-ellipse-2-poly (center::<cv-point> axes::<cv-size> angle::<int>
-                                                    arc-start::<int> arc-end::<int> delta::<int>) ::(<int> <vector>)
+(define-cproc cv-ellipse-2-poly (center::<cv-point> axes::<cv-size> angle::<fixnum>
+                                                    arc-start::<fixnum> arc-end::<fixnum> delta::<fixnum>) ::(<int> <vector>)
   (let* ([nb-pts::int (cvCeil (+ (/ (- arc-end arc-start) (cast float delta)) 1))]
          [pts::CvPoint* (SCM_NEW_ARRAY CvPoint nb-pts)]
          [pts-vec::ScmVector* (cast ScmVector* (Scm_MakeVector nb-pts SCM_UNDEFINED))])
@@ -2218,7 +2218,7 @@ typedef double _double_t;
     (result nb-pts pts-vec)))
 
 (define-cproc cv-draw-contours (img::<cv-arr> contour::<cv-seq> external-color::<cv-scalar> 
-                                              hole-color::<cv-scalar> max-level::<int> 
+                                              hole-color::<cv-scalar> max-level::<fixnum>
                                               :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8)
                                               (offset-obj ())) ::<void>
   (ENSURE_NOT_NULL img)

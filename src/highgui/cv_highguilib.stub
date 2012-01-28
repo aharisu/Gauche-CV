@@ -23,7 +23,7 @@
   `(== ,val 0))
 
 (define-cproc cv-load-image (name::<const-cstring> 
-                              :optional (iscolor::<int> 1)) ::<iplimage>
+                              :optional (iscolor::<fixnum> 1)) ::<iplimage>
   (let* ([img::IplImage* (cvLoadImage name iscolor)])
     (if (zero? img)
       (Scm_Error "load failed.")
@@ -41,8 +41,8 @@
 (define-enum CV_WINDOW_AUTOSIZE)
 
 (define-cproc cv-named-window (name::<const-cstring> 
-                                :optional (flags::<int> 1)) ::<int>
-  (result (cvNamedWindow name flags)))
+                                :optional (flags::<fixnum> 1)) ::<boolean>
+  (result (< 0 (cvNamedWindow name flags))))
 
 (define-cproc cv-show-image (name::<const-cstring> image::<iplimage>) ::<void>
   (ENSURE_NOT_NULL image)
@@ -54,10 +54,10 @@
 (define-cproc cv-destroy-all-windows () ::<void>
   (cvDestroyAllWindows))
 
-(define-cproc cv-wait-key (delay::<int>) ::<int>
+(define-cproc cv-wait-key (delay::<fixnum>) ::<fixnum>
   (result (cvWaitKey delay)))
 
-(define-cproc cv-create-camera-capture (index::<int>) ::<cv-capture>
+(define-cproc cv-create-camera-capture (index::<fixnum>) ::<cv-capture>
   (result (cvCreateCameraCapture index)))
 
 (define-cproc cv-grab-frame (capture::<cv-capture>) ::<boolean>
@@ -65,7 +65,7 @@
   (result (cvGrabFrame capture)))
 
 (define-cproc cv-retrieve-frame (capture::<cv-capture>
-                                  :optional (streamIdx::<int> 0)) ::<iplimage>
+                                  :optional (streamIdx::<fixnum> 0)) ::<iplimage>
   (ENSURE_NOT_NULL capture)
   (result (cvRetrieveFrame capture streamIdx)))
 
