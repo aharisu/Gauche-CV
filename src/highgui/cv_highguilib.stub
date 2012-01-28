@@ -30,6 +30,7 @@
       (result img))))
 
 (define-cproc cv-save-image (name::<const-cstring> image::<iplimage>) ::<boolean>
+  (ENSURE_NOT_NULL image)
   (result (cvSaveImage name image 0)))
 
 
@@ -44,6 +45,7 @@
   (result (cvNamedWindow name flags)))
 
 (define-cproc cv-show-image (name::<const-cstring> image::<iplimage>) ::<void>
+  (ENSURE_NOT_NULL image)
   (cvShowImage name image))
 
 (define-cproc cv-destroy-window (name::<const-cstring>) ::<void>

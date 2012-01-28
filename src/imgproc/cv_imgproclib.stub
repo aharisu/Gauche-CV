@@ -26,24 +26,33 @@ typedef double _double_t;
 ;;*************Background statistics accumulation*********
 (define-cproc cv-acc (image::<cv-arr> sum::<cv-arr>
                                       :optional (mask-obj ())) ::<void>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL sum)
   (let* ([mask::CvArr*])
     (nil-or-cvarr mask-obj mask)
     (cvAcc image sum mask)))
 
 (define-cproc cv-square-acc (image::<cv-arr> sqsum::<cv-arr>
                                              :optional (mask-obj ())) ::<void>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL sqsum)
   (let* ([mask::CvArr*])
     (nil-or-cvarr mask-obj mask)
     (cvSquareAcc image sqsum mask)))
 
 (define-cproc cv-multiply-acc (image1::<cv-arr> image2::<cv-arr> acc::<cv-arr>
                                                 :optional (mask-obj ())) ::<void> 
+  (ENSURE_NOT_NULL image1)
+  (ENSURE_NOT_NULL image2)
+  (ENSURE_NOT_NULL acc)
   (let* ([mask::CvArr*])
     (nil-or-cvarr mask-obj mask)
     (cvMultiplyAcc image1 image2 acc mask)))
 
 (define-cproc cv-running-ave (image::<cv-arr> acc::<cv-arr> alpha::<real>
                                               :optional (mask-obj ())) ::<void>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL acc)
   (let* ([mask::CvArr*])
     (nil-or-cvarr mask-obj mask)
     (cvRunningAvg image acc alpha mask)))
@@ -55,6 +64,8 @@ typedef double _double_t;
 
 (define-cproc cv-copy-make-border (src::<cv-arr> dst::<cv-arr> offset::<cv-point> bordertype::<int>
                                                  :optional (value-obj ())) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (let* ([value::CvScalar])
     (nil-or-obj value-obj value <cv-scalar> (cvScalarAll 0))
     (cvCopyMakeBorder src dst offset bordertype value)))
@@ -71,16 +82,22 @@ typedef double _double_t;
                                        :optional (smoothtype::<int> 2) ;;smoothtype 2 is CV_GAUSSIAN
                                        (size1::<int> 3) (size2::<int> 0)
                                        (sigma1::<real> 0) (sigma2::<real> 0)) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (cvSmooth src dst smoothtype size1 size2 sigma1 sigma2))
 
 (define-cproc cv-filter-2d (src::<cv-arr> dst::<cv-arr> kernel::<cv-mat>
                                           :optional (anchor-obj ())) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (let* ([anchor::CvPoint])
     (nil-or-obj anchor-obj anchor <cv-point> (cvPoint -1 -1))
     (cvFilter2D src dst kernel anchor)))
 
 (define-cproc cv-integral (image::<cv-arr> sum::<cv-arr>
                                            :optional (sqsum-obj ()) (tilted-sum-obj ())) ::<void>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL sum)
   (let* ([sqsum::CvArr*]
          [tilted-sum::CvArr*])
     (nil-or-cvarr sqsum-obj sqsum)
@@ -90,10 +107,14 @@ typedef double _double_t;
 
 (define-cproc cv-pyr-down (src::<cv-arr> dst::<cv-arr>
                                          :optional (filter::<int> 7)) ::<void> ;;filter 7 is CV_GAUSSIAN_5x5
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (cvPyrDown src dst filter))
 
 (define-cproc cv-pyr-up (src::<cv-arr> dst::<cv-arr>
                                        :optional (filter::<int> 7)) ::<void> ;;filter 7 is CV_GAUSSIAN_5x5
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (cvPyrUp src dst filter))
 
 
@@ -103,6 +124,9 @@ typedef double _double_t;
 
 (define-cproc cv-pyr-segmentation (src::<iplimage> dst::<iplimage> storage::<cv-mem-storage>
                                                    level::<int> threshold1::<real> threshold2::<real>) ::<cv-seq>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
+  (ENSURE_NOT_NULL storage)
   (let* ([comp::CvSeq*])
     (cvPyrSegmentation src dst storage (& comp) level threshold1 threshold2)
     (result comp)))
@@ -115,18 +139,27 @@ typedef double _double_t;
     (cvPyrMeanShiftFiltering src dst sp sr max-level termcrit)))
 
 (define-cproc cv-watershed (image::<cv-arr> markers::<cv-arr>) ::<void>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL markers)
   (cvWatershed image markers))
 
 (define-cproc cv-inpaint (src::<cv-arr> inpaint_mask::<cv-arr> dst::<cv-arr>
                                         inpaint-range::<real> flags::<int>) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL inpaint_mask)
+  (ENSURE_NOT_NULL dst)
   (cvInpaint src inpaint_mask dst inpaint-range flags))
 
 (define-cproc cv-sobel (src::<cv-arr> dst::<cv-arr> xorder::<int> yorder::<int>
                                       :optional (aperture-size::<fixnum> 3)) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (cvSobel src dst xorder yorder aperture-size))
 
 (define-cproc cv-laplace (src::<cv-arr> dst::<cv-arr>
                                         :optional (aperture-size::<fixnum> 3)) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (cvLaplace src dst aperture-size))
 
 ;;-------------
@@ -232,6 +265,8 @@ typedef double _double_t;
 (define-enum CV_YUV2BGR)
 (define-enum CV_YUV2RGB)
 (define-cproc cv-cvt-color (src::<cv-arr> dst::<cv-arr> code::<int>) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (cvCvtColor src dst code))
 
 ;;-------------
@@ -243,6 +278,8 @@ typedef double _double_t;
 (define-enum CV_INTER_LANCZOS4)
 (define-cproc cv-resize (src::<cv-arr> dst::<cv-arr>
                                        :optional (interpolation::<int> 1)) ::<void> ;;interpolation 1 is CV_INTER_LINEAR
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (cvResize src dst interpolation))
 
 ;;-------------
@@ -252,10 +289,13 @@ typedef double _double_t;
 (define-cproc cv-warp-affine (src::<cv-arr> dst::<cv-arr> map-matrix::<cv-mat>
                                             :optional (flags::<int> 9) ;; 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
                                             (fillval-obj ())) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (let* ([fillval::CvScalar])
     (nil-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
     (cvWarpAffine src dst map-matrix flags fillval)))
 
+;;TODO support vector
 (define-cproc cv-get-affine-transform (src-list::<list> dst-list::<list>
                                                         map-matrix::<cv-mat>) ::<void>
   (if (!= (Scm_Length src-list) 3)
@@ -279,12 +319,17 @@ typedef double _double_t;
 (define-cproc cv-warp-perspective (src::<cv-arr> dst::<cv-arr> map-matrix::<cv-mat>
                                                  :optional (flags::<int> 9) ;;flags 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
                                                  (fillval-obj ())) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
+  (ENSURE_NOT_NULL map-matrix)
   (let* ([fillval::CvScalar])
     (nil-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
     (cvWarpPerspective src dst map-matrix flags fillval)))
 
+;;TODO support vector
 (define-cproc cv-get-perspective-transform (src-list::<list> dst-list::<list>
                                                              map-matrix::<cv-mat>) ::<void>
+  (ENSURE_NOT_NULL map-matrix)
   (if (!= (Scm_Length src-list) 3)
     (Scm_Error "src requires length 3, but got %d" (Scm_Length src-list)))
   (if (!= (Scm_Length dst-list) 3)
@@ -303,42 +348,70 @@ typedef double _double_t;
 (define-cproc cv-remap (src::<cv-arr> dst::<cv-arr> mapx::<cv-arr> mapy::<cv-arr>
                                       :optional (flags::<int> 9) ;;flags 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
                                       (fillval-obj ())) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
+  (ENSURE_NOT_NULL mapx)
+  (ENSURE_NOT_NULL mapy)
   (let* ([fillval::CvScalar])
     (nil-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
     (cvRemap src dst mapx mapy flags fillval)))
 
 (define-cproc cv-convert-maps (mapx::<cv-arr> mapy::<cv-arr>
                                               mapxy::<cv-arr> mapalpha::<cv-arr>) ::<void>
+  (ENSURE_NOT_NULL mapx)
+  (ENSURE_NOT_NULL mapy)
+  (ENSURE_NOT_NULL mapxy)
+  (ENSURE_NOT_NULL mapalpha)
   (cvConvertMaps mapx mapy mapxy mapalpha))
 
 (define-cproc cv-linear-polar (src::<cv-arr> dst::<cv-arr>
                                              center::<cv-point-2d32f> m::<real>
                                              :optional (flags::<int> 9)) ::<void> ;;flags 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (cvLinearPolar src dst center m flags))
 
 (define-cproc cv-undistort2 (src::<cv-arr> dst::<cv-arr>
                                            camera-matrix::<cv-mat> distortion-coeffs::<cv-mat>
                                            :optional (new-camera-matrix-obj ())) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
+  (ENSURE_NOT_NULL camera-matrix)
+  (ENSURE_NOT_NULL distortion-coeffs)
   (let* ([new-camera-matrix::CvMat*])
     (nil-or-obj new-camera-matrix-obj new-camera-matrix <cv-mat> NULL)
     (cvUndistort2 src dst camera-matrix distortion-coeffs new-camera-matrix)))
 
 (define-cproc cv-init-undistort-map (camera-matrix::<cv-mat> distortion-coeffs::<cv-mat>
                                                              mapx::<cv-arr> mapy::<cv-arr>) ::<void>
+  (ENSURE_NOT_NULL camera-matrix)
+  (ENSURE_NOT_NULL distortion-coeffs)
+  (ENSURE_NOT_NULL mapx)
+  (ENSURE_NOT_NULL mapy)
   (cvInitUndistortMap camera-matrix distortion-coeffs mapx mapy))
 
 (define-cproc cv-init-undistort-rectify-map (camera-matrix::<cv-mat> dist-coeffs::<cv-mat>
                                                                      r::<cv-mat> new-camera-matrix::<cv-mat>
                                                                      mapx::<cv-arr> mapy::<cv-arr>) ::<void>
+  (ENSURE_NOT_NULL camera-matrix)
+  (ENSURE_NOT_NULL dist-coeffs)
+  (ENSURE_NOT_NULL r)
+  (ENSURE_NOT_NULL new-camera-matrix)
+  (ENSURE_NOT_NULL mapx)
+  (ENSURE_NOT_NULL mapy)
   (cvInitUndistortRectifyMap camera-matrix dist-coeffs r new-camera-matrix mapx mapy))
 
 (define-cproc cv-undistort-points (src::<cv-mat> dst::<cv-mat>
                                                  camera-matrix::<cv-mat> dist-coeffs::<cv-mat>
                                                  :optional (r-obj ()) (p-obj ())) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
+  (ENSURE_NOT_NULL camera-matrix)
+  (ENSURE_NOT_NULL dist-coeffs)
   (let* ([r::CvMat*]
          [p::CvMat*])
-    (nil-or-obj r-obj r <cv-mat> NULL)
-    (nil-or-obj p-obj p <cv-mat> NULL)
+    (nil-or-obj-null-check r-obj r <cv-mat>)
+    (nil-or-obj-null-check p-obj p <cv-mat>)
     (cvUndistortPoints src dst camera-matrix dist-coeffs r p)))
 
 ;;-------------
@@ -348,6 +421,7 @@ typedef double _double_t;
 (define-enum CV_SHAPE_ELLIPSE)
 (define-enum CV_SHAPE_CUSTOM)
 ;;TODO Error message
+;;TODO support vector
 (define-cproc cv-create-structuring-element-ex (cols::<fixnum> rows::<fixnum> anchor-x::<fixnum> anchor-y::<fixnum> shape::<fixnum>
                                                                :optional (values-obj ())) ::<iplconv-kernel>
   (let* ([values::int*])
@@ -386,12 +460,16 @@ typedef double _double_t;
 
 (define-cproc cv-erode (src::<cv-arr> dst::<cv-arr>
                                       :optional (element-obj ()) (iterations::<fixnum> 1)) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (let* ([element::IplConvKernel*])
     (get-element element-obj element)
     (cvErode src dst element iterations)))
 
 (define-cproc cv-dilate (src::<cv-arr> dst::<cv-arr>
                                        :optional (element-obj ()) (iterations::<fixnum> 1)) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (let* ([element::IplConvKernel*])
     (get-element element-obj element)
     (cvDilate src dst element iterations)))
@@ -399,6 +477,9 @@ typedef double _double_t;
 (define-cproc cv-morphology-ex (src::<cv-arr> dst::<cv-arr> tmp::<cv-arr>
                                               element::<iplconv-kernel> operation::<fixnum>
                                               :optional (iterations::<fixnum> 1)) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
+  (ENSURE_NOT_NULL tmp)
   (cvMorphologyEx src dst tmp element operation iterations))
 
 
@@ -415,6 +496,7 @@ typedef double _double_t;
 
 (define-cproc cv-moments (arr::<cv-arr> 
                            :optional (binary?::<boolean> #f)) ::<cv-moments>
+  (ENSURE_NOT_NULL arr)
   (let* ([moments::CvMoments])
     (cvMoments arr (& moments) binary?)
     (result moments)))
@@ -468,8 +550,10 @@ return (x < y) ? y : x;
 }
 "
 
+;;TODO use fixed size ary
 (define-cproc cv-sample-line (image::<cv-arr> pt1::<cv-point> pt2::<cv-point>
                                               :optional (connectivity::<fixnum> 8)) ::<list>
+  (ENSURE_NOT_NULL image)
   (let* ([size::int]
          [buffer::CvPoint*])
     (cond
@@ -491,9 +575,14 @@ return (x < y) ? y : x;
       (result list))))
 
 (define-cproc cv-get-rect-sub-pix (src::<cv-arr> dst::<cv-arr> center::<cv-point-2d32f>) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (cvGetRectSubPix src dst center))
 
 (define-cproc cv-get-quadrangle-sub-pix (src::<cv-arr> dst::<cv-arr> map-matrix::<cv-mat>) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
+  (ENSURE_NOT_NULL map-matrix)
   (cvGetQuadrangleSubPix src dst map-matrix))
 
 
@@ -507,6 +596,9 @@ return (x < y) ? y : x;
 (define-enum CV_TM_CCOEFF_NORMED)
 (define-cproc cv-match-template (image::<cv-arr> templ::<cv-arr>
                                                  result::<cv-arr> method::<fixnum>) ::<void>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL templ)
+  (ENSURE_NOT_NULL result)
   (cvMatchTemplate image templ result method))
 
 
@@ -538,6 +630,8 @@ return (x < y) ? y : x;
                                                 :optional (mode::<fixnum> 1) ;;mode 1 is CV_RETR_LIST
                                                 (method::<fixnum> 2) ;;method 2 is CV_CHAIN_APPROX_SIMPLE
                                                 (offset-obj ())) ::<cv-seq>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL storage)
   (let* ([offset::CvPoint]
          [header-size::int (?: (== method CV_CHAIN_CODE)
                                (sizeof CvChain) (sizeof CvContour))]
@@ -550,6 +644,8 @@ return (x < y) ? y : x;
                                                       :optional (mode::<fixnum> 1) ;;mode 1 is CV_RETR_LIST
                                                       (method::<fixnum> 2) ;;method 2 is CV_CHAIN_APPROX_SIMPLE
                                                       (offset-obj ())) ::<cv-contour-scanner>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL storage)
   (let* ([offset::CvPoint]
          [header-size::int (?: (== method CV_CHAIN_CODE)
                                (sizeof CvChain) (sizeof CvContour))])
@@ -570,6 +666,7 @@ return (x < y) ? y : x;
                                                   (parameter::<real> 0)
                                                   (minimal-permeter::<fixnum> 0)
                                                   (recursive::<boolean> #f)) ::<cv-seq>
+  (ENSURE_NOT_NULL storage)
   (result (cvApproxChains src-seq storage method parameter minimal-permeter recursive)))
 
 (define-cproc cv-start-read-chain-points (chain::<cv-chain>) ::<cv-chain-pt-reader>
@@ -639,6 +736,7 @@ return (x < y) ? y : x;
 ;;cvCreateSubdiv2D not support
 
 (define-cproc cv-create-subdiv-delaunay2d (rect::<cv-rect> storage::<cv-mem-storage>) ::<cv-subdiv-2d>
+  (ENSURE_NOT_NULL storage)
   (result (cvCreateSubdivDelaunay2D rect storage)))
 
 (define-cproc cv-subdiv-delaunay-2d-insert (subdiv::<cv-subdiv-2d> pt::<cv-point-2d32f>) ::<cv-subdiv-2d-point>
@@ -709,6 +807,7 @@ return (x < y) ? y : x;
 
 (define-cproc cv-approx-poly (src-seq::<cv-seq> storage::<cv-mem-storage> method::<fixnum> parameter::<real>
                                                 :optional (parameter2::<int> 0))::<cv-seq>
+  (ENSURE_NOT_NULL storage)
   (result (cvApproxPoly src-seq 
                         (?: (== method CV_CHAIN_CODE)
                             (sizeof CvChain) (sizeof CvContour))
@@ -725,21 +824,25 @@ return (x < y) ? y : x;
 
 (define-cproc cv-bounding-rect (points::<cv-arr>
                                  :optional (update::<fixnum> 0)) ::<cv-rect>
+  (ENSURE_NOT_NULL points)
   (result (cvBoundingRect points update)))
 
 (define-cproc cv-contour-area (contour::<cv-arr>
                                 :optional (slice-obj '()) (oriented::<int> 0))::<real>
+  (ENSURE_NOT_NULL contour)
   (let* ([slice::CvSlice])
     (nil-or-obj slice-obj slice <cv-slice> CV_WHOLE_SEQ)
     (result (cvContourArea contour slice oriented))))
 
 (define-cproc cv-min-area-rect2 (points::<cv-arr>
                                   :optional (storage-obj '())) ::<cv-box-2d>
+  (ENSURE_NOT_NULL points)
   (let* ([storage::CvMemStorage*])
-    (nil-or-obj storage-obj storage <cv-mem-storage> 0)
+    (nil-or-obj-null-check storage-obj storage <cv-mem-storage>)
     (result (cvMinAreaRect2 points storage))))
 
 (define-cproc cv-min-enclosing-circle (points::<cv-arr>) ::(<top> <top>)
+  (ENSURE_NOT_NULL points)
   (let* ([center::CvPoint2D32f]
          [radius::float])
     (if (cvMinEnclosingCircle points (& center) (& radius))
@@ -757,6 +860,8 @@ return (x < y) ? y : x;
                              (unboxing obj1 <cv-arr>) (unboxing obj1 <cv-seq>))]
          [object2::void* (?: (is-type? obj2 <cv-arr>)
                              (unboxing obj2 <cv-arr>) (unboxing obj2 <cv-seq>))])
+    (ENSURE_NOT_NULL object1)
+    (ENSURE_NOT_NULL object2)
     (result (cvMatchShapes object1 object2 method parameter))))
 
 
@@ -830,6 +935,7 @@ Scm_Error(\"internal error\");
 }
 "
 
+;;TODO support list
 (define-cfn obj-to-cvarr (obj::ScmObj arr::void** length::int* 
                                       create-mat?::int* input-type::int*) ::void
             (cond
@@ -850,6 +956,7 @@ Scm_Error(\"internal error\");
                    [else (Scm_Error "type of input vector elements must be <cv-point> or <cv-point-2d32f>")]))]
 
               [(is-type? obj <cv-arr>)
+               (ENSURE_NOT_NULL (unboxing obj <cv-arr>))
                (if (is-type? obj <cv-seq>)
                  (let* ([seq :: CvSeq* (unboxing obj <cv-seq>)])
                    (set! (* arr) seq)
@@ -1015,18 +1122,22 @@ Scm_Error(\"internal error\");
       (set! (-> (SCM_FOREIGN_POINTER hist_scm) ptr) NULL))))
 
 (define-cproc cv-clear-hist (hist::<cv-histogram>) ::<void>
+  (ENSURE_NOT_NULL hist)
   (cvClearHist hist))
 
 (define-cproc cv-get-minmax-hist-value (hist::<cv-histogram>) ::(<int> <int>)
+  (ENSURE_NOT_NULL hist)
   (let* ([min :: float]
          [max :: float])
     (cvGetMinMaxHistValue hist (& min) (& max) 0 0)
     (result min max)))
 
 (define-cproc cv-normalize-hist (hist::<cv-histogram> factor::<real>) ::<void>
+  (ENSURE_NOT_NULL hist)
   (cvNormalizeHist hist factor))
 
 (define-cproc cv-thresh-hist (hist::<cv-histogram> threshold::<real>) ::<void>
+  (ENSURE_NOT_NULL hist)
   (cvThreshHist hist threshold))
 
 ;;-------------
@@ -1037,12 +1148,15 @@ Scm_Error(\"internal error\");
 (define-enum CV_COMP_BHATTACHARYYA)
 (define-cproc cv-compare-hist (hist1::<cv-histogram> hist2::<cv-histogram>
                                                      method::<fixnum>) ::<real>
+  (ENSURE_NOT_NULL hist1)
+  (ENSURE_NOT_NULL hist2)
   (result (cvCompareHist hist1 hist2 method)))
 
 (define-cproc cv-copy-hist (hist::<cv-histogram>
                              :optional (out-obj ())) ::<cv-histogram>
+  (ENSURE_NOT_NULL hist)
   (let* ([out :: CvHistogram*])
-    (nil-or-obj out-obj out <cv-histogram> 0)
+    (nil-or-obj-null-check out-obj out <cv-histogram>)
     (cvCopyHist hist (& out))
     (result out)))
 
@@ -1052,12 +1166,15 @@ Scm_Error(\"internal error\");
 (define-cise-stmt (cvarr-elem-assign var obj)
   (let* ([type (cgen-type-from-name '<cv-arr>)])
     `(if (,(string->symbol (~ type 'c-predicate)) ,obj)
-       (set! ,var (,(string->symbol (~ type 'unboxer)) ,obj))
+       (begin
+         (set! ,var (,(string->symbol (~ type 'unboxer)) ,obj))
+         (ENSURE_NOT_NULL ,var))
        (Scm_Error ,#`",(~ type 'description) required, but got %S" ,obj))))
 
 (define-cproc cv-calc-arr-hist (arr hist::<cv-histogram>
                                     :optional (accumulate::<int> 0)
                                     (mask-obj ())) ::<void>
+  (ENSURE_NOT_NULL hist)
   (let* ([array :: CvArr**]
          [mask :: CvArr*])
     (cond
@@ -1072,6 +1189,7 @@ Scm_Error(\"internal error\");
 (define-cproc cv-calc-hist (image hist::<cv-histogram>
                                   :optional (accumulate::<int> 0)
                                   (mask-obj ())) ::<void>
+  (ENSURE_NOT_NULL hist)
   (let* ([array :: CvArr**]
          [mask :: CvArr*])
     (cond
@@ -1085,6 +1203,8 @@ Scm_Error(\"internal error\");
 
 
 (define-cproc cv-equalize-hist (src::<cv-arr> dst::<cv-arr>)
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (cvEqualizeHist src dst))
 
 
@@ -1102,6 +1222,8 @@ Scm_Error(\"internal error\");
                                                :optional (distance-type::<fixnum> 2) ;;distance-type 2 is CV_DIST_L2
                                                (mask-size::<fixnum> 3)
                                                (mask-obj ()) (labels-obj ())) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (let* ([mask::float*]
          [labels::CvArr*])
     (cond
@@ -1130,6 +1252,8 @@ Scm_Error(\"internal error\");
 (define-cproc cv-threshold (src::<cv-arr> dst::<cv-arr>
                                           threshold::<real> max-value::<real> 
                                           threshold-type::<fixnum>) ::<real>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (result (cvThreshold src dst threshold max-value threshold-type)))
 
 ;;-------------
@@ -1141,6 +1265,8 @@ Scm_Error(\"internal error\");
                                                    (threshold-type::<fixnum> 0) ;threshold-type 0 is CV_THRESH_BINARY
                                                    (block-size::<fixnum> 3)
                                                    (param1::<real> 5)) ::<void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
   (cvAdaptiveThreshold src dst max-value adaptive-method threshold-type block-size param1))
 
 
@@ -1168,6 +1294,7 @@ Scm_Error(\"internal error\");
 (define-cproc cv-flood-fill (image::<cv-arr> seed-point::<cv-point> new-val::<cv-scalar>
                                              :optional (lo-diff-obj ()) (up-diff-obj ()) 
                                              (flags::<fixnum> 4) (mask-obj ())) ::<cv-connected-comp>
+  (ENSURE_NOT_NULL image)
   (let* ([lo-diff :: CvScalar]
          [up-diff :: CvScalar]
          [mask :: CvArr*]
@@ -1186,28 +1313,39 @@ Scm_Error(\"internal error\");
 (define-cproc cv-canny (image::<cv-arr> edges::<cv-arr> 
                                         threshold1::<real> threshold2::<real>
                                         :optional (aperture-size::<fixnum> 3)) ::<void>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL edges)
   (cvCanny image edges threshold1 threshold2 aperture-size))
 
 (define-cproc cv-pre-corner-detect (image::<cv-arr> corners::<cv-arr>
                                                     :optional (aperture-size::<fixnum> 3)) ::<void>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL corners)
   (cvPreCornerDetect image corners aperture-size))
 
 (define-cproc cv-corner-eigen-vals-and-vecs (image::<cv-arr> eigenvv::<cv-arr> block-size::<fixnum>
                                                              :optional (aperture-size::<fixnum> 3)) ::<void>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL eigenvv)
   (cvCornerEigenValsAndVecs image eigenvv block-size aperture-size))
 
 (define-cproc cv-corner-min-eigen-val (image::<cv-arr> eigenval::<cv-arr> block-size::<fixnum>
                                                        :optional (aperture-size::<fixnum> 3)) ::<void>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL eigenval)
   (cvCornerMinEigenVal image eigenval block-size aperture-size))
 
 (define-cproc cv-corner-harris (image::<cv-arr> harris-response::<cv-arr> block-size::<fixnum>
                                                 :optional (aperture-size::<fixnum> 3)
                                                 (k::<real> 0.04)) ::<void>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL harris-response)
   (cvCornerHarris image harris-response block-size aperture-size k))
 
 (define-cproc cv-find-corner-sub-pix (image::<cv-arr> corners-obj::<top>
                                                       count::<int> win::<cv-size> zero-zone::<cv-size>
                                                       criteria::<cv-term-criteria>) ::<void>
+  (ENSURE_NOT_NULL image)
   (let* ([corners :: CvPoint2D32f*])
     (cond
       [(is-type? corners-obj <list>)
@@ -1225,6 +1363,7 @@ Scm_Error(\"internal error\");
                                                          :optional (mask-obj ())
                                                          (block-size::<fixnum> 3) (use-harris::<boolean> #f)
                                                          (k::<real> 0.04)) ::<vector>
+  (ENSURE_NOT_NULL image)
   (let* ([corners :: (.array CvPoint2D32f (MAX_CORNER_COUNT))]
          [count :: int MAX_CORNER_COUNT]
          [mask :: CvArr*]
@@ -1247,6 +1386,7 @@ Scm_Error(\"internal error\");
 (define-cproc cv-hough-lines2 (image::<cv-arr> line-storage-obj::<top> method::<fixnum>
                                                rho::<real> theta::<real> threshold::<fixnum>
                                                :optional (param1::<real> 0) (param2::<real> 0)) ::<cv-seq>
+  (ENSURE_NOT_NULL image)
   (let* ([line-storage :: void*])
     (cond
       [(is-type? line-storage-obj <cv-mem-storage>)
@@ -1254,12 +1394,14 @@ Scm_Error(\"internal error\");
       [(is-type? line-storage-obj <cv-mat>)
        (set! line-storage (unboxing line-storage-obj <cv-mat>))]
       [else (Scm_Error "<cv-mem-storage> or <cv-mat> required, but got %S" line-storage-obj)])
+    (ENSURE_NOT_NULL line-storage)
     (result (cvHoughLines2 image line-storage method rho theta threshold param1 param2))))
 
 (define-cproc cv-hough-circles (image::<cv-arr> circle-storage-obj::<top> method::<fixnum>
                                                 dp::<real> min-dist::<real>
                                                 :optional (param1::<real> 100) (param2::<real> 100)
                                                 (min-radius::<fixnum> 0) (max-radius::<fixnum> 0)) ::<cv-seq>
+  (ENSURE_NOT_NULL image)
   (let* ([circle-storage :: void*])
     (cond
       [(is-type? circle-storage-obj <cv-mem-storage>)
@@ -1267,6 +1409,7 @@ Scm_Error(\"internal error\");
       [(is-type? circle-storage-obj <cv-mat>)
        (set! circle-storage (unboxing circle-storage-obj <cv-mat>))]
       [else (Scm_Error "<cv-mem-storage> or <cv-mat> required, but got %S" circle-storage-obj)])
+    (ENSURE_NOT_NULL circle-storage)
     (result (cvHoughCircles image circle-storage method dp min-dist
                             param1 param2 min-radius max-radius))))
 
@@ -1300,7 +1443,8 @@ Scm_Error(\"internal error\");
       [(is-type? points-obj <cv-seq>)
        (set! points (unboxing points-obj <cv-seq>))]
       [(is-type? points-obj <cv-mat>)
-       (set! points (unboxing points-obj <cv-mat>))]
+       (set! points (unboxing points-obj <cv-mat>))
+       (ENSURE_NOT_NULL points)]
       [(is-type? points-obj <list>)
        (if (null? points-obj)
          (Scm_Error "poins parameter is null"))
@@ -1331,11 +1475,13 @@ Scm_Error(\"internal error\");
 
 
 (define-cproc cv-create-kd-tree (desc::<cv-mat>) ::<cv-feature-tree>
+  (ENSURE_NOT_NULL desc)
   (result (cvCreateKDTree desc)))
 
 (define-cproc cv-create-spill-tree (raw-data::<cv-mat>
                                      :optional (naive::<int> 60)
                                      (rho::<real> 0.7) (tau::<real> 0.1)) ::<cv-feature-tree>
+  (ENSURE_NOT_NULL raw-data)
   (result (cvCreateSpillTree raw-data naive rho tau)))
 
 (define-cproc cv-release-feature-tree (tree::<cv-feature-tree>) ::<void>
@@ -1348,11 +1494,17 @@ Scm_Error(\"internal error\");
                                                         indices::<cv-mat> dist::<cv-mat>
                                                         :optional (k::<int> 2) (emax::<int> 20)) ::<void>
   (ENSURE_NOT_NULL tree)
+  (ENSURE_NOT_NULL query-points)
+  (ENSURE_NOT_NULL indices)
+  (ENSURE_NOT_NULL dist)
   (cvFindFeatures tree query-points indices dist k emax))
 
 (define-cproc cv-find-features-boxed (tree::<cv-feature-tree> bounds-min::<cv-mat> bounds-max::<cv-mat>
                                                               out-indices::<cv-mat>) ::<int>
   (ENSURE_NOT_NULL tree)
+  (ENSURE_NOT_NULL bounds-min)
+  (ENSURE_NOT_NULL bounds-max)
+  (ENSURE_NOT_NULL out-indices)
   (result (cvFindFeaturesBoxed tree bounds-min bounds-max out-indices)))
 
 (define-cproc cv-create-memory-lsh (d::<int> n::<int>
@@ -1374,17 +1526,22 @@ Scm_Error(\"internal error\");
 (define-cproc cv-lsh-add (lsh::<cv-lsh> data::<cv-mat>
                                         :optional (indices-obj ())) ::<void>
   (ENSURE_NOT_NULL lsh)
+  (ENSURE_NOT_NULL data)
   (let* ([indices :: CvMat*])
     (nil-or-obj indices-obj indices <cv-mat> 0)
     (cvLSHAdd lsh data indices)))
 
 (define-cproc cv-lsh-remove (lsh::<cv-lsh> indices::<cv-mat>) ::<void>
   (ENSURE_NOT_NULL lsh)
+  (ENSURE_NOT_NULL indices)
   (cvLSHRemove lsh indices))
 
 (define-cproc cv-lsh-query (lsh::<cv-lsh> query-points::<cv-mat>
                                           indices::<cv-mat> dist::<cv-mat> k::<int> emax::<int>) ::<void>
   (ENSURE_NOT_NULL lsh)
+  (ENSURE_NOT_NULL query-points)
+  (ENSURE_NOT_NULL indices)
+  (ENSURE_NOT_NULL dist)
   (cvLSHQuery lsh query-points indices dist k emax))
 
 

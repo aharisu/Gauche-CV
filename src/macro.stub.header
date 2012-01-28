@@ -182,9 +182,20 @@
        [(,(string->symbol (~ type'c-predicate)) ,to) (set! ,from (,(string->symbol (~ type'unboxer)),to))]
        [else (Scm_Error ,#`",(~ type'description) or () required, but got %S" ,to)])))
 
+(define-cise-stmt (nil-or-obj-null-check to from sym-type)
+  (let* ([type (cgen-type-from-name sym-type)])
+    `(cond
+       [(SCM_NULLP ,to) (set! ,from NULL)]
+       [(,(string->symbol (~ type'c-predicate)) ,to)
+        (set! ,from (,(string->symbol (~ type'unboxer)),to))
+        (ENSURE_NOT_NULL ,from)]
+       [else (Scm_Error ,#`",(~ type'description) or () required, but got %S" ,to)])))
+
 (define-cise-stmt (nil-or-cvarr to from)
   `(cond
      [(SCM_NULLP ,to) (set! ,from NULL)]
-     [(SCM_CVARR_P ,to) (set! ,from (SCM_CVARR_DATA ,to))]
+     [(SCM_CVARR_P ,to) 
+      (set! ,from (SCM_CVARR_DATA ,to))
+      (ENSURE_NOT_NULL ,from)]
      [else (Scm_Error "CvArr or () required, but got %S" ,to)]))
 
