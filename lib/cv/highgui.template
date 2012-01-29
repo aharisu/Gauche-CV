@@ -4,6 +4,7 @@
 ;;@@parse-relative #f
 
 (define-module cv.highgui
+  (use cv.core)
 	(export-all)
 	)
 (select-module cv.highgui)
