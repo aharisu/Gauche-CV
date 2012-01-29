@@ -19,6 +19,22 @@
           (,elem-assign (aref ,ary ,index) (SCM_CAR ,pair))
           (set! ,pair (SCM_CDR ,pair)))
         (set! ,a ,ary)))]
+  [(_ l a setted-list-size c-elem-type elem-assign)
+   (let ([c (gensym "img__")]
+         [ary (gensym "img__")]
+         [index (gensym "img__")]
+         [pair (gensym "img__")]
+         [c-ary-type (string-append (symbol->string c-elem-type) "*")]
+         [ary-sizeof-type (if (string-suffix? "*" (symbol->string c-elem-type))
+                            '_pvoid_t c-elem-type)])
+     `(let* ([,c :: int (Scm_Length ,l)]
+             [,ary :: ,c-ary-type (SCM_MALLOC (* (sizeof ,ary-sizeof-type) ,c))]
+             [,pair :: ScmObj ,l])
+        (dotimes [,index ,c]
+          (,elem-assign (aref ,ary ,index) (SCM_CAR ,pair))
+          (set! ,pair (SCM_CDR ,pair)))
+        (set! ,a ,ary)
+        (set! ,setted-list-size ,c)))]
   [(_ l a tmp tmp-size c-elem-type elem-assign)
    (let ([c (gensym "img__")]
          [ary (gensym "img__")]

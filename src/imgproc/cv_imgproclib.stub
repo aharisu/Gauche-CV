@@ -295,23 +295,38 @@ typedef double _double_t;
     (nil-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
     (cvWarpAffine src dst map-matrix flags fillval)))
 
-;;TODO support vector
-(define-cproc cv-get-affine-transform (src-list::<list> dst-list::<list>
-                                                        map-matrix::<cv-mat>) ::<void>
-  (if (!= (Scm_Length src-list) 3)
-    (Scm_Error "src requires length 3, but got %d" (Scm_Length src-list)))
-  (if (!= (Scm_Length dst-list) 3)
-    (Scm_Error "dst requires length 3, but got %d" (Scm_Length dst-list)))
-  (let* ([src::(.array CvPoint2D32f (3))]
-         [dst::(.array CvPoint2D32f (3))]
-         [pair::ScmObj])
-    (dotimes [i 3]
-      (begin
-        (assign-obj (aref src i) (SCM_CAR src-list) <cv-point-2d32f>)
-        (assign-obj (aref dst i) (SCM_CAR dst-list) <cv-point-2d32f>)
-        (set! src-list (SCM_CDR src-list))
-        (set! dst-list (SCM_CDR dst-list))))
-    (cvGetAffineTransform src dst map-matrix)))
+(define-cproc cv-get-affine-transform (src::<top> dst::<top>
+                                                  map-matrix::<cv-mat>) ::<void>
+  (ENSURE_NOT_NULL map-matrix)
+  (let* ([src-ary::(.array CvPoint2D32f (3))]
+         [dst-ary::(.array CvPoint2D32f (3))])
+    (cond
+      [(is-type? src <list>)
+       (when (!= (Scm_Length src) 3)
+         (Scm_Error "src requires length 3, but got %d" (Scm_Length src)))
+       (dotimes [i 3]
+         (assign-obj (aref src-ary i) (SCM_CAR src) <cv-point-2d32f>)
+        (set! src (SCM_CDR src)))]
+      [(is-type? src <vector>)
+       (when (!= (SCM_VECTOR_SIZE src) 3)
+         (Scm_Error "src requires length 3, but got %d" (SCM_VECTOR_SIZE src)))
+       (dotimes [i 3]
+         (assign-obj (aref src-ary i) (SCM_VECTOR_ELEMENT src i) <cv-point-2d32f>))]
+      [else (Scm_Error "<list> or <vector> required, but got %S." src)])
+    (cond
+      [(is-type? dst <list>)
+       (when (!= (Scm_Length dst) 3)
+         (Scm_Error "dst requires length 3, but got %d" (Scm_Length dst)))
+       (dotimes [i 3]
+         (assign-obj (aref dst-ary i) (SCM_CAR dst) <cv-point-2d32f>)
+        (set! dst (SCM_CDR dst)))]
+      [(is-type? dst <vector>)
+       (when (!= (SCM_VECTOR_SIZE dst) 3)
+         (Scm_Error "dst requires length 3, but got %d" (SCM_VECTOR_SIZE dst)))
+       (dotimes [i 3]
+         (assign-obj (aref dst-ary i) (SCM_VECTOR_ELEMENT dst i) <cv-point-2d32f>))]
+      [else (Scm_Error "<list> or <vector> required, but got %S." dst)])
+    (cvGetAffineTransform src-ary dst-ary map-matrix)))
 
 (define-cproc cv-2d-rotation-matrix (center::<cv-point-2d32f> angle::<real> scale::<real> map-matrix::<cv-mat>) ::<void>
   (cv2DRotationMatrix center angle scale map-matrix))
@@ -326,24 +341,38 @@ typedef double _double_t;
     (nil-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
     (cvWarpPerspective src dst map-matrix flags fillval)))
 
-;;TODO support vector
-(define-cproc cv-get-perspective-transform (src-list::<list> dst-list::<list>
-                                                             map-matrix::<cv-mat>) ::<void>
+(define-cproc cv-get-perspective-transform (src::<top> dst::<top>
+                                                       map-matrix::<cv-mat>) ::<void>
   (ENSURE_NOT_NULL map-matrix)
-  (if (!= (Scm_Length src-list) 3)
-    (Scm_Error "src requires length 3, but got %d" (Scm_Length src-list)))
-  (if (!= (Scm_Length dst-list) 3)
-    (Scm_Error "dst requires length 3, but got %d" (Scm_Length dst-list)))
-  (let* ([src::(.array CvPoint2D32f (3))]
-         [dst::(.array CvPoint2D32f (3))]
-         [pair::ScmObj])
-    (dotimes [i 3]
-      (begin
-        (assign-obj (aref src i) (SCM_CAR src-list) <cv-point-2d32f>)
-        (assign-obj (aref dst i) (SCM_CAR dst-list) <cv-point-2d32f>)
-        (set! src-list (SCM_CDR src-list))
-        (set! dst-list (SCM_CDR dst-list))))
-    (cvGetPerspectiveTransform src dst map-matrix)))
+  (let* ([src-ary::(.array CvPoint2D32f (3))]
+         [dst-ary::(.array CvPoint2D32f (3))])
+    (cond
+      [(is-type? src <list>)
+       (when (!= (Scm_Length src) 3)
+         (Scm_Error "src requires length 3, but got %d" (Scm_Length src)))
+       (dotimes [i 3]
+         (assign-obj (aref src-ary i) (SCM_CAR src) <cv-point-2d32f>)
+        (set! src (SCM_CDR src)))]
+      [(is-type? src <vector>)
+       (when (!= (SCM_VECTOR_SIZE src) 3)
+         (Scm_Error "src requires length 3, but got %d" (SCM_VECTOR_SIZE src)))
+       (dotimes [i 3]
+         (assign-obj (aref src-ary i) (SCM_VECTOR_ELEMENT src i) <cv-point-2d32f>))]
+      [else (Scm_Error "<list> or <vector> required, but got %S." src)])
+    (cond
+      [(is-type? dst <list>)
+       (when (!= (Scm_Length dst) 3)
+         (Scm_Error "dst requires length 3, but got %d" (Scm_Length dst)))
+       (dotimes [i 3]
+         (assign-obj (aref dst-ary i) (SCM_CAR dst) <cv-point-2d32f>)
+        (set! dst (SCM_CDR dst)))]
+      [(is-type? dst <vector>)
+       (when (!= (SCM_VECTOR_SIZE dst) 3)
+         (Scm_Error "dst requires length 3, but got %d" (SCM_VECTOR_SIZE dst)))
+       (dotimes [i 3]
+         (assign-obj (aref dst-ary i) (SCM_VECTOR_ELEMENT dst i) <cv-point-2d32f>))]
+      [else (Scm_Error "<list> or <vector> required, but got %S." dst)])
+    (cvGetPerspectiveTransform src-ary dst-ary map-matrix)))
 
 (define-cproc cv-remap (src::<cv-arr> dst::<cv-arr> mapx::<cv-arr> mapy::<cv-arr>
                                       :optional (flags::<fixnum> 9) ;;flags 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
@@ -420,25 +449,25 @@ typedef double _double_t;
 (define-enum CV_SHAPE_CROSS)
 (define-enum CV_SHAPE_ELLIPSE)
 (define-enum CV_SHAPE_CUSTOM)
-;;TODO support vector
 (define-cproc cv-create-structuring-element-ex (cols::<fixnum> rows::<fixnum> anchor-x::<fixnum> anchor-y::<fixnum> shape::<fixnum>
                                                                :optional (values-obj ())) ::<iplconv-kernel>
-  (let* ([values::int*])
+  (let* ([values::int*]
+         [len :: int (* cols rows)])
     (cond
-      [(SCM_NULLP values-obj) (set! values NULL)]
-      [(SCM_LISTP values-obj) (begin
-                                (if (!= shape CV_SHAPE_CUSTOM)
-                                  (Scm_Error "shape != CV_SHAPE_CUSTOM"))
-                                (let* ([len::int (Scm_Length values-obj)])
-                                  (if (!= len (* cols rows))
-                                    (Scm_Error "values list length != cols * rows"))
-                                  (set! values (SCM_MALLOC (* (sizeof _int_t) len)))
-                                  (dotimes [i len]
-                                    (if (SCM_INTP (SCM_CAR values-obj))
-                                      (set! (aref values i) (SCM_INT_VALUE (SCM_CAR values-obj)))
-                                      (Scm_Error "int requires int, but got %S" (SCM_CAR values-obj)))
-                                    (set! values-obj (SCM_CDR values-obj)))))]
-      [else (Scm_Error "<list> or '() required, bug got %S" values-obj)])
+      [(null? values-obj)(set! values NULL)]
+      [(is-type? values-obj <list>)
+       (when (!= shape CV_SHAPE_CUSTOM)
+         (Scm_Error "shape != CV_SHAPE_CUSTOM"))
+       (list-to-ary values-obj values len _int_t int-elem-assign)]
+      [(is-type? values-obj <vector>)
+       (set! len (SCM_VECTOR_SIZE values-obj))
+       (vector-to-ary values-obj values _int_t int-elem-assign)]
+      [(is-type? values-obj <s32vector>)
+       (set! len (SCM_S32VECTOR_SIZE values-obj))
+       (set! values (SCM_S32VECTOR_ELEMENTS values-obj))]
+      [else (Scm_Error "<list> or <vector> or <s32vector> or '() required, bug got %S" values-obj)])
+    (unless (== len (* cols rows))
+      (Scm_Error "values list length != cols * rows"))
     (result (cvCreateStructuringElementEx cols rows anchor-x anchor-y shape values))))
 
 (define-cproc cv-release-structuring-element (element::<iplconv-kernel>) ::<void>
@@ -549,7 +578,6 @@ return (x < y) ? y : x;
 }
 "
 
-;;TODO use fixed size ary
 (define-cproc cv-sample-line (image::<cv-arr> pt1::<cv-point> pt2::<cv-point>
                                               :optional (connectivity::<fixnum> 8)) ::<list>
   (ENSURE_NOT_NULL image)
@@ -874,7 +902,19 @@ return (x < y) ? y : x;
        (set! (ref (-> ,mat data) ptr) ,ary)
        (set! ,var ,mat))))
 
-;(define-cis-stmt
+(define-cise-stmt (list-to-mat l setted-list-size elem-c-type assign var mat-type)
+  (let ([ary (gensym "img__")]
+        [mat (gensym "img__")]
+        [len (gensym "img__")])
+    `(let* ([,ary :: void*]
+            [,mat :: CvMat*]
+            [,len :: int])
+       (list-to-ary ,l ,ary ,len ,elem-c-type ,assign)
+       (set! ,mat (cvCreateMatHeader ,len 1 ,mat-type))
+       (set! (ref (-> ,mat data) ptr) ,ary)
+       (when ,setted-list-size
+         (set! (* ,setted-list-size) ,len))
+       (set! ,var ,mat))))
 
 (define-cise-stmt (cv-point-elem-assign var obj)
   (let* ([type (cgen-type-from-name '<cv-point>)])
@@ -934,42 +974,54 @@ Scm_Error(\"internal error\");
 }
 "
 
-;;TODO support list
 (define-cfn obj-to-cvarr (obj::ScmObj arr::void** length::int* 
                                       create-mat?::int* input-type::int*) ::void
-            (cond
-              [(is-type? obj <vector>) 
-               (let* ([vec::ScmVector* (unboxing obj <vector>)])
-                 (set! (* create-mat?) 1)
-                 (if (not length)
-                   (set! (* length) (SCM_VECTOR_SIZE vec)))
-                 (cond
-                   [(is-type? (SCM_VECTOR_ELEMENT vec 0) <cv-point>) 
-                    (if (not input-type)
-                      (set! (* input-type) 0))
-                    (vec-to-mat vec CvPoint cv-point-elem-assign (* arr) CV_32SC2)]
-                   [(is-type? (SCM_VECTOR_ELEMENT vec 0) <cv-point-2d32f>) 
-                    (if (not input-type)
-                      (set! (* input-type) 1))
-                    (vec-to-mat vec CvPoint2D32f cv-point-2d32f-elem-assign (* arr) CV_32FC2)]
-                   [else (Scm_Error "type of input vector elements must be <cv-point> or <cv-point-2d32f>")]))]
+  (cond
+    [(is-type? obj <vector>) 
+     (let* ([vec::ScmVector* (unboxing obj <vector>)])
+       (set! (* create-mat?) 1)
+       (if (not length)
+         (set! (* length) (SCM_VECTOR_SIZE vec)))
+       (cond
+         [(is-type? (SCM_VECTOR_ELEMENT vec 0) <cv-point>) 
+          (if (not input-type)
+            (set! (* input-type) 0))
+          (vec-to-mat vec CvPoint cv-point-elem-assign (* arr) CV_32SC2)]
+         [(is-type? (SCM_VECTOR_ELEMENT vec 0) <cv-point-2d32f>) 
+          (if (not input-type)
+            (set! (* input-type) 1))
+          (vec-to-mat vec CvPoint2D32f cv-point-2d32f-elem-assign (* arr) CV_32FC2)]
+         [else (Scm_Error "type of input vector elements must be <cv-point> or <cv-point-2d32f>")]))]
 
-              [(is-type? obj <cv-arr>)
-               (ENSURE_NOT_NULL (unboxing obj <cv-arr>))
-               (if (is-type? obj <cv-seq>)
-                 (let* ([seq :: CvSeq* (unboxing obj <cv-seq>)])
-                   (set! (* arr) seq)
-                   (if (not length)
-                     (set! (* length) (-> seq total))))
-                 (let* ([ary :: CvArr* (unboxing obj <cv-arr>)]
-                        [size :: CvSize (cvGetSize ary)])
-                   (set! (* arr) ary)
-                   (if (not length)
-                     (set! (* length) (/ (* (ref size height)
-                                            (ref size width)
-                                            (getElementChannels ary))
-                                         2)))))]
-              [else (Scm_Error "<cv-arr> or <vector> or <list> required, but got %S" obj)]))
+    [(is-type? obj <list>)
+     (set! (* create-mat?) 1)
+     (cond
+       [(is-type? (SCM_CAR obj) <cv-point>)
+        (when input-type
+          (set! (* input-type) 0))
+        (list-to-mat obj length CvPoint cv-point-elem-assign (* arr) CV_32SC2)]
+       [(is-type? (SCM_CAR obj) <cv-point-2d32f>)
+        (when input-type
+          (set! (* input-type) 1))
+        (list-to-mat obj length CvPoint2D32f cv-point-2d32f-elem-assign (* arr) CV_32FC2)]
+       [else (Scm_Error "type of input list elements must be <cv-point> or <cv-point-2d32f>")])]
+
+    [(is-type? obj <cv-arr>)
+     (ENSURE_NOT_NULL (unboxing obj <cv-arr>))
+     (if (is-type? obj <cv-seq>)
+       (let* ([seq :: CvSeq* (unboxing obj <cv-seq>)])
+         (set! (* arr) seq)
+         (if (not length)
+           (set! (* length) (-> seq total))))
+       (let* ([ary :: CvArr* (unboxing obj <cv-arr>)]
+              [size :: CvSize (cvGetSize ary)])
+         (set! (* arr) ary)
+         (if (not length)
+           (set! (* length) (/ (* (ref size height)
+                                  (ref size width)
+                                  (getElementChannels ary))
+                               2)))))]
+    [else (Scm_Error "<cv-arr> or <vector> or <list> required, but got %S" obj)]))
 
 
 ;;-------------
@@ -979,7 +1031,6 @@ Scm_Error(\"internal error\");
 
 (define-constant CV_INPUT_INTEGER 0)
 (define-constant CV_INPUT_REAL 1)
-;;TODO support sequence input
 (define-cproc cv-convex-hull2 (input-obj ;<cv-point> or <cv-point-2d32f> of vecotr or sequence
                                 ;;input-type is original parameter
                                 ;;allow CV_INPUT_INTEGER or CV_INPUT_REAL
@@ -1507,9 +1558,9 @@ Scm_Error(\"internal error\");
   (result (cvFindFeaturesBoxed tree bounds-min bounds-max out-indices)))
 
 (define-cproc cv-create-memory-lsh (d::<fixnum> n::<fixnum>
-                                             :optional (L::<fixnum> 10) (k::<fixnum> 10)
-                                             (type::<fixnum> 6) ;type 6 is CV_64FC1
-                                             (r::<real> 4) (seed::<long> -1)) ::<cv-lsh>
+                                                :optional (L::<fixnum> 10) (k::<fixnum> 10)
+                                                (type::<fixnum> 6) ;type 6 is CV_64FC1
+                                                (r::<real> 4) (seed::<long> -1)) ::<cv-lsh>
   (result (cvCreateMemoryLSH d n L k type r seed)))
 
 (define-cproc cv-release-lsh (lsh::<cv-lsh>)::<void>
