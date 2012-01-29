@@ -841,7 +841,7 @@ return (x < y) ? y : x;
                         storage method parameter parameter2)))
 
 (define-cproc cv-arc-length (curve::<cv-seq>
-                              :optional (slice-obj '()) (is-closed::<fixnum> -1))::<real>
+                              :optional (slice-obj ()) (is-closed::<fixnum> -1))::<real>
   (let* ([slice::CvSlice])
     (nil-or-obj slice-obj slice <cv-slice> CV_WHOLE_SEQ)
     (result (cvArcLength curve slice is-closed))))
@@ -855,14 +855,14 @@ return (x < y) ? y : x;
   (result (cvBoundingRect points update)))
 
 (define-cproc cv-contour-area (contour::<cv-arr>
-                                :optional (slice-obj '()) (oriented::<fixnum> 0))::<real>
+                                :optional (slice-obj ()) (oriented::<fixnum> 0))::<real>
   (ENSURE_NOT_NULL contour)
   (let* ([slice::CvSlice])
     (nil-or-obj slice-obj slice <cv-slice> CV_WHOLE_SEQ)
     (result (cvContourArea contour slice oriented))))
 
 (define-cproc cv-min-area-rect2 (points::<cv-arr>
-                                  :optional (storage-obj '())) ::<cv-box-2d>
+                                  :optional (storage-obj ())) ::<cv-box-2d>
   (ENSURE_NOT_NULL points)
   (let* ([storage::CvMemStorage*])
     (nil-or-obj-null-check storage-obj storage <cv-mem-storage>)
@@ -1116,7 +1116,7 @@ Scm_Error(\"internal error\");
 ;;******************
 
 (define-cproc cv-create-hist (sizes-obj type::<fixnum>
-                                        :optional (ranges-obj '())
+                                        :optional (ranges-obj ())
                                         (uniform::<boolean> #t)) :: <cv-histogram>
   (let* ([sizes :: int*]
          [dims :: int]
