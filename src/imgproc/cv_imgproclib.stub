@@ -420,7 +420,6 @@ typedef double _double_t;
 (define-enum CV_SHAPE_CROSS)
 (define-enum CV_SHAPE_ELLIPSE)
 (define-enum CV_SHAPE_CUSTOM)
-;;TODO Error message
 ;;TODO support vector
 (define-cproc cv-create-structuring-element-ex (cols::<fixnum> rows::<fixnum> anchor-x::<fixnum> anchor-y::<fixnum> shape::<fixnum>
                                                                :optional (values-obj ())) ::<iplconv-kernel>
@@ -437,9 +436,9 @@ typedef double _double_t;
                                   (dotimes [i len]
                                     (if (SCM_INTP (SCM_CAR values-obj))
                                       (set! (aref values i) (SCM_INT_VALUE (SCM_CAR values-obj)))
-                                      (Scm_Error "list value requires int, but got %S" (SCM_CAR values-obj)))
+                                      (Scm_Error "int requires int, but got %S" (SCM_CAR values-obj)))
                                     (set! values-obj (SCM_CDR values-obj)))))]
-      [else (Scm_Error "list or nil required, bug got %S" values-obj)])
+      [else (Scm_Error "<list> or '() required, bug got %S" values-obj)])
     (result (cvCreateStructuringElementEx cols rows anchor-x anchor-y shape values))))
 
 (define-cproc cv-release-structuring-element (element::<iplconv-kernel>) ::<void>
@@ -1235,7 +1234,7 @@ Scm_Error(\"internal error\");
        (set! mask (SCM_F32VECTOR_ELEMENTS (unboxing mask-obj <f32vector>)))]
       [(is-type? mask-obj <vector>)
        (vector-to-ary mask-obj mask _float_t float-elem-assign)]
-      )
+      [else (Scm_Error "<list> or <vector> or <f32vector> or '() required, but got %S" mask-obj)])
     (nil-or-cvarr labels-obj labels)
     (cvDistTransform src dst distance-type mask-size mask labels)))
 

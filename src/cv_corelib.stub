@@ -808,7 +808,8 @@ typedef double _double_t;
                       (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size _char_t <uint8>-elem-assign)
                       (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size _int_t <int>-elem-assign)
                       (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size CvPoint3D32f <cv-point-3d32f>-elem-assign)
-                      (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size ScmObj <top>-elem-assign))])
+                      (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size ScmObj <top>-elem-assign))]
+      [else (Scm_Error "<list> or <vector> required, but got %S" elements)])
     (cvSeqPushMulti seq p-elem size in-front)))
 
 (define-cise-stmt (seq-multi-pop ary-type boxer)
@@ -1136,7 +1137,8 @@ typedef double _double_t;
          (set! tmp (cvCreateMatNDHeader 1 sizes CV_8UC1))
          (set! ret (boxing (cvReshapeMatND arr (sizeof (* tmp)) tmp 
                                                      new-cn size (SCM_S32VECTOR_ELEMENTS new-dims))
-                                     <cv-matnd>)))])
+                                     <cv-matnd>)))]
+      [else (Scm_Error "<iplimage> or <cv-mat> or <cv-matnd> required, but got %S" arr)])
     (result ret)))
 
 (define-cproc cv-reshape (arr::<cv-arr> new-cn::<fixnum> :optional (new_rows::<fixnum> 0)) ::<cv-mat>
@@ -1851,7 +1853,8 @@ typedef double _double_t;
        (set! vect-cnt 1)
        (set! (aref vects-tmp 0) (unboxing vects-obj <cv-arr>))
        (ENSURE_NOT_NULL (aref vects-tmp 0))
-       (set! vects vects-tmp)])
+       (set! vects vects-tmp)]
+      [else (Scm_Error "<list> or <vector> or <cv-arr> required, but got %S" vects-obj)])
     (cvCalcCovarMatrix (cast (const CvArr**) vects) vect-cnt cov-mat avg flags)))
 
 ;;----------------
