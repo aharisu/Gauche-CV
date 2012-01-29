@@ -28,7 +28,7 @@
                                                                 SCM_XTYPEP(obj, SCM_CLASS_CVMAT) ||	\
                                                                 SCM_XTYPEP(obj, SCM_CLASS_CVMATND) ||	\
                                                                 SCM_XTYPEP(obj, SCM_CLASS_CVSPARSEMAT) || \
-                                                                SCM_XTYPEP(obj, SCM_CLASS_CVTREENODE))
+                                                                SCM_ISA(obj, SCM_CLASS_CVTREENODE))
 
                            #define SCM_CVARR_DATA(obj) \
                            ((SCM_CVARR(obj)->data) ? \

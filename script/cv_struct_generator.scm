@@ -52,7 +52,7 @@
         (cgen-extern (format "SCM_CLASS_DECL(Scm_~aClass);" name))
         (cgen-extern (format "#define SCM_CLASS_~a (&Scm_~aClass)" up-name name))
         (cgen-extern (format "#define SCM_~a(obj) ((~a*)(obj))" up-name scm-name))
-        (cgen-extern (format "#define SCM_~a_P(obj) SCM_XTYPEP(obj, SCM_CLASS_~a)" up-name up-name))
+        (cgen-extern (format "#define SCM_~a_P(obj) SCM_ISA(obj, SCM_CLASS_~a)" up-name up-name))
         (cgen-extern (format "#define SCM_~a_DATA(obj) (SCM_~a(obj)->data)" up-name up-name))
         (cgen-extern (format "#define SCM_MAKE_~a(data) (Scm_Make~a(data))" up-name name))
         (cgen-extern (format "extern ScmObj Scm_Make~a(~a~a data);" name name ster))
