@@ -2082,19 +2082,21 @@ typedef double _double_t;
   (ENSURE_NOT_NULL img)
   (cvEllipseBox img box color thickness line-type shift))
 
-;;TODO use tmp ary
-(define-cproc cv-fill-convex-poly (img::<cv-arr> pts-vec::<vector> color::<cv-scalar>
+(define-cproc cv-fill-convex-poly (img::<cv-arr> pts::<top> color::<cv-scalar>
                                                  :optional (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
-  (let* ([pts::CvPoint* (SCM_NEW_ARRAY CvPoint (SCM_VECTOR_SIZE pts-vec))])
-    (dotimes [i (SCM_VECTOR_SIZE pts-vec)]
-      (if (SCM_CVPOINT_P (SCM_VECTOR_ELEMENT pts-vec i))
-        (set! (aref pts i)
-          (SCM_CVPOINT_DATA (SCM_VECTOR_ELEMENT pts-vec i)))
-        (Scm_Error "CvPoint required, but got %S" (SCM_VECTOR_ELEMENT pts-vec i))))
-    (cvFillConvexPoly img pts (SCM_VECTOR_SIZE pts-vec) color line-type shift)))
+  (let* ([pts-cnt::int]
+         [pts-arr::CvPoint*]
+         [pts-tmp :: (.array CvPoint (TMP_ARY_SIZE))])
+    (cond
+      [(is-type? pts <vector>)
+       (set! pts-cnt (SCM_VECTOR_SIZE pts))
+       (vector-to-ary pts pts-arr pts-tmp TMP_ARY_SIZE CvPoint <cv-point>-elem-assign)]
+      [(is-type? pts <list>)
+       (list-to-ary pts pts-arr pts-tmp TMP_ARY_SIZE pts-cnt CvPoint <cv-point>-elem-assign)]
+      [else (Scm_Error "<list> or <vector> required, but got %S" pts)])
+    (cvFillConvexPoly img pts-arr pts-cnt color line-type shift)))
 
-;;TODO use tmp ary
 (define-cproc cv-fill-poly (img::<cv-arr> pts-vec::<vector> contours::<fixnum> color::<cv-scalar>
                                           :optional (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
@@ -2115,7 +2117,6 @@ typedef double _double_t;
         (Scm_Error "vector required, but got %S" (SCM_VECTOR_ELEMENT pts-vec i))))
     (cvFillPoly img pts npts contours color line-type shift)))
 
-;;TODO use tmp ary
 (define-cproc cv-poly-line (img::<cv-arr> pts-vec::<vector> contours::<fixnum> 
                                           is-closed::<boolean> color::<cv-scalar>
                                           :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
