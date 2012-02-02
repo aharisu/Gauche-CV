@@ -37,22 +37,103 @@
 ;;-----------------
 ;; Constants
 ;;
+(define-enum CV_WND_PROP_FULLSCREEN)
+(define-enum CV_WND_PROP_AUTOSIZE)
+(define-enum CV_WND_PROP_ASPECTRATIO)
+
 (define-enum CV_WINDOW_NORMAL)
 (define-enum CV_WINDOW_AUTOSIZE)
+
+(define-enum CV_WINDOW_FULLSCREEN)
+(define-enum CV_WINDOW_FREERATIO)
+(define-enum CV_WINDOW_KEEPRATIO)
 
 (define-cproc cv-named-window (name::<const-cstring> 
                                 :optional (flags::<fixnum> 1)) ::<boolean>
   (result (< 0 (cvNamedWindow name flags))))
 
-(define-cproc cv-show-image (name::<const-cstring> image::<iplimage>) ::<void>
+(define-cproc cv-set-window-property (name::<const-cstring> prop-id::<fixnum> prop-value::<real>) :: <void>
+  (cvSetWindowProperty name prop-id prop-value))
+
+(define-cproc cv-get-window-property (name::<const-cstring> prop-id::<fixnum>) :: <real>
+  (result (cvGetWindowProperty name prop-id)))
+
+(define-cproc cv-show-image (name::<const-cstring> image::<iplimage>) :: <void>
   (ENSURE_NOT_NULL image)
   (cvShowImage name image))
+
+(define-cproc cv-resize-window (name::<const-cstring> width::<fixnum> height::<fixnum>) :: <void>
+  (cvResizeWindow name width height))
+
+(define-cproc cv-move-window (name::<const-cstring> x::<int> y::<int>) :: <void>
+  (cvMoveWindow name x y))
 
 (define-cproc cv-destroy-window (name::<const-cstring>) ::<void>
   (cvDestroyWindow name))
 
 (define-cproc cv-destroy-all-windows () ::<void>
   (cvDestroyAllWindows))
+
+(define-cfn trackbar-callback (pos::int data::void*) :: void :static
+  (Scm_ApplyRec1
+    data
+    (boxing pos <int>)))
+
+"
+static int trackbar_pos;
+"
+(define-cproc cv-create-trackbar (trackbar-name::<const-cstring> 
+                                   window-name::<const-cstring>
+                                   value::<fixnum> count::<fixnum>
+                                   :optional (on-change::<top> ())) :: <boolean>
+  (cond
+    [(null? on-change)
+     (if (cvCreateTrackbar trackbar-name window-name NULL count NULL)
+       (begin
+         (unless (zero? value)
+           (cvSetTrackbarPos trackbar-name window-name value))
+         (result 1))
+       (result 0))]
+    [(is-type? on-change <closure>)
+     ;;
+     (set! trackbar_pos value)
+     (result (cvCreateTrackbar2 trackbar-name window-name (& trackbar_pos) count trackbar-callback on-change))]
+    [else (Scm_Error "<closre> or '() required, but got %S." on-change)]))
+
+(define-cproc cv-get-trackbar-pos (trackbar-name::<const-cstring> window-name::<const-cstring>) :: <int>
+  (result (cvGetTrackbarPos trackbar-name window-name)))
+
+(define-cproc cv-set-trackbar-pos (trackbar-name::<const-cstring> window-name::<const-cstring> pos::<fixnum>) :: <void>
+  (cvSetTrackbarPos trackbar-name window-name pos))
+
+(define-enum CV_EVENT_MOUSEMOVE)
+(define-enum CV_EVENT_LBUTTONDOWN)
+(define-enum CV_EVENT_RBUTTONDOWN)
+(define-enum CV_EVENT_MBUTTONDOWN)
+(define-enum CV_EVENT_LBUTTONUP)
+(define-enum CV_EVENT_RBUTTONUP)
+(define-enum CV_EVENT_MBUTTONUP)
+(define-enum CV_EVENT_LBUTTONDBLCLK)
+(define-enum CV_EVENT_RBUTTONDBLCLK)
+(define-enum CV_EVENT_MBUTTONDBLCLK)
+
+(define-enum CV_EVENT_FLAG_LBUTTON)
+(define-enum CV_EVENT_FLAG_RBUTTON)
+(define-enum CV_EVENT_FLAG_MBUTTON)
+(define-enum CV_EVENT_FLAG_CTRLKEY)
+(define-enum CV_EVENT_FLAG_SHIFTKEY)
+(define-enum CV_EVENT_FLAG_ALTKEY)
+
+(define-cfn mouse-callback (event::int x::int y::int flags::int param::void*) :: void :static
+  (Scm_ApplyRec4
+    param
+    (boxing event <int>)
+    (boxing x <int>)
+    (boxing y <int>)
+    (boxing flags <int>)))
+
+(define-cproc cv-set-mouse-callback (window-name::<const-cstring> on-mouse::<closure>) :: <void>
+  (cvSetMouseCallback window-name mouse-callback on-mouse))
 
 (define-cproc cv-wait-key (delay::<fixnum>) ::<fixnum>
   (result (cvWaitKey delay)))

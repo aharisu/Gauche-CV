@@ -263,6 +263,67 @@
       (round (ref (mul 8) 'val0))))
   )
 
+(let ([input (make-vector 10)]
+      [output (make-cv-mat 2 2 CV_32FC1)]
+      [meavec (make-cv-mat 1 2 CV_32FC1)]
+      [exp-round (lambda (num n)
+                   (receive (q r)
+                     (quotient&remainder (inexact->exact (round (* num (expt 10 n))))
+                                         (expt 10 n))
+                     (+ q (/ r (expt 10 n)))))])
+  ;;test for vector
+  (for-each
+    (lambda (val)
+      (let1 mat (make-cv-mat 1 2 CV_32FC1)
+        (cv-set-real2d mat 0 0 (cadr val))
+        (cv-set-real2d mat 0 1 (caddr val))
+        (vector-set! input (car val) mat)))
+    '((0 2.5 2.4) (1 0.5 0.7)
+      (2 2.2 2.9) (3 1.9 2.2)
+      (4 3.1 3.0) (5 2.3 2.7)
+      (6 2 1.6) (7 1 1.1)
+      (8 1.5 1.6) (9 1.1 0.9)))
+  (cv-calc-covar-matrix input output meavec
+                        (logior CV_COVAR_NORMAL CV_COVAR_SCALE))
+  (test* "cv-calc-covar-matrix for vector"
+    (values
+      (/ 5549 10000)
+      (/ 5539 10000)
+      (/ 5539 10000)
+      (/ 6449 10000))
+    (values
+      (exp-round (cv-get-real2d output 0 0) 4)
+      (exp-round (cv-get-real2d output 0 1) 4)
+      (exp-round (cv-get-real2d output 1 0) 4)
+      (exp-round (cv-get-real2d output 1 1) 4)))
+  ;;test for list
+  (cv-calc-covar-matrix (map
+                          (lambda (val)
+                            (let1 mat (make-cv-mat 1 2 CV_32FC1)
+                              (cv-set-real2d mat 0 0 (car val))
+                              (cv-set-real2d mat 0 1 (cadr val))
+                              mat))
+                          '((2.5 2.4) (0.5 0.7)
+                            (2.2 2.9) (1.9 2.2)
+                            (3.1 3.0) (2.3 2.7)
+                            (2 1.6) (1 1.1)
+                            (1.5 1.6) (1.1 0.9)))
+                        output meavec
+                        (logior CV_COVAR_NORMAL CV_COVAR_SCALE))
+  (test* "cv-calc-covar-matrix for list"
+    (values
+      (/ 5549 10000)
+      (/ 5539 10000)
+      (/ 5539 10000)
+      (/ 6449 10000))
+    (values
+      (exp-round (cv-get-real2d output 0 0) 4)
+      (exp-round (cv-get-real2d output 0 1) 4)
+      (exp-round (cv-get-real2d output 1 0) 4)
+      (exp-round (cv-get-real2d output 1 1) 4)))
+  )
+
+
 
 
 

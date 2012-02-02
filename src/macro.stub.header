@@ -168,6 +168,13 @@
 (define-cise-expr (zero? num)
   `(== ,num 0))
 
+(define-cise-stmt (create-obj var data c-type class-var)
+  (let ([c-type-ptr (string->symbol (string-append (symbol->string c-type) "*"))]
+        [obj (gensym "obj__")])
+    `(let* ([,obj :: ,c-type-ptr (SCM_NEW ,c-type)])
+       (SCM_SET_CLASS ,obj ,class-var)
+       (set! (-> ,obj data) ,data)
+       (set! ,var (SCM_OBJ ,obj)))))
 
 (define-cise-expr (to-c-type sym-type)
   (let ([type (cgen-type-from-name sym-type)])

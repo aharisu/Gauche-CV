@@ -37,6 +37,7 @@ typedef double _double_t;
 (define-enum IPL_DEPTH_16U)
 (define-enum IPL_DEPTH_8S)
 (define-enum IPL_DEPTH_16S)
+(define-enum IPL_DEPTH_32S)
 (define-enum IPL_DEPTH_32F)
 (define-enum IPL_DEPTH_64F)
 
@@ -87,6 +88,14 @@ typedef double _double_t;
 (define-enum CV_64FC4)
 ;(define-enum CV_64FC(n))
 
+(define-enum CV_AUTO_STEP)
+(define-constant CV_WHOLE_ARR (c "SCM_MAKE_CVSLICE(CV_WHOLE_ARR)"))
+
+(define-enum IPL_BORDER_CONSTANT)
+(define-enum IPL_BORDER_REPLICATE)
+(define-enum IPL_BORDER_REFLECT)
+(define-enum IPL_BORDER_WRAP)
+
 ;;---------------
 ;; CvRNG
 ;;
@@ -102,6 +111,12 @@ typedef double _double_t;
   (let* ([p-rng::CvRNG* (cast CvRNG* (SCM_MALLOC (sizeof CvRNG)))])
     (set! (* p-rng) (cvRNG (Scm_GetInteger64Clamp seed SCM_CLAMP_BOTH NULL)))
     (result p-rng)))
+
+(define-cproc cv-rand-int (rng::<cv-rng>) :: <uint32>
+  (result (cvRandInt rng)))
+
+(define-cproc cv-rand-real (rng::<cv-rng>) :: <real>
+  (result (cvRandReal rng)))
 
 ;;--------------
 ;; CvRect
@@ -131,9 +146,10 @@ typedef double _double_t;
   "ScmIplImage*" "Scm_IplImageClass"
   () ;cpa
   (;;slot
-   (nChannels :type <fixnum>
-              :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->nChannels);"
-              :setter #f)
+   (n-channels :type <fixnum>
+               :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->nChannels);"
+               :setter #f
+               :c-name "nChannels")
    (depth :type <int>
           :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->depth);"
           :setter #f)
@@ -157,9 +173,13 @@ typedef double _double_t;
                                                   cvRect(0, 0, obj->width, obj->height) : 
                                                   cvRect(obj->roi->xOffset, obj->roi->yOffset, obj->roi->width, obj->roi->height));"
         :setter "ENSURE_NOT_NULL(obj) cvSetImageROI(obj, SCM_CVRECT_DATA(value));")
+   (coi :type <int>
+        :getter "ENSURE_NOT_NULL(obj);
+        return Scm_MakeInteger(cvGetImageCOI(obj));"
+        :setter "ENSURE_NOT_NULL(obj);
+        cvSetImageCOI(obj, Scm_GetInteger(value));"
         )
-
-   )
+  ))
 
 (define-cproc make-image (width::<fixnum> height::<fixnum> depth::<int> nchannels::<fixnum>) ::<iplimage>
   (expr "cvCreateImage(cvSize(width, height), depth, nchannels)"))
@@ -172,6 +192,14 @@ typedef double _double_t;
 (define-cproc cv-clone-image (image::<iplimage>) ::<iplimage>
   (ENSURE_NOT_NULL image)
   (result (cvCloneImage image)))
+
+(define-cproc cv-set-image-coi (image::<iplimage> coi::<int>) :: <void>
+  (ENSURE_NOT_NULL image)
+  (cvSetImageCOI image coi))
+
+(define-cproc cv-get-image-coi (image::<iplimage>) :: <int>
+  (ENSURE_NOT_NULL image)
+  (result (cvGetImageCOI image)))
 
 (define-cproc cv-set-image-roi (image::<iplimage> rect::<cv-rect>) ::<void>
   (ENSURE_NOT_NULL image)
@@ -207,6 +235,23 @@ typedef double _double_t;
    ))
 (define-cproc make-cv-mat (rows::<fixnum> cols::<fixnum> type::<int>) ::<cv-mat>
   (call "cvCreateMat"))
+
+(define-cproc make-cv-mat-from-uvector (rows::<fixnum> cols::<fixnum> channel::<fixnum> v::<uvector>) :: <cv-mat>
+  (let* ([type :: int]
+         [mat :: CvMat*])
+    (cond
+      [(is-type? v <s8vector>)(set! type CV_8S)]
+      [(is-type? v <u8vector>)(set! type CV_8U)]
+      [(is-type? v <s16vector>)(set! type CV_16S)]
+      [(is-type? v <u16vector>)(set! type CV_16U)]
+      [(is-type? v <s32vector>)(set! type CV_32S)]
+      [(is-type? v <f32vector>)(set! type CV_32F)]
+      [(is-type? v <f64vector>)(set! type CV_64F)]
+      [else (Scm_Error "Unkown UVector type.")])
+    (set! mat (cvCreateMat rows cols (CV_MAKETYPE type channel)))
+    (memcpy (ref (-> mat data) ptr) (SCM_UVECTOR_ELEMENTS v) (Scm_UVectorSizeInBytes v))
+    (result mat)))
+
 (define-cproc cv-release-mat (mat::<cv-mat>) ::<void>
   (body <void>
         "if(mat) {
@@ -216,6 +261,85 @@ typedef double _double_t;
 (define-cproc cv-clone-mat (mat::<cv-mat>) ::<cv-mat>
   (ENSURE_NOT_NULL mat)
   (result (cvCloneMat mat)))
+
+(define-cproc cv-get-sub-rect (arr::<cv-arr> rect::<cv-rect>) :: <top>
+  (ENSURE_NOT_NULL arr)
+  (let* ([submat :: CvMat* (SCM_NEW CvMat)]
+         [ret :: CvMat* (cvGetSubRect arr submat rect)]
+         [ret-obj :: ScmObj])
+    (create-obj ret-obj ret ScmCvMat SCM_CLASS_CVMAT)
+    (result ret-obj)))
+
+(define-cproc cv-get-rows (arr::<cv-arr> start-row::<fixnum> end-row::<fixnum>
+                                         :optional (delta-row::<fixnum> 1)) :: <top>
+  (ENSURE_NOT_NULL arr)
+  (let* ([submat :: CvMat* (SCM_NEW CvMat)]
+         [ret :: CvMat* (cvGetRows arr submat start-row end-row delta-row)]
+         [ret-obj :: ScmObj])
+    (create-obj ret-obj ret ScmCvMat SCM_CLASS_CVMAT)
+    (result ret-obj)))
+
+(define-cproc cv-get-row (arr::<cv-arr> row::<fixnum>) :: <top>
+  (ENSURE_NOT_NULL arr)
+  (let* ([submat :: CvMat* (SCM_NEW CvMat)]
+         [ret :: CvMat* (cvGetRow arr submat row)]
+         [ret-obj :: ScmObj])
+    (create-obj ret-obj ret ScmCvMat SCM_CLASS_CVMAT)
+    (result ret-obj)))
+
+(define-cproc cv-get-cols (arr::<cv-arr> start-col::<fixnum> end-col::<fixnum>) :: <top>
+  (ENSURE_NOT_NULL arr)
+  (let* ([submat :: CvMat* (SCM_NEW CvMat)]
+         [ret :: CvMat* (cvGetCols arr submat start-col end-col)]
+         [ret-obj :: ScmObj])
+    (create-obj ret-obj ret ScmCvMat SCM_CLASS_CVMAT)
+    (result ret-obj)))
+
+(define-cproc cv-get-col (arr::<cv-arr> col::<fixnum>) :: <top>
+  (ENSURE_NOT_NULL arr)
+  (let* ([submat :: CvMat* (SCM_NEW CvMat)]
+         [ret :: CvMat* (cvGetCol arr submat col)]
+         [ret-obj :: ScmObj])
+    (create-obj ret-obj ret ScmCvMat SCM_CLASS_CVMAT)
+    (result ret-obj)))
+
+(define-cproc cv-get-diag (arr::<cv-arr> start-col::<fixnum> 
+                                         :optional (diag::<fixnum> 0)) :: <top>
+  (ENSURE_NOT_NULL arr)
+  (let* ([submat :: CvMat* (SCM_NEW CvMat)]
+         [ret :: CvMat* (cvGetDiag arr submat diag)]
+         [ret-obj :: ScmObj])
+    (create-obj ret-obj ret ScmCvMat SCM_CLASS_CVMAT)
+    (result ret-obj)))
+
+(define-cproc cv-are-types-eq? (mat1::<top> mat2::<top>) :: <boolean>
+  (let* ([mat1-obj :: CvMat*]
+         [mat2-obj :: CvMat*])
+    (if (or (is-type? mat1 <cv-mat>) (is-type? mat1 <cv-matnd>) (is-type? mat1 <cv-sparse-mat>))
+      (set! mat1-obj (unboxing mat1 <cv-mat>))
+      (Scm_Error "<cv-mat> or <cv-matnd> or <cv-sparse-mat> required, but got %S." mat2))
+    (if (or (is-type? mat2 <cv-mat>) (is-type? mat2 <cv-matnd>) (is-type? mat2 <cv-sparse-mat>))
+      (set! mat2-obj (unboxing mat2 <cv-mat>))
+      (Scm_Error "<cv-mat> or <cv-matnd> or <cv-sparse-mat> required, but got %S." mat2))
+    (ENSURE_NOT_NULL mat1-obj)
+    (ENSURE_NOT_NULL mat2-obj)
+    (result (CV_ARE_TYPES_EQ mat1-obj mat2-obj))))
+
+(define-cproc cv-are-cns-eq? (mat1::<cv-mat> mat2::<cv-mat>) :: <boolean>
+  (ENSURE_NOT_NULL mat1)
+  (ENSURE_NOT_NULL mat2)
+  (result (CV_ARE_CNS_EQ mat1 mat2)))
+
+(define-cproc cv-are-depths-eq? (mat1::<cv-mat> mat2::<cv-mat>) :: <boolean>
+  (ENSURE_NOT_NULL mat1)
+  (ENSURE_NOT_NULL mat2)
+  (result (CV_ARE_DEPTHS_EQ mat1 mat2)))
+
+(define-cproc cv-are-sizes-eq? (mat1::<cv-mat> mat2::<cv-mat>) :: <boolean>
+  (ENSURE_NOT_NULL mat1)
+  (ENSURE_NOT_NULL mat2)
+  (result (CV_ARE_SIZES_EQ mat1 mat2)))
+
 
 ;;-------------
 ;; CvMatND
@@ -296,6 +420,25 @@ typedef double _double_t;
 (define-cproc cv-get-next-sparse-node (it::<cv-sparse-mat-iterator>) ::<cv-sparse-node>
   (call "cvGetNextSparseNode"))
 
+;;
+;;General clone function
+(define-cproc cv-clone (arr::<top>) :: <top>
+  (cond
+    [(is-type? arr <iplimage>)
+     (ENSURE_NOT_NULL (unboxing arr <iplimage>))
+     (result (boxing (cvCloneImage (unboxing arr <iplimage>)) <iplimage>))]
+    [(is-type? arr <cv-mat>)
+     (ENSURE_NOT_NULL (unboxing arr <cv-mat>))
+     (result (boxing (cvCloneMat (unboxing arr <cv-mat>)) <cv-mat>))]
+    [(is-type? arr <cv-matnd>)
+     (ENSURE_NOT_NULL (unboxing arr <cv-matnd>))
+     (result (boxing (cvCloneMatND (unboxing arr <cv-matnd>)) <cv-matnd>))]
+    [(is-type? arr <cv-sparse-mat>)
+     (ENSURE_NOT_NULL (unboxing arr <cv-sparse-mat>))
+     (result (boxing (cvCloneSparseMat (unboxing arr <cv-sparse-mat>)) <cv-sparse-mat>))]
+    [else (Scm_Error "Unkown type.")]))
+
+
 ;;---------------
 ;; CvHistogram
 ;;
@@ -304,6 +447,28 @@ typedef double _double_t;
 (define-enum CV_HIST_SPARSE)
 (define-enum CV_HIST_TREE)
 ;(define-enum CV_HIST_UNIFORM)
+
+(define-cclass <cv-histogram>
+  :built-in
+  "ScmCvHistogram*" "Scm_CvHistogramClass"
+  () ;cpa
+  (;;slot
+   (bins :type <cv-arr>
+         :getter "ENSURE_NOT_NULL(obj) 
+         if(CV_IS_SPARSE_HIST(obj)) {
+          ScmCvSparseMat* ret = SCM_NEW(ScmCvSparseMat);
+          SCM_SET_CLASS(ret, SCM_CLASS_CVSPARSEMAT);
+          ret->data = obj->bins;
+          return (CvArr*)ret;
+         } else {
+          ScmCvMatND* ret = SCM_NEW(ScmCvMatND);
+          SCM_SET_CLASS(ret, SCM_CLASS_CVMATND);
+          ret->data = obj->bins;
+          return (CvArr*)ret;
+         }"
+         :setter #f)
+   ))
+
 
 ;;---------------
 ;; CvTermCriteria
@@ -494,6 +659,8 @@ typedef double _double_t;
 (define-cproc make-cv-slice (start::<fixnum> end::<fixnum>) ::<cv-slice>
   (call "cvSlice"))
 
+(define-constant CV_WHOLE_SEQ (c "SCM_MAKE_CVSLICE(CV_WHOLE_SEQ)"))
+
 ;;---------------
 ;; CvScalar
 ;;
@@ -524,6 +691,43 @@ typedef double _double_t;
   (call "cvRealScalar"))
 (define-cproc make-cv-scalar-all (val0123::<double>)::<cv-scalar>
   (call "cvScalarAll"))
+
+
+;;-----------------
+;;CvLineSegmentPolar (Original type)
+;;
+(define-cclass <cv-line-segment-polar>
+  :built-in :struct
+  "ScmCvLineSegmentPolar" "Scm_CvLineSegmentPolarClass"
+  ()
+  (
+   (rho :type <real>)
+   (theta :type <real>)
+   ))
+
+(define-cproc make-cv-line-segment-polar (rho::<real> theta::<real>) :: <cv-line-segment-polar>
+  (let* ([v :: CvLineSegmentPolar])
+    (set! (ref v rho) rho)
+    (set! (ref v theta) theta)
+    (result v)))
+
+;;-----------------
+;;CvLineSegmentPoint (Original type)
+;;
+(define-cclass <cv-line-segment-point>
+  :built-in :struct
+  "ScmCvLineSegmentPoint" "Scm_CvLineSegmentPointClass"
+  ()
+  (
+   (p1 :type <cv-point>)
+   (p2 :type <cv-point>)
+   ))
+
+(define-cproc make-cv-line-segment-point (p1::<cv-point> p2::<cv-point>) :: <cv-line-segment-point>
+  (let* ([v :: CvLineSegmentPoint])
+    (set! (ref v p1) p1)
+    (set! (ref v p2) p2)
+    (result v)))
 
 ;;-------------------------
 ;;   Memory storage
@@ -592,15 +796,39 @@ typedef double _double_t;
   (;;slot
    (h-prev :type <cv-seq>
            :setter #f
+           :getter "
+           if(obj->h_prev == NULL)
+            return SCM_MAKE_BOOL(0);
+           else
+            return SCM_MAKE_CVSEQ(obj->h_prev);
+           "
            :c-name "h_prev")
    (h-next :type <cv-seq>
            :setter #f
+           :getter "
+           if(obj->h_next == NULL)
+            return SCM_MAKE_BOOL(0);
+           else
+            return SCM_MAKE_CVSEQ(obj->h_next);
+           "
            :c-name "h_next")
    (v-prev :type <cv-seq>
            :setter #f
+           :getter "
+           if(obj->v_prev == NULL)
+            return SCM_MAKE_BOOL(0);
+           else
+            return SCM_MAKE_CVSEQ(obj->v_prev);
+           "
            :c-name "v_prev")
    (v-next :type <cv-seq>
            :setter #f
+           :getter "
+           if(obj->v_next == NULL)
+            return SCM_MAKE_BOOL(0);
+           else
+            return SCM_MAKE_CVSEQ(obj->v_next);
+           "
            :c-name "v_next")
    (total	:type <fixnum>
                 :setter #f)
@@ -675,17 +903,23 @@ typedef double _double_t;
           ([CV_16U CV_16S] (set! size (* size 2)))
           ([CV_32S CV_32F] (set! size (* size 4)))
           ([CV_64F] (set! size (* size 8)))
-          (else (Scm_Error "todo error message")))))
+          (else (Scm_Error "unknown element type %d." (logand flag CV_SEQ_ELTYPE_MASK))))))
     (result (cvCreateSeq flag (sizeof CvSeq) size storage))))
 
 (define-cproc cv-set-seq-blocksize (seq::<cv-seq> delta_elems::<fixnum>) ::<void>
   (cvSetSeqBlockSize seq delta_elems))
 
-(define-cise-stmt (case-seq-type-set seq obj point code index point3d user)
+(define-cise-stmt (case-seq-type-set seq obj point seg-polar seg-point code index point3d user)
   `(case (CV_SEQ_ELTYPE ,seq)
      ([CV_SEQ_ELTYPE_POINT] (if (SCM_CVPOINT_P ,obj)
                               ,point
                               (Scm_Error "CvPoint required, but got %S" ,obj)))
+     ([CV_32FC2] (if (is-type? ,obj <cv-line-segment-polar>)
+                   ,seg-polar
+                   (Scm_Error "CvLineSegmentPolar required, but got %S" ,obj)))
+     ([CV_32SC4] (if (is-type? ,obj <cv-line-segment-point>)
+                   ,seg-point
+                   (Scm_Error "CvLineSegmentPoint required, but got %S" ,obj)))
      ([CV_SEQ_ELTYPE_CODE] (if (SCM_UINTP ,obj)
                              ,code
                              (Scm_Error "<uint8> required, but got %S" ,obj)))
@@ -696,20 +930,24 @@ typedef double _double_t;
                                 ,point3d
                                 (Scm_Error "CvPoint32Df required, but got %S" ,obj)))
      ([CV_SEQ_ELTYPE_PTR] ,user)
-     (else (Scm_Error "todo error message"))))
+     (else (Scm_Error "unknown element type %d." (CV_SEQ_ELTYPE ,seq)))))
 
-(define-cise-stmt (case-seq-type seq point code index point3d user)
+(define-cise-stmt (case-seq-type seq point seg-polar seg-point code index point3d user)
   `(case (CV_SEQ_ELTYPE ,seq)
      ([CV_SEQ_ELTYPE_POINT] ,point)
+     ([CV_32FC2] ,seg-polar)
+     ([CV_32SC4] ,seg-point)
      ([CV_SEQ_ELTYPE_CODE] ,code)
      ([CV_SEQ_ELTYPE_INDEX] ,index)
      ([CV_SEQ_ELTYPE_POINT3D] ,point3d)
      ([CV_SEQ_ELTYPE_PTR] ,user)
-     (else (Scm_Error "todo error message"))))
+     (else (Scm_Error "unknown element type %d." (CV_SEQ_ELTYPE ,seq)))))
 
 (define-cproc cv-seq-push (seq::<cv-seq> obj) ::<void>
   (case-seq-type-set seq obj
                      (cvSeqPush seq (& (SCM_CVPOINT_DATA obj)))
+                     (cvSeqPush seq (& (unboxing obj <cv-line-segment-polar>)))
+                     (cvSeqPush seq (& (unboxing obj <cv-line-segment-point>)))
                      (let* ([code::u_int (Scm_GetIntegerU obj)])
                        (cvSeqPush seq (& code)))
                      (let* ([index::int (Scm_GetInteger obj)])
@@ -720,6 +958,8 @@ typedef double _double_t;
 (define-cproc cv-seq-push-front (seq::<cv-seq> obj) ::<void>
   (case-seq-type-set seq obj
                      (cvSeqPushFront seq (& (SCM_CVPOINT_DATA obj)))
+                     (cvSeqPushFront seq (& (unboxing obj <cv-line-segment-polar>)))
+                     (cvSeqPush seq (& (unboxing obj <cv-line-segment-point>)))
                      (let* ([code::u_int (Scm_GetIntegerU obj)])
                        (cvSeqPushFront seq (& code)))
                      (let* ([index::int (Scm_GetInteger obj)])
@@ -732,6 +972,12 @@ typedef double _double_t;
                  (let* ([pt::CvPoint])
                    (cvSeqPop seq (& pt))
                    (result (SCM_OBJ (SCM_MAKE_CVPOINT pt))))
+                 (let* ([polar::CvLineSegmentPolar])
+                   (cvSeqPop seq (& polar))
+                   (result (SCM_OBJ (boxing polar <cv-line-segment-polar>))))
+                 (let* ([pt::CvLineSegmentPoint])
+                   (cvSeqPop seq (& pt))
+                   (result (SCM_OBJ (boxing pt <cv-line-segment-point>))))
                  (let* ([code::char])
                    (cvSeqPop seq (& code))
                    (result (SCM_OBJ (Scm_MakeIntegerFromUI code))))
@@ -750,6 +996,12 @@ typedef double _double_t;
                  (let* ([pt::CvPoint])
                    (cvSeqPopFront seq (& pt))
                    (result (SCM_OBJ (SCM_MAKE_CVPOINT pt))))
+                 (let* ([polar::CvLineSegmentPolar])
+                   (cvSeqPopFront seq (& polar))
+                   (result (SCM_OBJ (boxing polar <cv-line-segment-polar>))))
+                 (let* ([pt::CvLineSegmentPoint])
+                   (cvSeqPopFront seq (& pt))
+                   (result (SCM_OBJ (boxing pt <cv-line-segment-point>))))
                  (let* ([code::char])
                    (cvSeqPopFront seq (& code))
                    (result (SCM_OBJ (Scm_MakeIntegerFromUI code))))
@@ -785,6 +1037,8 @@ typedef double _double_t;
 (eval-in-current-module
   (gen-elem-assign <cv-point>)
   (gen-elem-assign <cv-point-3d32f>)
+  (gen-elem-assign <cv-line-segment-polar>)
+  (gen-elem-assign <cv-line-segment-point>)
   (gen-elem-assign <uint8>)
   (gen-elem-assign <int>)
   )
@@ -798,6 +1052,8 @@ typedef double _double_t;
        (set! size (SCM_VECTOR_SIZE elements))
        (case-seq-type seq
                       (vector-to-ary elements p-elem tmp-ary TMP_ARY_SIZE CvPoint <cv-point>-elem-assign)
+                      (vector-to-ary elements p-elem tmp-ary TMP_ARY_SIZE CvLineSegmentPolar <cv-line-segment-polar>-elem-assign)
+                      (vector-to-ary elements p-elem tmp-ary TMP_ARY_SIZE CvLineSegmentPoint <cv-line-segment-point>-elem-assign)
                       (vector-to-ary elements p-elem tmp-ary TMP_ARY_SIZE _char_t <uint8>-elem-assign)
                       (vector-to-ary elements p-elem tmp-ary TMP_ARY_SIZE _int_t <int>-elem-assign)
                       (vector-to-ary elements p-elem tmp-ary TMP_ARY_SIZE CvPoint3D32f <cv-point-3d32f>-elem-assign)
@@ -805,6 +1061,8 @@ typedef double _double_t;
       [(is-type? elements <list>)
        (case-seq-type seq
                       (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size CvPoint <cv-point>-elem-assign)
+                      (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size CvLineSegmentPolar <cv-line-segment-polar>-elem-assign)
+                      (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size CvLineSegmentPoint <cv-line-segment-point>-elem-assign)
                       (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size _char_t <uint8>-elem-assign)
                       (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size _int_t <int>-elem-assign)
                       (list-to-ary elements p-elem tmp-ary TMP_ARY_SIZE size CvPoint3D32f <cv-point-3d32f>-elem-assign)
@@ -824,6 +1082,8 @@ typedef double _double_t;
          [ary::void*])
     (case-seq-type seq
                    (set! ary (SCM_MALLOC (* (sizeof CvPoint) count)))
+                   (set! ary (SCM_MALLOC (* (sizeof CvLineSegmentPolar) count)))
+                   (set! ary (SCM_MALLOC (* (sizeof CvLineSegmentPoint) count)))
                    (set! ary (SCM_MALLOC (* (sizeof _char_t) count)))
                    (set! ary (SCM_MALLOC (* (sizeof _int_t) count)))
                    (set! ary (SCM_MALLOC (* (sizeof CvPoint3D32f) count)))
@@ -831,6 +1091,8 @@ typedef double _double_t;
     (cvSeqPopMulti seq ary count in-front)
     (case-seq-type seq
                    (seq-multi-pop CvPoint SCM_MAKE_CVPOINT)
+                   (seq-multi-pop CvLineSegmentPolar SCM_MAKE_CVLINESEGMENTPOLAR)
+                   (seq-multi-pop CvLineSegmentPoint SCM_MAKE_CVLINESEGMENTPOINT)
                    (seq-multi-pop _char_t Scm_MakeIntegerFromUI)
                    (seq-multi-pop _int_t Scm_MakeInteger)
                    (seq-multi-pop CvPoint3D32f SCM_MAKE_CVPOINT3D32F)
@@ -840,6 +1102,8 @@ typedef double _double_t;
 (define-cproc cv-seq-insert (seq::<cv-seq> before-index::<fixnum> obj) ::<void>
   (case-seq-type-set seq obj
                      (cvSeqInsert seq before-index (& (SCM_CVPOINT_DATA obj)))
+                     (cvSeqInsert seq before-index (& (unboxing obj <cv-line-segment-polar>)))
+                     (cvSeqInsert seq before-index (& (unboxing obj <cv-line-segment-point>)))
                      (let* ([code::u_int (Scm_GetIntegerU obj)])
                        (cvSeqInsert seq before-index (& code)))
                      (let* ([index::int (Scm_GetInteger obj)])
@@ -857,6 +1121,10 @@ typedef double _double_t;
   (case-seq-type seq
                  (let* ([pt::CvPoint* (CV_GET_SEQ_ELEM CvPoint seq index)])
                    (result (SCM_OBJ (SCM_MAKE_CVPOINT (* pt)))))
+                 (let* ([polar::CvLineSegmentPolar* (CV_GET_SEQ_ELEM CvLineSegmentPolar seq index)])
+                   (result (SCM_OBJ (boxing (* polar) <cv-line-segment-polar>))))
+                 (let* ([pt::CvLineSegmentPoint* (CV_GET_SEQ_ELEM CvLineSegmentPoint seq index)])
+                   (result (SCM_OBJ (boxing (* pt) <cv-line-segment-point>))))
                  (let* ([code::char (* (CV_GET_SEQ_ELEM _char_t seq index))])
                    (result (SCM_OBJ (Scm_MakeIntegerFromUI code))))
                  (let* ([ind::int (* (CV_GET_SEQ_ELEM _int_t seq index))])
@@ -869,6 +1137,10 @@ typedef double _double_t;
   (let* ([block::CvSeqBlock* (SCM_MALLOC (sizeof block))])
     (case-seq-type-set seq obj
                        (result (cvSeqElemIdx seq (& (SCM_CVPOINT_DATA obj)) (& block))
+                               block)
+                       (result (cvSeqElemIdx seq (& (unboxing obj <cv-line-segment-polar>)) (& block))
+                               block)
+                       (result (cvSeqElemIdx seq (& (unboxing obj <cv-line-segment-point>)) (& block))
                                block)
                        (let* ([code::u_int (Scm_GetIntegerU obj)])
                          (result (cvSeqElemIdx seq (& code) (& block))
@@ -900,13 +1172,14 @@ typedef double _double_t;
 (define-cproc cv-write-seq-elem (elem-obj writer::<cv-seq-writer>) ::<void>
   (case-seq-type-set (-> writer seq) elem-obj
                      (CV_WRITE_SEQ_ELEM (SCM_CVPOINT_DATA elem-obj) (* writer))
+                     (CV_WRITE_SEQ_ELEM (unboxing elem-obj <cv-line-segment-polar>) (* writer))
+                     (CV_WRITE_SEQ_ELEM (unboxing elem-obj <cv-line-segment-point>) (* writer))
                      (let* ([code::u_int (Scm_GetIntegerU elem-obj)])
                        (CV_WRITE_SEQ_ELEM code (* writer)))
                      (let* ([index::int (Scm_GetInteger elem-obj)])
                        (CV_WRITE_SEQ_ELEM index (* writer)))
                      (CV_WRITE_SEQ_ELEM (SCM_CVPOINT3D32F_DATA elem-obj) (* writer))
                      (CV_WRITE_SEQ_ELEM elem-obj (* writer))))
-
 
 
 (define-cproc cv-start-read-seq (seq::<cv-seq>
@@ -933,6 +1206,12 @@ typedef double _double_t;
                  (let* ([pt::CvPoint])
                    (CV_READ_SEQ_ELEM pt (* reader))
                    (result (SCM_MAKE_CVPOINT pt)))
+                 (let* ([v::CvLineSegmentPolar])
+                   (CV_READ_SEQ_ELEM v (* reader))
+                   (result (boxing v <cv-line-segment-polar>)))
+                 (let* ([v::CvLineSegmentPoint])
+                   (CV_READ_SEQ_ELEM v (* reader))
+                   (result (boxing v <cv-line-segment-point>)))
                  (let* ([code::u_int])
                    (CV_READ_SEQ_ELEM code (* reader))
                    (result (Scm_MakeIntegerFromUI code)))
@@ -950,6 +1229,8 @@ typedef double _double_t;
 (define-cproc cv-ref-seq-elem (reader::<cv-seq-reader>) ::<top>
   (case-seq-type (-> reader seq)
                  (result (SCM_MAKE_CVPOINT (* (cast CvPoint* (-> reader ptr)))))
+                 (result (boxing (* (cast CvLineSegmentPolar* (-> reader ptr))) <cv-line-segment-polar>))
+                 (result (boxing (* (cast CvLineSegmentPoint* (-> reader ptr))) <cv-line-segment-point>))
                  (result (Scm_MakeIntegerFromUI (* (cast u_int* (-> reader ptr)))))
                  (result (Scm_MakeInteger (* (cast int* (-> reader ptr)))))
                  (result (SCM_MAKE_CVPOINT3D32F (* (cast CvPoint3D32f* (-> reader ptr)))))
@@ -961,6 +1242,12 @@ typedef double _double_t;
                  (let* ([pt::CvPoint])
                    (CV_REV_READ_SEQ_ELEM pt (* reader))
                    (result (SCM_MAKE_CVPOINT pt)))
+                 (let* ([polar::CvLineSegmentPolar])
+                   (CV_REV_READ_SEQ_ELEM polar (* reader))
+                   (result (boxing polar <cv-line-segment-polar>)))
+                 (let* ([pt::CvLineSegmentPoint])
+                   (CV_REV_READ_SEQ_ELEM pt (* reader))
+                   (result (boxing pt <cv-line-segment-point>)))
                  (let* ([code::u_int])
                    (CV_REV_READ_SEQ_ELEM code (* reader))
                    (result (Scm_MakeIntegerFromUI code)))
@@ -1152,7 +1439,7 @@ typedef double _double_t;
   (cvRepeat src dest))
 
 ;;TODO use nnvector
-(define-cproc cv-set-data (arr::<cv-arr> data::<uvector> step::<fixnum>) ::<void>
+(define-cproc cv-set-data (arr::<cv-arr> data::<uvector> step::<int>) ::<void>
   (ENSURE_NOT_NULL arr)
   (cvSetData arr (SCM_UVECTOR_ELEMENTS data) step))
 
@@ -1931,6 +2218,16 @@ typedef double _double_t;
     (cvAvgSdv arr (& mean) (& std-dev) mask)
     (result mean std-dev)))
 
+(define-cproc cv-min-max (arr::<cv-arr>
+                           :optional (mask-obj ())) ::(<double> <double>)
+  (ENSURE_NOT_NULL arr)
+  (let* ([mask::CvArr*]
+         [min-val::double]
+         [max-val::double])
+    (nil-or-cvarr mask-obj mask)
+    (cvMinMaxLoc arr (& min-val) (& max-val) 0 0 mask)
+    (result min-val max-val)))
+
 (define-cproc cv-min-max-loc (arr::<cv-arr>
                                :optional (mask-obj ())) ::(<double> <double> <cv-point> <cv-point>)
   (ENSURE_NOT_NULL arr)
@@ -2038,7 +2335,7 @@ typedef double _double_t;
   (cvMulSpectrums src1 src2 dst flags))
 
 (define-cproc cv-get-optimal-dft-size (size0::<fixnum>) ::<fixnum>
-  (cvGetOptimalDFTSize size0))
+  (result (cvGetOptimalDFTSize size0)))
 
 (define-cproc cv-dct (src::<cv-arr> dst::<cv-arr> flags::<fixnum>) ::<void>
   (ENSURE_NOT_NULL src)
@@ -2100,7 +2397,7 @@ typedef double _double_t;
       [else (Scm_Error "<list> or <vector> required, but got %S" pts)])
     (cvFillConvexPoly img pts-arr pts-cnt color line-type shift)))
 
-(define-cproc cv-fill-poly (img::<cv-arr> pts-vec::<vector> contours::<fixnum> color::<cv-scalar>
+(define-cproc cv-fill-poly (img::<cv-arr> pts-vec::<vector> color::<cv-scalar>
                                           :optional (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (let* ([vec-size::int (SCM_VECTOR_SIZE pts-vec)]
@@ -2118,9 +2415,9 @@ typedef double _double_t;
                 (SCM_CVPOINT_DATA (SCM_VECTOR_ELEMENT inner-vec j)))
               (Scm_Error "CvPoint required, but got %S" (SCM_VECTOR_ELEMENT inner-vec j)))))
         (Scm_Error "vector required, but got %S" (SCM_VECTOR_ELEMENT pts-vec i))))
-    (cvFillPoly img pts npts contours color line-type shift)))
+    (cvFillPoly img pts npts vec-size color line-type shift)))
 
-(define-cproc cv-poly-line (img::<cv-arr> pts-vec::<vector> contours::<fixnum> 
+(define-cproc cv-poly-line (img::<cv-arr> pts-vec::<vector> 
                                           is-closed::<boolean> color::<cv-scalar>
                                           :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
@@ -2139,7 +2436,7 @@ typedef double _double_t;
                 (SCM_CVPOINT_DATA (SCM_VECTOR_ELEMENT inner-vec j)))
               (Scm_Error "CvPoint required, but got %S" (SCM_VECTOR_ELEMENT inner-vec j)))))
         (Scm_Error "vector required, but got %S" (SCM_VECTOR_ELEMENT pts-vec i))))
-    (cvPolyLine img pts npts contours is-closed color thickness line-type shift)))
+    (cvPolyLine img pts npts vec-size is-closed color thickness line-type shift)))
 
 
 ;;not support
@@ -2166,8 +2463,9 @@ typedef double _double_t;
 (define-cproc cv-next-line-point (line-iterator::<cv-line-iterator>) ::<void>
   (CV_NEXT_LINE_POINT (* line-iterator)))
 
-(define-cproc cv-get-byte-line-iterator (line-iterator::<cv-line-iterator>) ::<uint8>
-  (result (* (-> line-iterator ptr))))
+(define-cproc cv-get-byte-line-iterator (line-iterator::<cv-line-iterator>
+                                          offset::<fixnum>) ::<uint8>
+  (result (* (+ (-> line-iterator ptr) offset))))
 
 
 ;;----------------
@@ -2185,7 +2483,8 @@ typedef double _double_t;
 (define-enum CV_FONT_ITALIC)
 (define-enum CV_FONT_VECTOR0)
 
-(define-cproc cv-make-font (font-face::<fixnum> hscale::<double> vscale::<double>
+;;TODO modify function name
+(define-cproc make-cv-font (font-face::<fixnum> hscale::<double> vscale::<double>
                                              :optional (shear::<double> 0.0) (thickness::<fixnum> 1) (line-type::<fixnum> 8)) ::<cv-font>
   (let* ([font::CvFont* (SCM_NEW CvFont)])
     (cvInitFont font font-face hscale vscale shear thickness line-type)
@@ -2231,11 +2530,29 @@ typedef double _double_t;
     (cvDrawContours img contour external-color hole-color
                     max-level thickness line-type offset)))
 
-(define-cproc cv-lut (src::<cv-arr> dst::<cv-arr> lut::<cv-arr>) ::<void>
+(define-cproc cv-lut (src::<cv-arr> dst::<cv-arr> lut::<top>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
-  (ENSURE_NOT_NULL lut)
-  (cvLUT src dst lut))
-
+  (cond
+    [(is-type? lut <cv-arr>)
+     (ENSURE_NOT_NULL (unboxing lut <cv-arr>))
+     (cvLUT src dst (unboxing lut <cv-arr>))]
+    [(is-type? lut <uvector>)
+     (unless (== 256 (SCM_UVECTOR_SIZE lut))
+       (Scm_Error "lut length must be 256."))
+     (let* ([type :: int]
+            [mat :: CvMat])
+       (cond
+         [(is-type? lut <s8vector>)(set! type CV_8SC1)]
+         [(is-type? lut <u8vector>)(set! type CV_8UC1)]
+         [(is-type? lut <s16vector>)(set! type CV_16SC1)]
+         [(is-type? lut <u16vector>)(set! type CV_16UC1)]
+         [(is-type? lut <s32vector>)(set! type CV_32SC1)]
+         [(is-type? lut <f32vector>)(set! type CV_32FC1)]
+         [(is-type? lut <f64vector>)(set! type CV_64FC1)]
+         [else (Scm_Error "unsupport uvector type.")])
+       (set! mat (cvMat 256 1 type (SCM_UVECTOR_ELEMENTS lut)))
+       (cvLUT src dst (& mat)))]
+    [else (Scm_Error "<cv-arr> or <uvector> required, but got %S." lut)]))
 
 ;; end:

@@ -104,6 +104,7 @@ typedef double _double_t;
     (nil-or-cvarr tilted-sum-obj tilted-sum)
     (cvIntegral image sum sqsum tilted-sum)))
 
+(define-enum CV_GAUSSIAN_5x5)
 
 (define-cproc cv-pyr-down (src::<cv-arr> dst::<cv-arr>
                                          :optional (filter::<fixnum> 7)) ::<void> ;;filter 7 is CV_GAUSSIAN_5x5
@@ -142,6 +143,9 @@ typedef double _double_t;
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL markers)
   (cvWatershed image markers))
+
+(define-enum CV_INPAINT_NS)
+(define-enum CV_INPAINT_TELEA)
 
 (define-cproc cv-inpaint (src::<cv-arr> inpaint_mask::<cv-arr> dst::<cv-arr>
                                         inpaint-range::<real> flags::<fixnum>) ::<void>
@@ -296,10 +300,10 @@ typedef double _double_t;
     (cvWarpAffine src dst map-matrix flags fillval)))
 
 (define-cproc cv-get-affine-transform (src::<top> dst::<top>
-                                                  map-matrix::<cv-mat>) ::<void>
-  (ENSURE_NOT_NULL map-matrix)
+                                                  :optional (map-matrix ())) ::<top>
   (let* ([src-ary::(.array CvPoint2D32f (3))]
-         [dst-ary::(.array CvPoint2D32f (3))])
+         [dst-ary::(.array CvPoint2D32f (3))]
+         [map :: CvMat*])
     (cond
       [(is-type? src <list>)
        (when (!= (Scm_Length src) 3)
@@ -326,7 +330,14 @@ typedef double _double_t;
        (dotimes [i 3]
          (assign-obj (aref dst-ary i) (SCM_VECTOR_ELEMENT dst i) <cv-point-2d32f>))]
       [else (Scm_Error "<list> or <vector> required, but got %S." dst)])
-    (cvGetAffineTransform src-ary dst-ary map-matrix)))
+    (cond
+      [(null? map-matrix) (set! map (cvCreateMat 2 3 CV_32FC1))]
+      [(is-type? map-matrix <cv-mat>) (set! map (unboxing map-matrix <cv-mat>))]
+      [else (Scm_Error "<cv-mat> or '() required, but got %S." map-matrix)])
+    (cvGetAffineTransform src-ary dst-ary map)
+    (if (null? map-matrix)
+      (result (boxing map <cv-mat>))
+      (result SCM_UNDEFINED))))
 
 (define-cproc cv-2d-rotation-matrix (center::<cv-point-2d32f> angle::<real> scale::<real> map-matrix::<cv-mat>) ::<void>
   (cv2DRotationMatrix center angle scale map-matrix))
@@ -342,37 +353,49 @@ typedef double _double_t;
     (cvWarpPerspective src dst map-matrix flags fillval)))
 
 (define-cproc cv-get-perspective-transform (src::<top> dst::<top>
-                                                       map-matrix::<cv-mat>) ::<void>
-  (ENSURE_NOT_NULL map-matrix)
-  (let* ([src-ary::(.array CvPoint2D32f (3))]
-         [dst-ary::(.array CvPoint2D32f (3))])
+                                            :optional (map-matrix ())) :: <top>
+  (let* ([src-ary::(.array CvPoint2D32f (4))]
+         [dst-ary::(.array CvPoint2D32f (4))]
+         [map :: CvMat*]
+         [create-mat? :: int 0])
     (cond
       [(is-type? src <list>)
-       (when (!= (Scm_Length src) 3)
-         (Scm_Error "src requires length 3, but got %d" (Scm_Length src)))
-       (dotimes [i 3]
+       (when (!= (Scm_Length src) 4)
+         (Scm_Error "src requires length 4, but got %d" (Scm_Length src)))
+       (dotimes [i 4]
          (assign-obj (aref src-ary i) (SCM_CAR src) <cv-point-2d32f>)
         (set! src (SCM_CDR src)))]
       [(is-type? src <vector>)
-       (when (!= (SCM_VECTOR_SIZE src) 3)
-         (Scm_Error "src requires length 3, but got %d" (SCM_VECTOR_SIZE src)))
-       (dotimes [i 3]
+       (when (!= (SCM_VECTOR_SIZE src) 4)
+         (Scm_Error "src requires length 4, but got %d" (SCM_VECTOR_SIZE src)))
+       (dotimes [i 4]
          (assign-obj (aref src-ary i) (SCM_VECTOR_ELEMENT src i) <cv-point-2d32f>))]
       [else (Scm_Error "<list> or <vector> required, but got %S." src)])
     (cond
       [(is-type? dst <list>)
-       (when (!= (Scm_Length dst) 3)
-         (Scm_Error "dst requires length 3, but got %d" (Scm_Length dst)))
-       (dotimes [i 3]
+       (when (!= (Scm_Length dst) 4)
+         (Scm_Error "dst requires length 4, but got %d" (Scm_Length dst)))
+       (dotimes [i 4]
          (assign-obj (aref dst-ary i) (SCM_CAR dst) <cv-point-2d32f>)
         (set! dst (SCM_CDR dst)))]
       [(is-type? dst <vector>)
-       (when (!= (SCM_VECTOR_SIZE dst) 3)
-         (Scm_Error "dst requires length 3, but got %d" (SCM_VECTOR_SIZE dst)))
-       (dotimes [i 3]
+       (when (!= (SCM_VECTOR_SIZE dst) 4)
+         (Scm_Error "dst requires length 4, but got %d" (SCM_VECTOR_SIZE dst)))
+       (dotimes [i 4]
          (assign-obj (aref dst-ary i) (SCM_VECTOR_ELEMENT dst i) <cv-point-2d32f>))]
       [else (Scm_Error "<list> or <vector> required, but got %S." dst)])
-    (cvGetPerspectiveTransform src-ary dst-ary map-matrix)))
+    (cond
+      [(null? map-matrix)
+       (set! map (cvCreateMat 3 3 CV_32FC1))
+       (set! create-mat? 1)]
+      [(is-type? map-matrix <cv-mat>)
+       (set! map (unboxing map-matrix <cv-mat>))
+       (ENSURE_NOT_NULL map)]
+      [else (Scm_Error "CvMat or '() required, but got %S" map-matrix)])
+    (cvGetPerspectiveTransform src-ary dst-ary map)
+    (if create-mat?
+      (result (boxing map <cv-mat>))
+      (return map-matrix-scm))))
 
 (define-cproc cv-remap (src::<cv-arr> dst::<cv-arr> mapx::<cv-arr> mapy::<cv-arr>
                                       :optional (flags::<fixnum> 9) ;;flags 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
@@ -392,6 +415,14 @@ typedef double _double_t;
   (ENSURE_NOT_NULL mapxy)
   (ENSURE_NOT_NULL mapalpha)
   (cvConvertMaps mapx mapy mapxy mapalpha))
+
+(define-cproc cv-log-polar (src::<cv-arr> dst::<cv-arr>
+                                          center::<cv-point-2d32f> m::<real>
+                                          :optional (flags::<fixnum> 9)) ::<void> ;;flags 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
+  (cvLogPolar src dst center m flags))
+
 
 (define-cproc cv-linear-polar (src::<cv-arr> dst::<cv-arr>
                                              center::<cv-point-2d32f> m::<real>
@@ -449,6 +480,15 @@ typedef double _double_t;
 (define-enum CV_SHAPE_CROSS)
 (define-enum CV_SHAPE_ELLIPSE)
 (define-enum CV_SHAPE_CUSTOM)
+
+(define-enum CV_MOP_ERODE)
+(define-enum CV_MOP_DILATE)
+(define-enum CV_MOP_OPEN)
+(define-enum CV_MOP_CLOSE)
+(define-enum CV_MOP_GRADIENT)
+(define-enum CV_MOP_TOPHAT)
+(define-enum CV_MOP_BLACKHAT)
+
 (define-cproc cv-create-structuring-element-ex (cols::<fixnum> rows::<fixnum> anchor-x::<fixnum> anchor-y::<fixnum> shape::<fixnum>
                                                                :optional (values-obj ())) ::<iplconv-kernel>
   (let* ([values::int*]
@@ -656,7 +696,7 @@ return (x < y) ? y : x;
 (define-cproc cv-find-contours (image::<cv-arr> storage::<cv-mem-storage> 
                                                 :optional (mode::<fixnum> 1) ;;mode 1 is CV_RETR_LIST
                                                 (method::<fixnum> 2) ;;method 2 is CV_CHAIN_APPROX_SIMPLE
-                                                (offset-obj ())) ::<cv-seq>
+                                                (offset-obj ())) ::<top>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL storage)
   (let* ([offset::CvPoint]
@@ -665,7 +705,9 @@ return (x < y) ? y : x;
          [seq::CvSeq*])
     (nil-or-obj offset-obj offset <cv-point> (cvPoint 0 0))
     (cvFindContours image storage (& seq) header-size mode method offset)
-    (result seq)))
+    (if seq
+      (result (boxing seq <cv-seq>))
+      (result (boxing 0 <boolean>)))))
 
 (define-cproc cv-start-find-contours (image::<cv-arr> storage::<cv-mem-storage>
                                                       :optional (mode::<fixnum> 1) ;;mode 1 is CV_RETR_LIST
@@ -679,8 +721,11 @@ return (x < y) ? y : x;
     (nil-or-obj offset-obj offset <cv-point> (cvPoint 0 0))
     (result (cvStartFindContours image storage header-size mode method offset))))
 
-(define-cproc cv-find-next-contour (scanner::<cv-contour-scanner>) ::<cv-seq>
-  (result (cvFindNextContour scanner)))
+(define-cproc cv-find-next-contour (scanner::<cv-contour-scanner>) :: <top>
+  (let* ([seq :: CvSeq* (cvFindNextContour scanner)])
+    (if seq
+      (result (boxing seq <cv-seq>))
+      (result (boxing 0 <boolean>)))))
 
 (define-cproc cv-substitute-contour (scanner::<cv-contour-scanner> new-contour::<cv-seq>) ::<void>
   (cvSubstituteContour scanner new-contour))
@@ -826,8 +871,6 @@ return (x < y) ? y : x;
   (result (cvTriangleArea a b c)))
 
 
-
-
 ;;******************
 ;;Contour Processing and Shape Analysis
 ;;******************
@@ -835,9 +878,7 @@ return (x < y) ? y : x;
 (define-cproc cv-approx-poly (src-seq::<cv-seq> storage::<cv-mem-storage> method::<fixnum> parameter::<real>
                                                 :optional (parameter2::<fixnum> 0))::<cv-seq>
   (ENSURE_NOT_NULL storage)
-  (result (cvApproxPoly src-seq 
-                        (?: (== method CV_CHAIN_CODE)
-                            (sizeof CvChain) (sizeof CvContour))
+  (result (cvApproxPoly src-seq 0
                         storage method parameter parameter2)))
 
 (define-cproc cv-arc-length (curve::<cv-seq>
@@ -849,32 +890,69 @@ return (x < y) ? y : x;
 (define-cproc cv-contour-perimeter (contour::<cv-seq>) ::<real>
   (result (cvContourPerimeter contour)))
 
-(define-cproc cv-bounding-rect (points::<cv-arr>
+(define-cise-stmt (sequence-to-point-seq seq seq-type cv-arr storage)
+  `(cond
+    [(is-type? ,seq <cv-arr>)
+     (set! ,cv-arr (unboxing ,seq <cv-arr>))
+     (ENSURE_NOT_NULL ,cv-arr)]
+    [(is-type? ,seq <vector>)
+     (set! ,storage (cvCreateMemStorage 0))
+     (set! ,cv-arr (cvCreateSeq ,seq-type (sizeof CvSeq) (sizeof CvPoint) ,storage))
+     (dotimes [i (SCM_VECTOR_SIZE ,seq)]
+       (unless (is-type? (SCM_VECTOR_ELEMENT ,seq i) <cv-point>)
+         (Scm_Error "vector elements must be <cv-point>."))
+       (cvSeqPush ,cv-arr (& (unboxing (SCM_VECTOR_ELEMENT ,seq i) <cv-point>))))]
+    [(is-type? ,seq <list>) 
+     (set! ,storage (cvCreateMemStorage 0))
+     (set! ,cv-arr (cvCreateSeq ,seq-type (sizeof CvSeq) (sizeof CvPoint) ,storage))
+     (dolist [p ,seq]
+       (unless (is-type? p <cv-point>)
+         (Scm_Error "list elements must be <cv-point>."))
+       (cvSeqPush ,cv-arr (& (unboxing p <cv-point>))))]
+    [else (Scm_Error "<cv-arr> or <vector> or <list> required, but got %S." ,seq)]))
+
+(define-cproc cv-bounding-rect (points::<top>
                                  :optional (update::<fixnum> 0)) ::<cv-rect>
-  (ENSURE_NOT_NULL points)
-  (result (cvBoundingRect points update)))
+  (let* ([points-arr :: CvArr*]
+         [storage :: CvMemStorage* 0])
+    (sequence-to-point-seq points CV_SEQ_ELTYPE_POINT points-arr storage)
+    (result (cvBoundingRect points-arr update))
+    (when storage
+      (cvReleaseMemStorage (& storage)))))
 
-(define-cproc cv-contour-area (contour::<cv-arr>
+(define-cproc cv-contour-area (contour::<top>
                                 :optional (slice-obj ()) (oriented::<fixnum> 0))::<real>
-  (ENSURE_NOT_NULL contour)
-  (let* ([slice::CvSlice])
+  (let* ([contour-arr :: CvArr*]
+         [storage :: CvMemStorage* 0]
+         [slice::CvSlice])
+    (sequence-to-point-seq contour CV_SEQ_POLYLINE contour-arr storage)
     (nil-or-obj slice-obj slice <cv-slice> CV_WHOLE_SEQ)
-    (result (cvContourArea contour slice oriented))))
+    (result (cvContourArea contour-arr slice oriented))
+    (when storage
+      (cvReleaseMemStorage (& storage)))))
 
-(define-cproc cv-min-area-rect2 (points::<cv-arr>
+(define-cproc cv-min-area-rect2 (points::<top>
                                   :optional (storage-obj ())) ::<cv-box-2d>
-  (ENSURE_NOT_NULL points)
-  (let* ([storage::CvMemStorage*])
+  (let* ([points-arr :: CvArr*]
+         [ss :: CvMemStorage* 0]
+         [storage::CvMemStorage*])
+    (sequence-to-point-seq points CV_SEQ_ELTYPE_POINT points-arr ss)
     (nil-or-obj-null-check storage-obj storage <cv-mem-storage>)
-    (result (cvMinAreaRect2 points storage))))
+    (result (cvMinAreaRect2 points-arr storage))
+    (when storage
+      (cvReleaseMemStorage (& storage)))))
 
-(define-cproc cv-min-enclosing-circle (points::<cv-arr>) ::(<top> <top>)
-  (ENSURE_NOT_NULL points)
-  (let* ([center::CvPoint2D32f]
+(define-cproc cv-min-enclosing-circle (points::<top>) ::(<top> <top>)
+  (let* ([points-arr :: CvArr*]
+         [storage :: CvMemStorage* 0]
+         [center::CvPoint2D32f]
          [radius::float])
-    (if (cvMinEnclosingCircle points (& center) (& radius))
+    (sequence-to-point-seq points CV_SEQ_ELTYPE_POINT points-arr storage)
+    (if (cvMinEnclosingCircle points-arr (& center) (& radius))
       (result (boxing center <cv-point-2d32f>) (boxing radius <float>))
-      (result (boxing 0 <boolean>) (boxing 0 <boolean>)))))
+      (result (boxing 0 <boolean>) (boxing 0 <boolean>)))
+    (when storage
+      (cvReleaseMemStorage (& storage)))))
 
 ;;-------------
 ;;Constants
@@ -898,7 +976,7 @@ return (x < y) ? y : x;
     `(let* ([,ary :: void*]
             [,mat :: CvMat*])
        (vector-to-ary ,vec ,ary ,elem-c-type ,assign)
-       (set! ,mat (cvCreateMatHeader (SCM_VECTOR_SIZE ,vec) 1 ,mat-type))
+       (set! ,mat (cvCreateMatHeader 1 (SCM_VECTOR_SIZE ,vec) ,mat-type))
        (set! (ref (-> ,mat data) ptr) ,ary)
        (set! ,var ,mat))))
 
@@ -910,7 +988,7 @@ return (x < y) ? y : x;
             [,mat :: CvMat*]
             [,len :: int])
        (list-to-ary ,l ,ary ,len ,elem-c-type ,assign)
-       (set! ,mat (cvCreateMatHeader ,len 1 ,mat-type))
+       (set! ,mat (cvCreateMatHeader 1 ,len ,mat-type))
        (set! (ref (-> ,mat data) ptr) ,ary)
        (when ,setted-list-size
          (set! (* ,setted-list-size) ,len))
@@ -980,15 +1058,15 @@ Scm_Error(\"internal error\");
     [(is-type? obj <vector>) 
      (let* ([vec::ScmVector* (unboxing obj <vector>)])
        (set! (* create-mat?) 1)
-       (if (not length)
+       (when length
          (set! (* length) (SCM_VECTOR_SIZE vec)))
        (cond
          [(is-type? (SCM_VECTOR_ELEMENT vec 0) <cv-point>) 
-          (if (not input-type)
+          (when input-type
             (set! (* input-type) 0))
           (vec-to-mat vec CvPoint cv-point-elem-assign (* arr) CV_32SC2)]
          [(is-type? (SCM_VECTOR_ELEMENT vec 0) <cv-point-2d32f>) 
-          (if (not input-type)
+          (when input-type
             (set! (* input-type) 1))
           (vec-to-mat vec CvPoint2D32f cv-point-2d32f-elem-assign (* arr) CV_32FC2)]
          [else (Scm_Error "type of input vector elements must be <cv-point> or <cv-point-2d32f>")]))]
@@ -1006,22 +1084,33 @@ Scm_Error(\"internal error\");
         (list-to-mat obj length CvPoint2D32f cv-point-2d32f-elem-assign (* arr) CV_32FC2)]
        [else (Scm_Error "type of input list elements must be <cv-point> or <cv-point-2d32f>")])]
 
-    [(is-type? obj <cv-arr>)
-     (ENSURE_NOT_NULL (unboxing obj <cv-arr>))
-     (if (is-type? obj <cv-seq>)
-       (let* ([seq :: CvSeq* (unboxing obj <cv-seq>)])
-         (set! (* arr) seq)
-         (if (not length)
-           (set! (* length) (-> seq total))))
-       (let* ([ary :: CvArr* (unboxing obj <cv-arr>)]
-              [size :: CvSize (cvGetSize ary)])
-         (set! (* arr) ary)
-         (if (not length)
-           (set! (* length) (/ (* (ref size height)
-                                  (ref size width)
-                                  (getElementChannels ary))
-                               2)))))]
-    [else (Scm_Error "<cv-arr> or <vector> or <list> required, but got %S" obj)]))
+    [(is-type? obj <cv-seq>)
+     (let* ([seq :: CvSeq* (unboxing obj <cv-seq>)])
+       (ENSURE_NOT_NULL seq)
+       (set! (* arr) seq)
+       (when input-type
+         (case (CV_SEQ_ELTYPE seq)
+           [(CV_32SC2) (set! (* input-type) 0)]
+           [(CV_32FC2) (set! (* input-type) 1)]
+           [else (Scm_Error "unsupport seq element type. %S" (CV_SEQ_ELTYPE seq))]))
+       (when length
+         (set! (* length) (-> seq total))))]
+    [(is-type? obj <cv-mat>)
+     (ENSURE_NOT_NULL (unboxing obj <cv-mat>))
+     (let* ([mat :: CvMat* (unboxing obj <cv-mat>)]
+            [size :: CvSize (cvGetSize mat)])
+       (set! (* arr) mat)
+       (when input-type
+         (case (CV_MAT_TYPE (-> mat type))
+           [(CV_32SC2) (set! (* input-type) 0)]
+           [(CV_32FC2) (set! (* input-type) 1)]
+           [else (Scm_Error "unsupport matrix type. %S" (CV_MAT_TYPE (-> mat type)))]))
+       (when length
+         (set! (* length) (/ (* (ref size height)
+                                (ref size width)
+                                (getElementChannels mat))
+                             2))))]
+    [else (Scm_Error "<cv-seq> or <cv-mat> or <vector> or <list> required, but got %S" obj)]))
 
 
 ;;-------------
@@ -1029,24 +1118,20 @@ Scm_Error(\"internal error\");
 (define-enum CV_CLOCKWISE)
 (define-enum CV_COUNTER_CLOCKWISE)
 
-(define-constant CV_INPUT_INTEGER 0)
-(define-constant CV_INPUT_REAL 1)
 (define-cproc cv-convex-hull2 (input-obj ;<cv-point> or <cv-point-2d32f> of vecotr or sequence
-                                ;;input-type is original parameter
-                                ;;allow CV_INPUT_INTEGER or CV_INPUT_REAL
-                                :optional (input-type::<fixnum> -1)
-                                (orientation::<fixnum> 1) ;orientation 1 is CV_CLOCKWISE
+                                :optional (orientation::<fixnum> 1) ;orientation 1 is CV_CLOCKWISE
                                 ) ::<vector>
   (let* ([input :: void*]
          [input-length :: int]
-         [create-mat? :: int 0])
+         [create-mat? :: int 0]
+         [input-type :: int -1])
     ;;setting input
     (obj-to-cvarr input-obj (& input) (& input-length)
                   (& create-mat?) (& input-type))
-    (if (or (== input-type 0) (== input-type 1))
+    (if (and (!= input-type 0) (!= input-type 1))
       (Scm_Error "Unkown Input type"))
 
-    (let* ([output-mat :: CvMat* (cvCreateMat input-length 1 (?: (== input-type 0)
+    (let* ([output-mat :: CvMat* (cvCreateMat 1 input-length (?: (== input-type 0)
                                                                  CV_32SC2 CV_32FC2))])
       ;;call cvConvexHull2
       (cvConvexHull2 input output-mat orientation 1)
@@ -1175,7 +1260,7 @@ Scm_Error(\"internal error\");
   (ENSURE_NOT_NULL hist)
   (cvClearHist hist))
 
-(define-cproc cv-get-minmax-hist-value (hist::<cv-histogram>) ::(<int> <int>)
+(define-cproc cv-get-minmax-hist-value (hist::<cv-histogram>) ::(<float> <float>)
   (ENSURE_NOT_NULL hist)
   (let* ([min :: float]
          [max :: float])
@@ -1221,18 +1306,27 @@ Scm_Error(\"internal error\");
          (ENSURE_NOT_NULL ,var))
        (Scm_Error ,#`",(~ type 'description) required, but got %S" ,obj))))
 
+"
+#define CALC_HIST_TMP_SIZE 10
+"
+
 (define-cproc cv-calc-arr-hist (arr hist::<cv-histogram>
                                     :optional (accumulate::<fixnum> 0)
                                     (mask-obj ())) ::<void>
   (ENSURE_NOT_NULL hist)
-  (let* ([array :: CvArr**]
+  (let* ([array-tmp :: (.array CvArr* (CALC_HIST_TMP_SIZE))]
+         [array :: CvArr**]
          [mask :: CvArr*])
     (cond
       [(is-type? arr <list>)
-       (list-to-ary arr array CvArr* cvarr-elem-assign)]
+       (list-to-ary arr array array-tmp CALC_HIST_TMP_SIZE CvArr* cvarr-elem-assign)]
       [(is-type? arr <vector>)
-       (vector-to-ary arr array CvArr* cvarr-elem-assign)]
-      [else (Scm_Error "<list> or <vector> required, but got %S" arr)])
+       (vector-to-ary arr array array-tmp CALC_HIST_TMP_SIZE CvArr* cvarr-elem-assign)]
+      [(is-type? arr <cv-arr>)
+       (set! (aref array-tmp 0) (unboxing arr <cv-arr>))
+       (ENSURE_NOT_NULL (aref array-tmp 0))
+       (set! array array-tmp)]
+      [else (Scm_Error "<list> or <vector> or <cv-arr> required, but got %S" arr)])
     (nil-or-cvarr mask-obj mask)
     (cvCalcArrHist array hist accumulate mask)))
 
@@ -1240,14 +1334,19 @@ Scm_Error(\"internal error\");
                                   :optional (accumulate::<fixnum> 0)
                                   (mask-obj ())) ::<void>
   (ENSURE_NOT_NULL hist)
-  (let* ([array :: CvArr**]
+  (let* ([array-tmp :: (.array CvArr* (CALC_HIST_TMP_SIZE))]
+         [array :: CvArr**]
          [mask :: CvArr*])
     (cond
       [(is-type? image <list>)
-       (list-to-ary image array CvArr* cvarr-elem-assign)]
+       (list-to-ary image array array-tmp CALC_HIST_TMP_SIZE CvArr* cvarr-elem-assign)]
       [(is-type? image <vector>)
-       (vector-to-ary image array CvArr* cvarr-elem-assign)]
-      [else (Scm_Error "<list> or <vector> required, but got %S" image)])
+       (vector-to-ary image array array-tmp CALC_HIST_TMP_SIZE CvArr* cvarr-elem-assign)]
+      [(is-type? image <cv-arr>)
+       (set! (aref array-tmp 0) (unboxing image <cv-arr>))
+       (ENSURE_NOT_NULL (aref array-tmp 0))
+       (set! array array-tmp)]
+      [else (Scm_Error "<list> or <vector> or <cv-arr> required, but got %S" image)])
     (nil-or-cvarr mask-obj mask)
     (cvCalcArrHist array hist accumulate mask)))
 
@@ -1392,37 +1491,47 @@ Scm_Error(\"internal error\");
   (ENSURE_NOT_NULL harris-response)
   (cvCornerHarris image harris-response block-size aperture-size k))
 
+"
+#define TEMP_CORNER_COUNT 150
+"
 (define-cproc cv-find-corner-sub-pix (image::<cv-arr> corners-obj::<top>
-                                                      count::<fixnum> win::<cv-size> zero-zone::<cv-size>
+                                                      win::<cv-size> zero-zone::<cv-size>
                                                       criteria::<cv-term-criteria>) ::<void>
   (ENSURE_NOT_NULL image)
-  (let* ([corners :: CvPoint2D32f*])
+  (let* ([tmp-corners :: (.array CvPoint2D32f (TEMP_CORNER_COUNT))]
+         [corners :: CvPoint2D32f*]
+         [count :: int])
     (cond
       [(is-type? corners-obj <list>)
-       (list-to-ary corners-obj corners CvPoint2D32f cv-point-2d32f-elem-assign)]
+       (list-to-ary corners-obj corners tmp-corners TEMP_CORNER_COUNT count CvPoint2D32f cv-point-2d32f-elem-assign)]
       [(is-type? corners-obj <vector>)
-       (vector-to-ary corners-obj corners CvPoint2D32f cv-point-2d32f-elem-assign)]
-      [else (Scm_Error "<list> or <vector> required, but got %S" corners-obj)]
-      )
+       (set! count (SCM_VECTOR_SIZE corners-obj))
+       (vector-to-ary corners-obj corners tmp-corners TEMP_CORNER_COUNT CvPoint2D32f cv-point-2d32f-elem-assign)]
+      [else (Scm_Error "<list> or <vector> required, but got %S" corners-obj)])
     (cvFindCornerSubPix image corners count win zero-zone criteria)))
 
-"
-#define MAX_CORNER_COUNT 100
-"
-(define-cproc cv-good-features-to-track (image::<cv-arr> quality-level::<real> min-distance::<real>
+(define-cproc cv-good-features-to-track (image::<cv-arr> eig-image::<top> temp-image::<top>
+                                                         corner-count::<fixnum>
+                                                         quality-level::<real> min-distance::<real>
                                                          :optional (mask-obj ())
                                                          (block-size::<fixnum> 3) (use-harris::<boolean> #f)
                                                          (k::<real> 0.04)) ::<vector>
   (ENSURE_NOT_NULL image)
-  (let* ([corners :: (.array CvPoint2D32f (MAX_CORNER_COUNT))]
-         [count :: int MAX_CORNER_COUNT]
+  (let* ([temp-corners :: (.array CvPoint2D32f (TEMP_CORNER_COUNT))]
+         [corners :: CvPoint2D32f* (?: (< TEMP_CORNER_COUNT corner-count)
+                                       (SCM_NEW_ARRAY CvPoint2D32f corner-count)
+                                       temp-corners)]
+         [eig :: CvArr*]
+         [temp :: CvArr*]
          [mask :: CvArr*]
          [vec :: ScmVector*])
+    (nil-or-cvarr eig-image eig)
+    (nil-or-cvarr temp-image temp)
     (nil-or-cvarr mask-obj mask)
-    (cvGoodFeaturesToTrack image 0 0 corners (& count) quality-level min-distance 
+    (cvGoodFeaturesToTrack image eig temp corners (& corner-count) quality-level min-distance 
                            mask block-size use-harris k)
-    (set! vec (cast ScmVector* (Scm_MakeVector count SCM_UNDEFINED)))
-    (dotimes [i count]
+    (set! vec (cast ScmVector* (Scm_MakeVector corner-count SCM_UNDEFINED)))
+    (dotimes [i corner-count]
       (set! (SCM_VECTOR_ELEMENT vec i) (boxing (aref corners i) <cv-point-2d32f>)))
     (result vec)))
 
