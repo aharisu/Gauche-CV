@@ -5,8 +5,8 @@
 (test-section "cv.core#<iplimage>")
 
 (define image (make-image 36 50 IPL_DEPTH_8U 1))
-(test* "(slot-ref image 'nChannels)" 1
-  (slot-ref image 'nChannels))
+(test* "(slot-ref image 'n-channels)" 1
+  (slot-ref image 'n-channels))
 (test* "(slot-ref image 'depth)" IPL_DEPTH_8U
   (slot-ref image 'depth))
 (test* "(slot-ref image 'width)" 36
