@@ -21,7 +21,7 @@
                    3 (cv-rgb 255 0 0) 2))
       corners))
   ;;use cvCornerHarris
-  (let1 corners (cv-good-features-to-track src-gray eig temp corner-count 0.1 15 '() 3 #t 0.01)
+  (let1 corners (cv-good-features-to-track src-gray eig temp corner-count 0.1 15 c:null 3 #t 0.01)
     (cv-find-corner-sub-pix src-gray corners (make-cv-size 3 3) (make-cv-size -1 -1)
                             (make-cv-term-criteria (logior CV_TERMCRIT_ITER CV_TERMCRIT_EPS)
                                                    20 0.03))

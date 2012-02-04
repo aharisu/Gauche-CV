@@ -24,6 +24,7 @@ typedef double _double_t;
 (include "core_type.gen.stub.header")
 (include "macro.stub.header")
 
+(define-constant c:null (c "SCM_UNDEFINED"))
 
 
 ;;--------------------------------------
@@ -1447,17 +1448,17 @@ typedef double _double_t;
   (ENSURE_NOT_NULL arr)
   (result (cvGetSize arr)))
 
-(define-cproc cv-copy (src::<cv-arr> dest::<cv-arr> :optional (mask-obj ())) ::<void>
+(define-cproc cv-copy (src::<cv-arr> dest::<cv-arr> :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dest)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvCopy src dest mask)))
 
-(define-cproc cv-set (src::<cv-arr> value::<cv-scalar> :optional (mask-obj ())) ::<void>
+(define-cproc cv-set (src::<cv-arr> value::<cv-scalar> :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvSet src value mask)))
 
 (define-cproc cv-set-zero (src::<cv-arr>) ::<void>
@@ -1474,10 +1475,10 @@ typedef double _double_t;
          [dst1::CvArr*]
          [dst2::CvArr*]
          [dst3::CvArr*])
-    (nil-or-cvarr dst0-obj dst0)
-    (nil-or-cvarr dst1-obj dst1)
-    (nil-or-cvarr dst2-obj dst2)
-    (nil-or-cvarr dst3-obj dst3)
+    (undef-or-cvarr dst0-obj dst0)
+    (undef-or-cvarr dst1-obj dst1)
+    (undef-or-cvarr dst2-obj dst2)
+    (undef-or-cvarr dst3-obj dst3)
     (cvSplit src dst0 dst1 dst2 dst3)))
 
 (define-cproc cv-merge (src0-obj src1-obj src2-obj src3-obj dest::<cv-arr>) ::<void>
@@ -1486,10 +1487,10 @@ typedef double _double_t;
          [src1::CvArr*]
          [src2::CvArr*]
          [src3::CvArr*])
-    (nil-or-cvarr src0-obj src0)
-    (nil-or-cvarr src1-obj src1)
-    (nil-or-cvarr src2-obj src2)
-    (nil-or-cvarr src3-obj src3)
+    (undef-or-cvarr src0-obj src0)
+    (undef-or-cvarr src1-obj src1)
+    (undef-or-cvarr src2-obj src2)
+    (undef-or-cvarr src3-obj src3)
     (cvMerge src0 src1 src2 src3 dest)))
 
 (define-cise-stmt (<cv-arr>-elem-assign var obj)
@@ -1595,45 +1596,45 @@ typedef double _double_t;
 ;;
 
 (define-cproc cv-add (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
-                                     :optional (mask-obj ())) ::<void>
+                                     :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvAdd src1 src2 dst mask)))
 
 (define-cproc cv-add-s (src::<cv-arr> value::<cv-scalar> dst::<cv-arr>
-                                      :optional (mask-obj ())) ::<void>
+                                      :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvAddS src value dst mask)))
 
 (define-cproc cv-sub (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
-                                     :optional (mask-obj ())) ::<void>
+                                     :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvSub src1 src2 dst mask)))
 
 (define-cproc cv-sub-s (src::<cv-arr> value::<cv-scalar> dst::<cv-arr>
-                                      :optional (mask-obj ())) ::<void>
+                                      :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvSubS src value dst mask)))
 
 (define-cproc cv-sub-rs (src::<cv-arr> value::<cv-scalar> dst::<cv-arr>
-                                       :optional (mask-obj ())) ::<void>
+                                       :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvSubRS src value dst mask)))
 
 (define-cproc cv-mul (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
@@ -1678,54 +1679,54 @@ typedef double _double_t;
   (result (cvDotProduct src1 src2)))
 
 (define-cproc cv-and (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
-                                     :optional (mask-obj ())) ::<void>
+                                     :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvAnd src1 src2 dst mask)))
 
 (define-cproc cv-and-s (src::<cv-arr> value::<cv-scalar> dst::<cv-arr> 
-                                       :optional (mask-obj ())) ::<void>
+                                       :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvAndS src value dst mask)))
 
 (define-cproc cv-or (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
-                                    :optional (mask-obj ())) ::<void>
+                                    :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvOr src1 src2 dst mask)))
 
 (define-cproc cv-or-s (src::<cv-arr> value::<cv-scalar> dst::<cv-arr> 
-                                      :optional (mask-obj ())) ::<void>
+                                      :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvOrS src value dst mask)))
 
 (define-cproc cv-xor (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
-                                     :optional (mask-obj ())) ::<void>
+                                     :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvXor src1 src2 dst mask)))
 
 (define-cproc cv-xor-s (src::<cv-arr> value::<cv-scalar> dst::<cv-arr> 
-                                       :optional (mask-obj ())) ::<void>
+                                       :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvXorS src value dst mask)))
 
 (define-cproc cv-not (src::<cv-arr> dst::<cv-arr>) ::<void>
@@ -1813,12 +1814,12 @@ typedef double _double_t;
 ;;
 
 (define-cproc cv-cart-to-polar (x::<cv-arr> y::<cv-arr> magnitude::<cv-arr>
-                                            :optional (angle-obj ()) (angle-in-degrees::<fixnum> 0)) ::<void>
+                                            :optional (angle-obj (c "SCM_UNDEFINED")) (angle-in-degrees::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL x)
   (ENSURE_NOT_NULL y)
   (ENSURE_NOT_NULL magnitude)
   (let* ([angle::CvArr*])
-    (nil-or-cvarr angle-obj angle)
+    (undef-or-cvarr angle-obj angle)
     (cvCartToPolar x y magnitude angle angle-in-degrees)))
 
 (define-cproc cv-polar-to-cart (magnitude::<cv-arr> angle::<cv-arr>
@@ -1895,13 +1896,13 @@ typedef double _double_t;
 (define-enum CV_SORT_DESCENDING)
 
 (define-cproc cv-sort (src::<cv-arr>
-                        :optional (dst-obj ()) (idxmat-obj ())
+                        :optional (dst-obj (c "SCM_UNDEFINED")) (idxmat-obj (c "SCM_UNDEFINED"))
                         (flags::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL src)
   (let* ([dst::CvArr*]
          [idxmat::CvArr*])
-    (nil-or-cvarr dst-obj dst)
-    (nil-or-cvarr idxmat-obj idxmat)
+    (undef-or-cvarr dst-obj dst)
+    (undef-or-cvarr idxmat-obj idxmat)
     (cvSort src dst idxmat flags)))
 
 (define-cproc cv-solve-cubic (coeffs::<cv-mat> roots::<cv-mat>) ::<int>
@@ -1965,21 +1966,21 @@ typedef double _double_t;
   (cvMatMul src1 src2 dst))
 
 (define-cproc cv-transform (src::<cv-arr> dst::<cv-arr> transmat::<cv-mat>
-                                          :optional (shiftvec-obj ())) ::<void>
+                                          :optional (shiftvec-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (ENSURE_NOT_NULL transmat)
   (let* ([shiftvec::CvArr*])
-    (nil-or-cvarr shiftvec-obj shiftvec)
+    (undef-or-cvarr shiftvec-obj shiftvec)
     (cvTransform src dst transmat shiftvec)))
 
 (define-cproc cv-mat-mul-add-s (src::<cv-arr> dst::<cv-arr> transmat::<cv-mat>
-                                              :optional (shiftvec-obj ())) ::<void>
+                                              :optional (shiftvec-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (ENSURE_NOT_NULL transmat)
   (let* ([shiftvec::CvArr*])
-    (nil-or-cvarr shiftvec-obj shiftvec)
+    (undef-or-cvarr shiftvec-obj shiftvec)
     (cvMatMulAddS src dst transmat shiftvec)))
 
 (define-cproc cv-perspective-transform (src::<cv-arr> dst::<cv-arr> mat::<cv-mat>) ::<void>
@@ -1989,11 +1990,11 @@ typedef double _double_t;
   (cvPerspectiveTransform src dst mat))
 
 (define-cproc cv-mul-transposed(src::<cv-arr> dst::<cv-arr> order::<fixnum>
-                                              :optional (delta-obj ()) (scale::<double> 1.0)) ::<void>
+                                              :optional (delta-obj (c "SCM_UNDEFINED")) (scale::<double> 1.0)) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([delta::CvArr*])
-    (nil-or-cvarr delta-obj delta)
+    (undef-or-cvarr delta-obj delta)
     (cvMulTransposed src dst order delta scale)))
 
 (define-cproc cv-transpose (src::<cv-arr> dst::<cv-arr>) ::<void>
@@ -2012,17 +2013,17 @@ typedef double _double_t;
   (cvCompleteSymm matrix l-to-r))
 
 (define-cproc cv-flip (src::<cv-arr>
-                        :optional (dst-obj ()) (flip-mode::<fixnum> 0)) ::<void>
+                        :optional (dst-obj (c "SCM_UNDEFINED")) (flip-mode::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL src)
   (let* ([dst::CvArr*])
-    (nil-or-cvarr dst-obj dst)
+    (undef-or-cvarr dst-obj dst)
     (cvFlip src dst flip-mode)))
 
 (define-cproc cv-mirror (src::<cv-arr>
-                          :optional (dst-obj ()) (flip-mode::<fixnum> 0)) ::<void>
+                          :optional (dst-obj (c "SCM_UNDEFINED")) (flip-mode::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL src)
   (let* ([dst::CvArr*])
-    (nil-or-cvarr dst-obj dst)
+    (undef-or-cvarr dst-obj dst)
     (cvMirror src dst flip-mode)))
 
 
@@ -2034,13 +2035,13 @@ typedef double _double_t;
 (define-enum CV_SVD_V_T)
 
 (define-cproc cv-svd (a::<cv-arr> w::<cv-arr>
-                                  :optional (u-obj ()) (v-obj ()) (flags::<fixnum> 0)) ::<void>
+                                  :optional (u-obj (c "SCM_UNDEFINED")) (v-obj (c "SCM_UNDEFINED")) (flags::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL a)
   (ENSURE_NOT_NULL w)
   (let* ([u::CvArr*]
          [v::CvArr*])
-    (nil-or-cvarr u-obj u)
-    (nil-or-cvarr v-obj v)
+    (undef-or-cvarr u-obj u)
+    (undef-or-cvarr v-obj v)
     (cvSVD a w u v flags)))
 
 (define-cproc cv-svbksb (w::<cv-arr> u::<cv-arr> v::<cv-arr> 
@@ -2100,10 +2101,10 @@ typedef double _double_t;
   (cvEigenVV mat evects evals eps lowindex highindex))
 
 (define-cproc cv-set-identity (mat::<cv-arr>
-                                :optional (value-obj ())) ::<void>
+                                :optional (value-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL mat)
   (let* ([value::CvScalar])
-    (nil-or-obj value-obj value <cv-scalar> (cvRealScalar 1))
+    (undef-or-obj value-obj value <cv-scalar> (cvRealScalar 1))
     (cvSetIdentity mat value)))
 
 (define-cproc cv-range (mat::<cv-arr> start::<double> end::<double>) ::<void>
@@ -2202,41 +2203,41 @@ typedef double _double_t;
   (result (cvCountNonZero arr)))
 
 (define-cproc cv-avg (arr::<cv-arr> 
-                       :optional (mask-obj ())) ::<cv-scalar>
+                       :optional (mask-obj (c "SCM_UNDEFINED"))) ::<cv-scalar>
   (ENSURE_NOT_NULL arr)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (result (cvAvg arr mask))))
 
 (define-cproc cv-avg-sdv (arr::<cv-arr>
-                           :optional (mask-obj ())) ::(<cv-scalar> <cv-scalar>)
+                           :optional (mask-obj (c "SCM_UNDEFINED"))) ::(<cv-scalar> <cv-scalar>)
   (ENSURE_NOT_NULL arr)
   (let* ([mask::CvArr*]
          [mean::CvScalar]
          [std-dev::CvScalar])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvAvgSdv arr (& mean) (& std-dev) mask)
     (result mean std-dev)))
 
 (define-cproc cv-min-max (arr::<cv-arr>
-                           :optional (mask-obj ())) ::(<double> <double>)
+                           :optional (mask-obj (c "SCM_UNDEFINED"))) ::(<double> <double>)
   (ENSURE_NOT_NULL arr)
   (let* ([mask::CvArr*]
          [min-val::double]
          [max-val::double])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvMinMaxLoc arr (& min-val) (& max-val) 0 0 mask)
     (result min-val max-val)))
 
 (define-cproc cv-min-max-loc (arr::<cv-arr>
-                               :optional (mask-obj ())) ::(<double> <double> <cv-point> <cv-point>)
+                               :optional (mask-obj (c "SCM_UNDEFINED"))) ::(<double> <double> <cv-point> <cv-point>)
   (ENSURE_NOT_NULL arr)
   (let* ([mask::CvArr*]
          [min-val::double]
          [max-val::double]
          [min-loc::CvPoint]
          [max-loc::CvPoint])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvMinMaxLoc arr (& min-val) (& max-val)
                  (& min-loc) (& max-loc) mask)
     (result min-val max-val min-loc max-loc)))
@@ -2260,24 +2261,24 @@ typedef double _double_t;
 (define-enum CV_RELATIVE_L2)
 
 (define-cproc cv-norm (arr1::<cv-arr> 
-                        :optional (arr2-obj ())
+                        :optional (arr2-obj (c "SCM_UNDEFINED"))
                         (norm-type::<fixnum> 4) ;norm-type 4 is CV_L2
-                        (mask-obj ())) ::<double>
+                        (mask-obj (c "SCM_UNDEFINED"))) ::<double>
   (ENSURE_NOT_NULL arr1)
   (let* ([arr2::CvArr*]
          [mask::CvArr*])
-    (nil-or-cvarr arr2-obj arr2)
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr arr2-obj arr2)
+    (undef-or-cvarr mask-obj mask)
     (result (cvNorm arr1 arr2 norm-type mask))))
 
 (define-cproc cv-normalize (src::<cv-arr> dst::<cv-arr>
                                           :optional (a::<double> 1.0) (b::<double> 0.0)
                                           (norm-type::<fixnum> 4) ;norm-type 4 is CV_L2
-                                          (mask-obj ())) ::<void>
+                                          (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvNormalize src dst a b norm-type mask)))
 
 
@@ -2523,10 +2524,10 @@ typedef double _double_t;
 (define-cproc cv-draw-contours (img::<cv-arr> contour::<cv-seq> external-color::<cv-scalar> 
                                               hole-color::<cv-scalar> max-level::<fixnum>
                                               :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8)
-                                              (offset-obj ())) ::<void>
+                                              (offset-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL img)
   (let* ([offset::CvPoint])
-    (nil-or-obj offset-obj offset <cv-point> (cvPoint 0 0))
+    (undef-or-obj offset-obj offset <cv-point> (cvPoint 0 0))
     (cvDrawContours img contour external-color hole-color
                     max-level thickness line-type offset)))
 

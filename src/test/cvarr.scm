@@ -27,7 +27,7 @@
   (let ([ch1 (make-image 36 50 IPL_DEPTH_8U 1)]
         [ch2 (make-image 36 50 IPL_DEPTH_8U 1)]
         [ch3 (make-image 36 50 IPL_DEPTH_8U 1)])
-    (cv-split image ch1 ch2 ch3 '())
+    (cv-split image ch1 ch2 ch3 c:null)
     (test* "cv-split" 
       (values
         (make-cv-scalar 255 0 0)
@@ -38,7 +38,7 @@
         (ch2 0 0)
         (ch3 0 0)))
     (cv-zero image)
-    (cv-merge ch1 ch2 ch3 '() image)
+    (cv-merge ch1 ch2 ch3 c:null image)
     (test* "cv-merge" (image 0 0)
       (make-cv-scalar 255 128 88 0)))
   )

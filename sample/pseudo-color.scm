@@ -37,7 +37,7 @@
 (define (convert-to-pseudo-color src dst)
   (let* ([src3ch (make-image (ref src 'width) (ref src 'height) IPL_DEPTH_8U 3)]
          [lut (make-cv-mat-from-uvector 256 1 3 (create-lut-data))])
-    (cv-merge src src src '() src3ch)
+    (cv-merge src src src c:null src3ch)
     (cv-lut src3ch dst lut)
     ))
 

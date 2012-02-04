@@ -40,7 +40,7 @@
        [complex-input (make-image (ref src 'width) (ref src 'height) IPL_DEPTH_64F 2)])
   (cv-scale src r-input 1.0 0.0)
   (cv-zero i-input)
-  (cv-merge r-input i-input '() '() complex-input)
+  (cv-merge r-input i-input c:null c:null complex-input)
   (let* ([dft-m (cv-get-optimal-dft-size (- (ref src 'height) 1))]
          [dft-n (cv-get-optimal-dft-size (- (ref src 'width) 1))]
          [dft-a (make-cv-mat dft-m dft-n CV_64FC2)]
@@ -54,7 +54,7 @@
                                                        (ref src 'height)))
           (cv-zero tmp))))
     (cv-dft dft-a dft-a CV_DXT_FORWARD (ref complex-input 'height))
-    (cv-split dft-a image-re image-im '() '())
+    (cv-split dft-a image-re image-im c:null c:null)
 
     (cv-pow image-re image-re 2.0)
     (cv-pow image-im image-im 2.0)

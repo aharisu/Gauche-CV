@@ -85,9 +85,9 @@ static int trackbar_pos;
 (define-cproc cv-create-trackbar (trackbar-name::<const-cstring> 
                                    window-name::<const-cstring>
                                    value::<fixnum> count::<fixnum>
-                                   :optional (on-change::<top> ())) :: <boolean>
+                                   :optional (on-change::<top> (c "SCM_UNDEFINED"))) :: <boolean>
   (cond
-    [(null? on-change)
+    [(undefined? on-change)
      (if (cvCreateTrackbar trackbar-name window-name NULL count NULL)
        (begin
          (unless (zero? value)
@@ -98,7 +98,7 @@ static int trackbar_pos;
      ;;
      (set! trackbar_pos value)
      (result (cvCreateTrackbar2 trackbar-name window-name (& trackbar_pos) count trackbar-callback on-change))]
-    [else (Scm_Error "<closre> or '() required, but got %S." on-change)]))
+    [else (Scm_Error "<closre> or c:null required, but got %S." on-change)]))
 
 (define-cproc cv-get-trackbar-pos (trackbar-name::<const-cstring> window-name::<const-cstring>) :: <int>
   (result (cvGetTrackbarPos trackbar-name window-name)))

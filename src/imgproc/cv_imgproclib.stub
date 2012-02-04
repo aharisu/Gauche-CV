@@ -25,36 +25,36 @@ typedef double _double_t;
 
 ;;*************Background statistics accumulation*********
 (define-cproc cv-acc (image::<cv-arr> sum::<cv-arr>
-                                      :optional (mask-obj ())) ::<void>
+                                      :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL sum)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvAcc image sum mask)))
 
 (define-cproc cv-square-acc (image::<cv-arr> sqsum::<cv-arr>
-                                             :optional (mask-obj ())) ::<void>
+                                             :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL sqsum)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvSquareAcc image sqsum mask)))
 
 (define-cproc cv-multiply-acc (image1::<cv-arr> image2::<cv-arr> acc::<cv-arr>
-                                                :optional (mask-obj ())) ::<void> 
+                                                :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void> 
   (ENSURE_NOT_NULL image1)
   (ENSURE_NOT_NULL image2)
   (ENSURE_NOT_NULL acc)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvMultiplyAcc image1 image2 acc mask)))
 
 (define-cproc cv-running-ave (image::<cv-arr> acc::<cv-arr> alpha::<real>
-                                              :optional (mask-obj ())) ::<void>
+                                              :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL acc)
   (let* ([mask::CvArr*])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvRunningAvg image acc alpha mask)))
 
 
@@ -63,11 +63,11 @@ typedef double _double_t;
 ;;******************
 
 (define-cproc cv-copy-make-border (src::<cv-arr> dst::<cv-arr> offset::<cv-point> bordertype::<fixnum>
-                                                 :optional (value-obj ())) ::<void>
+                                                 :optional (value-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([value::CvScalar])
-    (nil-or-obj value-obj value <cv-scalar> (cvScalarAll 0))
+    (undef-or-obj value-obj value <cv-scalar> (cvScalarAll 0))
     (cvCopyMakeBorder src dst offset bordertype value)))
 
 
@@ -87,21 +87,21 @@ typedef double _double_t;
   (cvSmooth src dst smoothtype size1 size2 sigma1 sigma2))
 
 (define-cproc cv-filter-2d (src::<cv-arr> dst::<cv-arr> kernel::<cv-mat>
-                                          :optional (anchor-obj ())) ::<void>
+                                          :optional (anchor-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([anchor::CvPoint])
-    (nil-or-obj anchor-obj anchor <cv-point> (cvPoint -1 -1))
+    (undef-or-obj anchor-obj anchor <cv-point> (cvPoint -1 -1))
     (cvFilter2D src dst kernel anchor)))
 
 (define-cproc cv-integral (image::<cv-arr> sum::<cv-arr>
-                                           :optional (sqsum-obj ()) (tilted-sum-obj ())) ::<void>
+                                           :optional (sqsum-obj (c "SCM_UNDEFINED")) (tilted-sum-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL sum)
   (let* ([sqsum::CvArr*]
          [tilted-sum::CvArr*])
-    (nil-or-cvarr sqsum-obj sqsum)
-    (nil-or-cvarr tilted-sum-obj tilted-sum)
+    (undef-or-cvarr sqsum-obj sqsum)
+    (undef-or-cvarr tilted-sum-obj tilted-sum)
     (cvIntegral image sum sqsum tilted-sum)))
 
 (define-enum CV_GAUSSIAN_5x5)
@@ -134,9 +134,9 @@ typedef double _double_t;
 
 (define-cproc cv-pyr-mean-shift-filtering (src::<cv-arr> dst::<cv-arr>
                                                          sp::<real> sr::<real>
-                                                         :optional (max-level::<fixnum> 1) (termcrit-obj ())) ::<void>
+                                                         :optional (max-level::<fixnum> 1) (termcrit-obj (c "SCM_UNDEFINED"))) ::<void>
   (let* ([termcrit::CvTermCriteria])
-    (nil-or-obj termcrit-obj termcrit <cv-term-criteria> (cvTermCriteria 3 5 1)) ;;3 is CV_TERMCRIT_ITER + CV_TERMCRIT_EPS
+    (undef-or-obj termcrit-obj termcrit <cv-term-criteria> (cvTermCriteria 3 5 1)) ;;3 is CV_TERMCRIT_ITER + CV_TERMCRIT_EPS
     (cvPyrMeanShiftFiltering src dst sp sr max-level termcrit)))
 
 (define-cproc cv-watershed (image::<cv-arr> markers::<cv-arr>) ::<void>
@@ -292,15 +292,15 @@ typedef double _double_t;
 (define-enum CV_WARP_INVERSE_MAP)
 (define-cproc cv-warp-affine (src::<cv-arr> dst::<cv-arr> map-matrix::<cv-mat>
                                             :optional (flags::<fixnum> 9) ;; 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
-                                            (fillval-obj ())) ::<void>
+                                            (fillval-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([fillval::CvScalar])
-    (nil-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
+    (undef-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
     (cvWarpAffine src dst map-matrix flags fillval)))
 
 (define-cproc cv-get-affine-transform (src::<top> dst::<top>
-                                                  :optional (map-matrix ())) ::<top>
+                                                  :optional (map-matrix (c "SCM_UNDEFINED"))) ::<top>
   (let* ([src-ary::(.array CvPoint2D32f (3))]
          [dst-ary::(.array CvPoint2D32f (3))]
          [map :: CvMat*])
@@ -331,11 +331,11 @@ typedef double _double_t;
          (assign-obj (aref dst-ary i) (SCM_VECTOR_ELEMENT dst i) <cv-point-2d32f>))]
       [else (Scm_Error "<list> or <vector> required, but got %S." dst)])
     (cond
-      [(null? map-matrix) (set! map (cvCreateMat 2 3 CV_32FC1))]
+      [(undefined? map-matrix) (set! map (cvCreateMat 2 3 CV_32FC1))]
       [(is-type? map-matrix <cv-mat>) (set! map (unboxing map-matrix <cv-mat>))]
-      [else (Scm_Error "<cv-mat> or '() required, but got %S." map-matrix)])
+      [else (Scm_Error "<cv-mat> or c:null required, but got %S." map-matrix)])
     (cvGetAffineTransform src-ary dst-ary map)
-    (if (null? map-matrix)
+    (if (undefined? map-matrix)
       (result (boxing map <cv-mat>))
       (result SCM_UNDEFINED))))
 
@@ -344,16 +344,16 @@ typedef double _double_t;
 
 (define-cproc cv-warp-perspective (src::<cv-arr> dst::<cv-arr> map-matrix::<cv-mat>
                                                  :optional (flags::<fixnum> 9) ;;flags 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
-                                                 (fillval-obj ())) ::<void>
+                                                 (fillval-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (ENSURE_NOT_NULL map-matrix)
   (let* ([fillval::CvScalar])
-    (nil-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
+    (undef-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
     (cvWarpPerspective src dst map-matrix flags fillval)))
 
 (define-cproc cv-get-perspective-transform (src::<top> dst::<top>
-                                            :optional (map-matrix ())) :: <top>
+                                            :optional (map-matrix (c "SCM_UNDEFINED"))) :: <top>
   (let* ([src-ary::(.array CvPoint2D32f (4))]
          [dst-ary::(.array CvPoint2D32f (4))]
          [map :: CvMat*]
@@ -385,13 +385,13 @@ typedef double _double_t;
          (assign-obj (aref dst-ary i) (SCM_VECTOR_ELEMENT dst i) <cv-point-2d32f>))]
       [else (Scm_Error "<list> or <vector> required, but got %S." dst)])
     (cond
-      [(null? map-matrix)
+      [(undefined? map-matrix)
        (set! map (cvCreateMat 3 3 CV_32FC1))
        (set! create-mat? 1)]
       [(is-type? map-matrix <cv-mat>)
        (set! map (unboxing map-matrix <cv-mat>))
        (ENSURE_NOT_NULL map)]
-      [else (Scm_Error "CvMat or '() required, but got %S" map-matrix)])
+      [else (Scm_Error "CvMat or c:null required, but got %S" map-matrix)])
     (cvGetPerspectiveTransform src-ary dst-ary map)
     (if create-mat?
       (result (boxing map <cv-mat>))
@@ -399,13 +399,13 @@ typedef double _double_t;
 
 (define-cproc cv-remap (src::<cv-arr> dst::<cv-arr> mapx::<cv-arr> mapy::<cv-arr>
                                       :optional (flags::<fixnum> 9) ;;flags 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
-                                      (fillval-obj ())) ::<void>
+                                      (fillval-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (ENSURE_NOT_NULL mapx)
   (ENSURE_NOT_NULL mapy)
   (let* ([fillval::CvScalar])
-    (nil-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
+    (undef-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
     (cvRemap src dst mapx mapy flags fillval)))
 
 (define-cproc cv-convert-maps (mapx::<cv-arr> mapy::<cv-arr>
@@ -433,13 +433,13 @@ typedef double _double_t;
 
 (define-cproc cv-undistort2 (src::<cv-arr> dst::<cv-arr>
                                            camera-matrix::<cv-mat> distortion-coeffs::<cv-mat>
-                                           :optional (new-camera-matrix-obj ())) ::<void>
+                                           :optional (new-camera-matrix-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (ENSURE_NOT_NULL camera-matrix)
   (ENSURE_NOT_NULL distortion-coeffs)
   (let* ([new-camera-matrix::CvMat*])
-    (nil-or-obj new-camera-matrix-obj new-camera-matrix <cv-mat> NULL)
+    (undef-or-obj new-camera-matrix-obj new-camera-matrix <cv-mat> NULL)
     (cvUndistort2 src dst camera-matrix distortion-coeffs new-camera-matrix)))
 
 (define-cproc cv-init-undistort-map (camera-matrix::<cv-mat> distortion-coeffs::<cv-mat>
@@ -463,15 +463,15 @@ typedef double _double_t;
 
 (define-cproc cv-undistort-points (src::<cv-mat> dst::<cv-mat>
                                                  camera-matrix::<cv-mat> dist-coeffs::<cv-mat>
-                                                 :optional (r-obj ()) (p-obj ())) ::<void>
+                                                 :optional (r-obj (c "SCM_UNDEFINED")) (p-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (ENSURE_NOT_NULL camera-matrix)
   (ENSURE_NOT_NULL dist-coeffs)
   (let* ([r::CvMat*]
          [p::CvMat*])
-    (nil-or-obj-null-check r-obj r <cv-mat>)
-    (nil-or-obj-null-check p-obj p <cv-mat>)
+    (undef-or-obj-null-check r-obj r <cv-mat>)
+    (undef-or-obj-null-check p-obj p <cv-mat>)
     (cvUndistortPoints src dst camera-matrix dist-coeffs r p)))
 
 ;;-------------
@@ -490,11 +490,11 @@ typedef double _double_t;
 (define-enum CV_MOP_BLACKHAT)
 
 (define-cproc cv-create-structuring-element-ex (cols::<fixnum> rows::<fixnum> anchor-x::<fixnum> anchor-y::<fixnum> shape::<fixnum>
-                                                               :optional (values-obj ())) ::<iplconv-kernel>
+                                                               :optional (values-obj (c "SCM_UNDEFINED"))) ::<iplconv-kernel>
   (let* ([values::int*]
          [len :: int (* cols rows)])
     (cond
-      [(null? values-obj)(set! values NULL)]
+      [(undefined? values-obj)(set! values NULL)]
       [(is-type? values-obj <list>)
        (when (!= shape CV_SHAPE_CUSTOM)
          (Scm_Error "shape != CV_SHAPE_CUSTOM"))
@@ -505,7 +505,7 @@ typedef double _double_t;
       [(is-type? values-obj <s32vector>)
        (set! len (SCM_S32VECTOR_SIZE values-obj))
        (set! values (SCM_S32VECTOR_ELEMENTS values-obj))]
-      [else (Scm_Error "<list> or <vector> or <s32vector> or '() required, bug got %S" values-obj)])
+      [else (Scm_Error "<list> or <vector> or <s32vector> or c:null required, bug got %S" values-obj)])
     (unless (== len (* cols rows))
       (Scm_Error "values list length != cols * rows"))
     (result (cvCreateStructuringElementEx cols rows anchor-x anchor-y shape values))))
@@ -519,15 +519,15 @@ typedef double _double_t;
 (define-cise-stmt (get-element element-obj element)
   (let* ([type (cgen-type-from-name '<iplconv-kernel>)])
     `(cond
-       [(SCM_NULLP ,element-obj) (set! ,element NULL)]
+       [(undefined? ,element-obj) (set! ,element NULL)]
        [(,(string->symbol (~ type'c-predicate)) ,element-obj) 
         (begin
           (set! ,element (,(string->symbol (~ type'unboxer)) ,element-obj))
           (ENSURE_NOT_NULL ,element))]
-       [else (Scm_Error ,#`",(~ type'description) or () required, but got %S" ,element-obj)])))
+       [else (Scm_Error ,#`",(~ type'description) or c:null required, but got %S" ,element-obj)])))
 
 (define-cproc cv-erode (src::<cv-arr> dst::<cv-arr>
-                                      :optional (element-obj ()) (iterations::<fixnum> 1)) ::<void>
+                                      :optional (element-obj (c "SCM_UNDEFINED")) (iterations::<fixnum> 1)) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([element::IplConvKernel*])
@@ -535,7 +535,7 @@ typedef double _double_t;
     (cvErode src dst element iterations)))
 
 (define-cproc cv-dilate (src::<cv-arr> dst::<cv-arr>
-                                       :optional (element-obj ()) (iterations::<fixnum> 1)) ::<void>
+                                       :optional (element-obj (c "SCM_UNDEFINED")) (iterations::<fixnum> 1)) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([element::IplConvKernel*])
@@ -696,14 +696,14 @@ return (x < y) ? y : x;
 (define-cproc cv-find-contours (image::<cv-arr> storage::<cv-mem-storage> 
                                                 :optional (mode::<fixnum> 1) ;;mode 1 is CV_RETR_LIST
                                                 (method::<fixnum> 2) ;;method 2 is CV_CHAIN_APPROX_SIMPLE
-                                                (offset-obj ())) ::<top>
+                                                (offset-obj (c "SCM_UNDEFINED"))) ::<top>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL storage)
   (let* ([offset::CvPoint]
          [header-size::int (?: (== method CV_CHAIN_CODE)
                                (sizeof CvChain) (sizeof CvContour))]
          [seq::CvSeq*])
-    (nil-or-obj offset-obj offset <cv-point> (cvPoint 0 0))
+    (undef-or-obj offset-obj offset <cv-point> (cvPoint 0 0))
     (cvFindContours image storage (& seq) header-size mode method offset)
     (if seq
       (result (boxing seq <cv-seq>))
@@ -712,13 +712,13 @@ return (x < y) ? y : x;
 (define-cproc cv-start-find-contours (image::<cv-arr> storage::<cv-mem-storage>
                                                       :optional (mode::<fixnum> 1) ;;mode 1 is CV_RETR_LIST
                                                       (method::<fixnum> 2) ;;method 2 is CV_CHAIN_APPROX_SIMPLE
-                                                      (offset-obj ())) ::<cv-contour-scanner>
+                                                      (offset-obj (c "SCM_UNDEFINED"))) ::<cv-contour-scanner>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL storage)
   (let* ([offset::CvPoint]
          [header-size::int (?: (== method CV_CHAIN_CODE)
                                (sizeof CvChain) (sizeof CvContour))])
-    (nil-or-obj offset-obj offset <cv-point> (cvPoint 0 0))
+    (undef-or-obj offset-obj offset <cv-point> (cvPoint 0 0))
     (result (cvStartFindContours image storage header-size mode method offset))))
 
 (define-cproc cv-find-next-contour (scanner::<cv-contour-scanner>) :: <top>
@@ -882,9 +882,9 @@ return (x < y) ? y : x;
                         storage method parameter parameter2)))
 
 (define-cproc cv-arc-length (curve::<cv-seq>
-                              :optional (slice-obj ()) (is-closed::<fixnum> -1))::<real>
+                              :optional (slice-obj (c "SCM_UNDEFINED")) (is-closed::<fixnum> -1))::<real>
   (let* ([slice::CvSlice])
-    (nil-or-obj slice-obj slice <cv-slice> CV_WHOLE_SEQ)
+    (undef-or-obj slice-obj slice <cv-slice> CV_WHOLE_SEQ)
     (result (cvArcLength curve slice is-closed))))
 
 (define-cproc cv-contour-perimeter (contour::<cv-seq>) ::<real>
@@ -921,23 +921,23 @@ return (x < y) ? y : x;
       (cvReleaseMemStorage (& storage)))))
 
 (define-cproc cv-contour-area (contour::<top>
-                                :optional (slice-obj ()) (oriented::<fixnum> 0))::<real>
+                                :optional (slice-obj (c "SCM_UNDEFINED")) (oriented::<fixnum> 0))::<real>
   (let* ([contour-arr :: CvArr*]
          [storage :: CvMemStorage* 0]
          [slice::CvSlice])
     (sequence-to-point-seq contour CV_SEQ_POLYLINE contour-arr storage)
-    (nil-or-obj slice-obj slice <cv-slice> CV_WHOLE_SEQ)
+    (undef-or-obj slice-obj slice <cv-slice> CV_WHOLE_SEQ)
     (result (cvContourArea contour-arr slice oriented))
     (when storage
       (cvReleaseMemStorage (& storage)))))
 
 (define-cproc cv-min-area-rect2 (points::<top>
-                                  :optional (storage-obj ())) ::<cv-box-2d>
+                                  :optional (storage-obj (c "SCM_UNDEFINED"))) ::<cv-box-2d>
   (let* ([points-arr :: CvArr*]
          [ss :: CvMemStorage* 0]
          [storage::CvMemStorage*])
     (sequence-to-point-seq points CV_SEQ_ELTYPE_POINT points-arr ss)
-    (nil-or-obj-null-check storage-obj storage <cv-mem-storage>)
+    (undef-or-obj-null-check storage-obj storage <cv-mem-storage>)
     (result (cvMinAreaRect2 points-arr storage))
     (when storage
       (cvReleaseMemStorage (& storage)))))
@@ -1201,7 +1201,7 @@ Scm_Error(\"internal error\");
 ;;******************
 
 (define-cproc cv-create-hist (sizes-obj type::<fixnum>
-                                        :optional (ranges-obj ())
+                                        :optional (ranges-obj (c "SCM_UNDEFINED"))
                                         (uniform::<boolean> #t)) :: <cv-histogram>
   (let* ([sizes :: int*]
          [dims :: int]
@@ -1219,7 +1219,7 @@ Scm_Error(\"internal error\");
       [else (Scm_Error "<list> or <vector> or <s32vector> required, but got %S" sizes-obj)]
       )
     (cond
-      [(SCM_NULLP ranges-obj)
+      [(undefined? ranges-obj)
        (set! ranges 0)]
       [(is-type? ranges-obj <list>)
        (list-to-ary ranges-obj ranges _float_t* list.float-elem-assign)]
@@ -1227,7 +1227,7 @@ Scm_Error(\"internal error\");
        (if (is-type? (SCM_VECTOR_ELEMENT ranges-obj 0) <f32vector>)
          (vector-to-ary ranges-obj ranges _float_t* uvector.float-elem-assign)
          (vector-to-ary ranges-obj ranges _float_t* vector.float-elem-assign))]
-      [else (Scm_Error "<list> or <vector> required, but got %S" ranges-obj)]
+      [else (Scm_Error "<list> or <vector> c:null required, but got %S" ranges-obj)]
       )
     (result (cvCreateHist dims sizes type ranges uniform))))
 
@@ -1236,7 +1236,7 @@ Scm_Error(\"internal error\");
   (ENSURE_NOT_NULL hist)
   (let* ([ranges :: float**])
     (cond
-      [(SCM_NULLP ranges-obj)
+      [(undefined? ranges-obj)
        (set! ranges 0)]
       [(is-type? ranges-obj <list>)
        (list-to-ary ranges-obj ranges _float_t* list.float-elem-assign)]
@@ -1244,7 +1244,7 @@ Scm_Error(\"internal error\");
        (if (is-type? (SCM_VECTOR_ELEMENT ranges-obj 0) <f32vector>)
          (vector-to-ary ranges-obj ranges _float_t* uvector.float-elem-assign)
          (vector-to-ary ranges-obj ranges _float_t* vector.float-elem-assign))]
-      [else (Scm_Error "<list> or <vector> required, but got %S" ranges-obj)]
+      [else (Scm_Error "<list> or <vector> or c:null required, but got %S" ranges-obj)]
       )
     (cvSetHistBinRanges hist ranges uniform)))
 
@@ -1288,10 +1288,10 @@ Scm_Error(\"internal error\");
   (result (cvCompareHist hist1 hist2 method)))
 
 (define-cproc cv-copy-hist (hist::<cv-histogram>
-                             :optional (out-obj ())) ::<cv-histogram>
+                             :optional (out-obj (c "SCM_UNDEFINED"))) ::<cv-histogram>
   (ENSURE_NOT_NULL hist)
   (let* ([out :: CvHistogram*])
-    (nil-or-obj-null-check out-obj out <cv-histogram>)
+    (undef-or-obj-null-check out-obj out <cv-histogram>)
     (cvCopyHist hist (& out))
     (result out)))
 
@@ -1312,7 +1312,7 @@ Scm_Error(\"internal error\");
 
 (define-cproc cv-calc-arr-hist (arr hist::<cv-histogram>
                                     :optional (accumulate::<fixnum> 0)
-                                    (mask-obj ())) ::<void>
+                                    (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL hist)
   (let* ([array-tmp :: (.array CvArr* (CALC_HIST_TMP_SIZE))]
          [array :: CvArr**]
@@ -1327,12 +1327,12 @@ Scm_Error(\"internal error\");
        (ENSURE_NOT_NULL (aref array-tmp 0))
        (set! array array-tmp)]
       [else (Scm_Error "<list> or <vector> or <cv-arr> required, but got %S" arr)])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvCalcArrHist array hist accumulate mask)))
 
 (define-cproc cv-calc-hist (image hist::<cv-histogram>
                                   :optional (accumulate::<fixnum> 0)
-                                  (mask-obj ())) ::<void>
+                                  (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL hist)
   (let* ([array-tmp :: (.array CvArr* (CALC_HIST_TMP_SIZE))]
          [array :: CvArr**]
@@ -1347,7 +1347,7 @@ Scm_Error(\"internal error\");
        (ENSURE_NOT_NULL (aref array-tmp 0))
        (set! array array-tmp)]
       [else (Scm_Error "<list> or <vector> or <cv-arr> required, but got %S" image)])
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask-obj mask)
     (cvCalcArrHist array hist accumulate mask)))
 
 
@@ -1370,13 +1370,13 @@ Scm_Error(\"internal error\");
 (define-cproc cv-dist-transform (src::<cv-arr> dst::<cv-arr>
                                                :optional (distance-type::<fixnum> 2) ;;distance-type 2 is CV_DIST_L2
                                                (mask-size::<fixnum> 3)
-                                               (mask-obj ()) (labels-obj ())) ::<void>
+                                               (mask-obj (c "SCM_UNDEFINED")) (labels-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (let* ([mask::float*]
          [labels::CvArr*])
     (cond
-      [(SCM_NULLP mask-obj)
+      [(undefined? mask-obj)
        (set! mask 0)]
       [(is-type? mask-obj <list>)
        (list-to-ary mask-obj mask _float_t float-elem-assign)]
@@ -1384,8 +1384,8 @@ Scm_Error(\"internal error\");
        (set! mask (SCM_F32VECTOR_ELEMENTS (unboxing mask-obj <f32vector>)))]
       [(is-type? mask-obj <vector>)
        (vector-to-ary mask-obj mask _float_t float-elem-assign)]
-      [else (Scm_Error "<list> or <vector> or <f32vector> or '() required, but got %S" mask-obj)])
-    (nil-or-cvarr labels-obj labels)
+      [else (Scm_Error "<list> or <vector> or <f32vector> or c:null required, but got %S" mask-obj)])
+    (undef-or-cvarr labels-obj labels)
     (cvDistTransform src dst distance-type mask-size mask labels)))
 
 
@@ -1441,16 +1441,16 @@ Scm_Error(\"internal error\");
 (define-enum CV_FLOODFILL_FIXED_RANGE)
 (define-enum CV_FLOODFILL_MASK_ONLY)
 (define-cproc cv-flood-fill (image::<cv-arr> seed-point::<cv-point> new-val::<cv-scalar>
-                                             :optional (lo-diff-obj ()) (up-diff-obj ()) 
-                                             (flags::<fixnum> 4) (mask-obj ())) ::<cv-connected-comp>
+                                             :optional (lo-diff-obj (c "SCM_UNDEFINED")) (up-diff-obj (c "SCM_UNDEFINED")) 
+                                             (flags::<fixnum> 4) (mask-obj (c "SCM_UNDEFINED"))) ::<cv-connected-comp>
   (ENSURE_NOT_NULL image)
   (let* ([lo-diff :: CvScalar]
          [up-diff :: CvScalar]
          [mask :: CvArr*]
          [comp :: CvConnectedComp])
-    (nil-or-obj lo-diff-obj lo-diff <cv-scalar> (cvScalarAll 0))
-    (nil-or-obj up-diff-obj up-diff <cv-scalar> (cvScalarAll 0))
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-obj lo-diff-obj lo-diff <cv-scalar> (cvScalarAll 0))
+    (undef-or-obj up-diff-obj up-diff <cv-scalar> (cvScalarAll 0))
+    (undef-or-cvarr mask-obj mask)
     (cvFloodFill image seed-point new-val lo-diff up-diff (& comp) flags mask)
     (result comp)))
 
@@ -1513,7 +1513,7 @@ Scm_Error(\"internal error\");
 (define-cproc cv-good-features-to-track (image::<cv-arr> eig-image::<top> temp-image::<top>
                                                          corner-count::<fixnum>
                                                          quality-level::<real> min-distance::<real>
-                                                         :optional (mask-obj ())
+                                                         :optional (mask-obj (c "SCM_UNDEFINED"))
                                                          (block-size::<fixnum> 3) (use-harris::<boolean> #f)
                                                          (k::<real> 0.04)) ::<vector>
   (ENSURE_NOT_NULL image)
@@ -1525,9 +1525,9 @@ Scm_Error(\"internal error\");
          [temp :: CvArr*]
          [mask :: CvArr*]
          [vec :: ScmVector*])
-    (nil-or-cvarr eig-image eig)
-    (nil-or-cvarr temp-image temp)
-    (nil-or-cvarr mask-obj mask)
+    (undef-or-cvarr eig-image eig)
+    (undef-or-cvarr temp-image temp)
+    (undef-or-cvarr mask-obj mask)
     (cvGoodFeaturesToTrack image eig temp corners (& corner-count) quality-level min-distance 
                            mask block-size use-harris k)
     (set! vec (cast ScmVector* (Scm_MakeVector corner-count SCM_UNDEFINED)))
@@ -1683,11 +1683,11 @@ Scm_Error(\"internal error\");
   (result (LSHSize lsh)))
 
 (define-cproc cv-lsh-add (lsh::<cv-lsh> data::<cv-mat>
-                                        :optional (indices-obj ())) ::<void>
+                                        :optional (indices-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL lsh)
   (ENSURE_NOT_NULL data)
   (let* ([indices :: CvMat*])
-    (nil-or-obj indices-obj indices <cv-mat> 0)
+    (undef-or-obj indices-obj indices <cv-mat> 0)
     (cvLSHAdd lsh data indices)))
 
 (define-cproc cv-lsh-remove (lsh::<cv-lsh> indices::<cv-mat>) ::<void>
