@@ -677,6 +677,14 @@
              [else (set-unit-type (if constant? type-const type-var) config unit)])))];; other -> var or constant
       [(_) #f])))
 
+;;stub用 parseing for define-enum
+(define (analyze-stub-define-enum l config unit)
+  (when (null? (cdr l))
+    #f) ;TODO warning
+  (set-unit-name (symbol->string (cadr l)) config unit)
+  (set-unit-type type-const config unit))
+
+
 ;;define-methodの解析を行う
 ;;TODO エラー処理
 (define (analyze-method-define l config unit)
@@ -786,6 +794,7 @@
     (define-class . ,analyze-class-define)
     (define-cproc . ,analyze-stub-proc-define)
     (define-cclass . ,analyze-stub-class-define)
+    (define-enum . ,analyze-stub-define-enum)
     ))
 
 ;;解析可能な式か?
