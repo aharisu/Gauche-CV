@@ -190,7 +190,7 @@
   (next-method)
   (slot-set! unit 'supers (reverse (slot-ref original 'supers)))
   (slot-set! unit 'slots (map
-                           (lambda (s) (list (car s) (reverse (cadr s)) (reverse (caddr s))))
+                           (lambda (s) (list (car s) (reverse (caddr s)) (reverse (cadddr s))))
                            (slot-ref original 'slots)))
   unit)
 
@@ -318,7 +318,7 @@
             tag-init
             (tag-append-text 'description))
 
-(define (process-acceptable-input text config unit)
+(define (process-acceptable-input text slot config unit)
   (case (slot-ref unit 'state)
     [(0) 
      (let1 text (string-trim text)
@@ -328,10 +328,10 @@
                (string=? "{@" (substring text 0 2)))
            (begin
              (slot-set! unit 'state 1)
-             (process-acceptable-input (substring text 2 (string-length text)) config unit))
+             (process-acceptable-input (substring text 2 (string-length text)) slot config unit))
            (begin
              (slot-set! unit 'state 2)
-             (process-acceptable-input text config unit)))))]
+             (process-acceptable-input text slot config unit)))))]
     [(1) 
      (let1 texts (string-split (string-trim-both text) #[\s])
        (let loop ([texts texts])
@@ -341,7 +341,7 @@
              ;;finish
              (let1 before (substring token 0 found)
                (unless (string-null? before)
-                 (slot-update! unit 'param
+                 (slot-update! unit slot
                                (lambda (value)
                                  (set-car! (cddr (car value))
                                            (cons before (caddr (car value))))
@@ -349,11 +349,11 @@
                (slot-set! unit 'state 2)
                (let1 text (string-trim (string-scan text #\} 'after))
                  (process-acceptable-input (and (not (string-null? text)) text)
-                                           config unit)))
+                                           slot config unit)))
              ;;add acceptable
              (let1 token (string-trim-both token)
                (unless (string-null? token)
-                 (slot-update! unit 'param
+                 (slot-update! unit slot
                                (lambda (value)
                                  (set-car! (cddr (car value))
                                            (cons token (caddr (car value))))
@@ -380,7 +380,7 @@
                 [else (raise (condition (<geninfo-warning> (message "param name is required"))))]))
             (lambda (text config unit)
               (cond
-                [(process-acceptable-input text config unit) 
+                [(process-acceptable-input text 'param config unit) 
                  => (lambda (text)
                       (slot-update! unit 'param 
                                     (lambda (value)
@@ -402,16 +402,16 @@
               (cond
                 [(split-first-token first-line)
                  => (lambda (tokens)
-                      (slot-update! unit 'slots (lambda (v) (cons (list (car tokens) '() '()) v)))
+                      (slot-update! unit 'slots (lambda (v) (cons (list (car tokens) #f '() '()) v)))
                       (caddr tokens))]
                 [else (raise (condition (<geninfo-warning> (message "slot name is required"))))]))
             (lambda (text config unit)
               (cond 
-                [(process-acceptable-input text config unit)
+                [(process-acceptable-input text 'slots config unit)
                  => (lambda (text) 
                       (slot-update! unit 'slots
                                     (lambda (v)
-                                      (set-car! (cddr (car v)) (cons text (caddr (car v))))
+                                      (set-car! (cdddr (car v)) (cons text (cadddr (car v))))
                                       v)))])))
 
 ;;define @supers tag
@@ -730,6 +730,7 @@
         [gen-slots (map 
                      (lambda (s)
                        (list (symbol->string (car s))
+                             #f
                              '()
                              '()))
                      slots)])
@@ -737,7 +738,9 @@
       (lambda (s)
         (cond
           [(assoc (car s) gen-slots)
-           => (lambda (slot) (set-car! (cdr slot) (cadr s)))]
+           => (lambda (slot) 
+                (set-car! (cdr slot) (cadr s))
+                (set-car! (cddr slot) (caddr s)))]
           [else (print "analyze-slots warning. " (car s))]))
       org-slots)
     gen-slots))
