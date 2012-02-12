@@ -22,9 +22,14 @@
     (format #t "~a" (fold-right
                         (lambda (param acc)
                           (string-append ";;@param "
-                                         (car param)
+                                         (param-name param)
                                          " "
-                                         (string-join (cadr param) "\n;;")
+                                         (if (null? (param-acceptable param))
+                                           ""
+                                           (string-append "{@"
+                                                          (string-join (param-acceptable param) " ")
+                                                          "}"))
+                                         (string-join (param-description param) "\n;;")
                                          "\n"
                                          acc))
                         ""
@@ -46,9 +51,14 @@
     (format #t "~a" (fold-right
                         (lambda (s acc)
                           (string-append ";;@slot "
-                                         (car s)
+                                         (param-name s)
                                          " "
-                                         (string-join (cadr s) "\n;;")
+                                         (if (null? (param-acceptable s))
+                                           ""
+                                           (string-append "{@"
+                                                          (string-join (param-acceptable s) " ")
+                                                          "}"))
+                                         (string-join (param-description s) "\n;;")
                                          "\n"
                                          acc))
                         ""

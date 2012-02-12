@@ -6,7 +6,6 @@
   (use util.match)
   (use file.util)
   (use text.parse)
-  (use gauche.interactive)
   #;(export <doc> <geninfo-warning> <convert-context>
     <unit-top> <unit-proc> <unit-var> <unit-class>
     unit-bottom-initializer-add! slot-update!
@@ -15,8 +14,6 @@
   )
 
 (select-module ginfo)
-
-(define e->e (lambda (e) e))
 
 ;-------***************-----------
 ;data structure
@@ -38,6 +35,7 @@
 (define-class <doc> ()
   (
    (units :init-keyword :units :init-value '())
+   (name :init-keyword :name)
    ))
 
 (define (add-unit doc config unit)
@@ -85,7 +83,8 @@
 (define-method slot-missing ((class <unit-bottom-meta>) obj slot . value)
   (if (null? value)
     (cond ;get
-      [(hash-table-get (slot-ref obj '%slots) slot #f) => e->e]
+      [(hash-table-exists? (slot-ref obj '%slots) slot)
+       (hash-table-get (slot-ref obj '%slots) slot)]
       [else (next-method)])
     (begin  ;set
       (hash-table-put! (slot-ref obj '%slots) slot (car value))
@@ -135,7 +134,6 @@
            (not (slot-ref unit 'initial-state?))))
     #f))
 
-
 ;;;;;
 ;;functionやmethodタイプ用のunit
 (define-class <unit-proc> (<unit-top>)
@@ -144,14 +142,22 @@
    (return :init-value '())
    ))
 
+(define (param-name param)
+  (car param))
+(define (param-acceptable param)
+  (cadr param))
+(define (param-description param)
+  (caddr param))
+
 (define-method commit ((unit <unit-proc>) original)
   (next-method)
   (slot-set! unit 'description (reverse (slot-ref original 'description)))
   (slot-set! unit 'return (reverse (slot-ref original 'return)))
-  ;;この時点で(hidden new (text1 text2 ...))のリスト構造から(new (text1 text2 ...))のリスト構造に修正する
+  ;;この時点で(hidden new (accept1 accept2 ...) (text1 text2 ...))のリスト構造から
+  ;;(new (accept1 accept2 ...) (text1 text2 ...))のリスト構造に修正する
   ;;hiddenとnewは自動解析結果の引数名を手動で修正するためにある
   (slot-set! unit 'param (map 
-                           (lambda (p)(list (cadr p) (reverse (caddr p))))
+                           (lambda (p)(list (cadr p) (reverse (caddr p)) (reverse (cadddr p))))
                            (reverse (slot-ref original 'param))))
   unit)
 
@@ -184,7 +190,7 @@
   (next-method)
   (slot-set! unit 'supers (reverse (slot-ref original 'supers)))
   (slot-set! unit 'slots (map
-                           (lambda (s) (list (car s) (reverse (cadr s))))
+                           (lambda (s) (list (car s) (reverse (cadr s)) (reverse (caddr s))))
                            (slot-ref original 'slots)))
   unit)
 
@@ -312,24 +318,74 @@
             tag-init
             (tag-append-text 'description))
 
+(define (process-acceptable-input text config unit)
+  (case (slot-ref unit 'state)
+    [(0) 
+     (let1 text (string-trim text)
+       (if (string-null? text)
+         #f
+         (if (and (<= 2 (string-length text))
+               (string=? "{@" (substring text 0 2)))
+           (begin
+             (slot-set! unit 'state 1)
+             (process-acceptable-input (substring text 2 (string-length text)) config unit))
+           (begin
+             (slot-set! unit 'state 2)
+             (process-acceptable-input text config unit)))))]
+    [(1) 
+     (let1 texts (string-split (string-trim-both text) #[\s])
+       (let loop ([texts texts])
+         (let* ([token (car texts)]
+                [found (string-scan token #\})])
+           (if found
+             ;;finish
+             (let1 before (substring token 0 found)
+               (unless (string-null? before)
+                 (slot-update! unit 'param
+                               (lambda (value)
+                                 (set-car! (cddr (car value))
+                                           (cons before (caddr (car value))))
+                                 value)))
+               (slot-set! unit 'state 2)
+               (let1 text (string-trim (string-scan text #\} 'after))
+                 (process-acceptable-input (and (not (string-null? text)) text)
+                                           config unit)))
+             ;;add acceptable
+             (let1 token (string-trim-both token)
+               (unless (string-null? token)
+                 (slot-update! unit 'param
+                               (lambda (value)
+                                 (set-car! (cddr (car value))
+                                           (cons token (caddr (car value))))
+                                 value)))
+               (if (null? (cdr texts))
+                 #f
+                 (loop (cdr texts))))))))]
+    [(2)  text]))
+
 ;;define @param tag
 (define-tag param
             tag-allow-multiple-ret-true
             (lambda (first-line config unit)
+              (slot-set! unit 'state 0)
               (cond
                 [(split-first-token first-line) 
                  => (lambda (tokens)
-                      (slot-update! unit 'param (lambda (v)
-                                                  (cons 
-                                                      (list (car tokens) (cadr tokens) '())
-                                                      v)))
+                      (slot-update! unit 'param 
+                                    (lambda (v)
+                                      (cons 
+                                        (list (car tokens) (cadr tokens) '() '())
+                                        v)))
                       (caddr tokens))]
                 [else (raise (condition (<geninfo-warning> (message "param name is required"))))]))
             (lambda (text config unit)
-              (slot-update! unit 'param 
-                            (lambda (value)
-                              (set-car! (cddr (car value)) (cons text (caddr (car value))))
-                              value))))
+              (cond
+                [(process-acceptable-input text config unit) 
+                 => (lambda (text)
+                      (slot-update! unit 'param 
+                                    (lambda (value)
+                                      (set-car! (cdddr (car value)) (cons text (cadddr (car value))))
+                                      value)))])))
 
 ;;define @return tag
 (define-tag return
@@ -342,17 +398,21 @@
 (define-tag slot
             tag-allow-multiple-ret-true
             (lambda (first-line config unit)
+              (slot-set! unit 'state 0)
               (cond
                 [(split-first-token first-line)
                  => (lambda (tokens)
-                      (slot-update! unit 'slots (lambda (v) (cons (list (car tokens) '()) v)))
+                      (slot-update! unit 'slots (lambda (v) (cons (list (car tokens) '() '()) v)))
                       (caddr tokens))]
                 [else (raise (condition (<geninfo-warning> (message "slot name is required"))))]))
             (lambda (text config unit)
-              (slot-update! unit 'slots
-                            (lambda (v)
-                              (set-car! (cdr (car v)) (cons text (cadr (car v))))
-                              v))))
+              (cond 
+                [(process-acceptable-input text config unit)
+                 => (lambda (text) 
+                      (slot-update! unit 'slots
+                                    (lambda (v)
+                                      (set-car! (cddr (car v)) (cons text (caddr (car v))))
+                                      v)))])))
 
 ;;define @supers tag
 (define-tag supers
@@ -449,7 +509,6 @@
               "")
             (lambda (text config unit) (undefined)))
 
-
 ;;次の有効なドキュメントテキストを取得する
 ;;有効なドキュメントテキストがなければ#fを返す
 (define (next-doc-text)
@@ -535,14 +594,15 @@
       [else (reverse (append
                        (list (cdr args) (string->symbol ".") (car args))
                        c))]))
-  (if (null? args)
-    args
-    (c->l args '())))
+  (cond
+    [(null? args) args]
+    [(symbol? args) (list '|.| args)]
+    [else (c->l args  '())]))
 
 
 ;;仮引数部をマッチングしながら再帰的に解析する
 (define (parse-each-arg args func-get-var config)
-  (let ([unit (make <unit-proc>)]
+  (let ([unit (make <unit-bottom>)]
         [init (get-init 'param)])
     (let loop ([args (cell->list args)])
       (match args
@@ -595,31 +655,26 @@
       [(_ (symbol args ...) _ ...) ;; lambda -> function
        (set-unit-name (symbol->string symbol) config unit)
        (set-unit-type type-fn config unit) 
-       (analyze-args args e->e config unit)]
+       (analyze-args args identity config unit)]
 
-      [(_ symbol exp) 
+      [(_ symbol exp ...) 
        (if (pair? symbol)
          (begin
            (set-unit-name (symbol->string (car symbol)) config unit)
            (set-unit-type type-fn config unit)
-           (analyze-args (cdr symbol) e->e config unit))
+           (analyze-args (cdr symbol) identity config unit))
          (begin 
            (set-unit-name (symbol->string symbol) config unit)
            (match exp 
              [(or ('lambda (args ...) _ ...) ;; lambda -> function
                 ('^ (args ...) _ ...))
               (set-unit-type type-fn config unit)
-              (analyze-args args e->e config unit)]
+              (analyze-args args identity config unit)]
              [(or ('lambda arg _ ...) ;; lambda -> function
                 ('^ arg _ ...))
               (set-unit-type type-fn config unit)
-              (analyze-args (list :rest arg) e->e config unit)]
+              (analyze-args (list :rest arg) identity config unit)]
              [else (set-unit-type (if constant? type-const type-var) config unit)])))];; other -> var or constant
-
-      [(_ symbol) ;; other -> var or constant
-       (set-unit-name (symbol->string symbol) config unit)
-       (set-unit-type (if constant? type-const type-var) config unit)]
-
       [(_) #f])))
 
 ;;define-methodの解析を行う
@@ -631,7 +686,7 @@
   (set-unit-type type-method config unit)
   (if (null? (caddr l))
     #f);TODO warning
-  (analyze-args (caddr l) e->e config unit))
+  (analyze-args (caddr l) identity config unit))
 
 
 (define (convert-type type)
@@ -639,7 +694,7 @@
                 (<void> . "#<undefined>")
                 )])
     (cond
-      [(assq-ref conv type #f) => e->e]
+      [(assq-ref conv type #f) => identity]
       [else (symbol->string type)])))
 
 
@@ -675,6 +730,7 @@
         [gen-slots (map 
                      (lambda (s)
                        (list (symbol->string (car s))
+                             '()
                              '()))
                      slots)])
     (for-each
@@ -710,7 +766,7 @@
     (slot-set! unit 'supers (map
                               (lambda (x)
                                 (cond
-                                  [(to-class classes x) => e->e]
+                                  [(to-class classes x) => identity]
                                   [else (raise (condition
                                                  (<geninfo-warning> (message "super class is not found"))))]))
                               (reverse supers)))
@@ -738,10 +794,12 @@
 ;;ドキュメントの直下にある式が定義であれば
 ;;ドキュメントと関連するものとして解析を行う
 (define (parse-expression config unit)
-  (let ([exp (read)])
-    (unless (get-config config 'skip-relative) 
-      (if (analyzable? exp)
-        ((assq-ref  analyzable-symbols (car exp)) exp config unit))))
+  (guard (exc
+           ((<read-error> exc)))
+    (let ([exp (read)])
+      (unless (get-config config 'skip-relative) 
+        (if (analyzable? exp)
+          ((assq-ref  analyzable-symbols (car exp)) exp config unit)))))
   unit)
 
 (define (put-class-c->scm config c-name scm-name)
@@ -807,8 +865,6 @@
     #f
     unit))
 
-
-
 (define (read-all-doc filename)
   (let ([doc (make <doc>)]
         [config (make-hash-table)]
@@ -856,7 +912,7 @@
 (define (geninfo-from-file path no-cache)
   (let ([abs-path (to-abs-path path)])
     (cond
-      [(and (not no-cache) (hash-table-get docs abs-path #f)) => e->e]
+      [(and (not no-cache) (hash-table-get docs abs-path #f)) => identity]
       [else (let ([doc (read-all-doc abs-path)])
               (if (not no-cache)
                 (hash-table-put! docs abs-path doc))
@@ -886,10 +942,13 @@
 ;; @param from シンボルであれば、モジュール名として扱われ現在のロードパスからファイルを検索して解析する
 ;;文字列であれば、ファイルへのパス名として扱われそのパスに存在するファイルを解析する
 (define (geninfo from :optional (no-cache #f))
-  (cond
-    [(symbol? from) (geninfo-from-module from no-cache)]
-    [(string? from) (geninfo-from-file from no-cache)]
-    [else #f])); TODO warging
+  (let1 doc (cond
+              [(symbol? from) (geninfo-from-module from no-cache)]
+              [(string? from) (geninfo-from-file from no-cache)]
+              [else #f]); TODO warging
+    (when doc
+      (slot-set! doc 'name from))
+    doc))
 
 
 ;-------***************-----------
@@ -932,7 +991,7 @@
       (for-each
         (lambda (p) 
           (unless (null? (cadr p))
-            (format #t "- param##~a :\n    ~a\n" (car p) (string-join (cadr p) "\n    " ))))
+            (format #t "- param##~a :\n    ~a\n" (car p) (string-join (caddr p) "\n    " ))))
         (slot-ref unit 'param))))
   (unless (null? (ref unit 'return))
     (format #t "  return      : ~a\n" (string-join (ref unit 'return) "\n                ")))
@@ -945,8 +1004,8 @@
   (for-each
     (lambda (s)
       (format #t "  slot        : ~a\n" (car s))
-      (unless (null? (cadr s))
-        (format #t "    ~a\n" (string-join (cadr s) "\n    "))))
+      (unless (null? (caddr s))
+        (format #t "    ~a\n" (string-join (caddr s) "\n    "))))
     (slot-ref unit 'slots))
   )
 
