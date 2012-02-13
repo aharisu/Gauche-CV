@@ -415,11 +415,18 @@ typedef double _double_t;
 ;(;;slot
 ;))
 
-(define-cproc cv-init-sparse-mat-iterator (mat::<cv-sparse-mat> it::<cv-sparse-mat-iterator>) ::<cv-sparse-node>
+(define-cproc cv-init-sparse-mat-iterator (mat::<cv-sparse-mat> it::<cv-sparse-mat-iterator>) ::<top>
   (ENSURE_NOT_NULL mat)
-  (result (cvInitSparseMatIterator mat it)))
-(define-cproc cv-get-next-sparse-node (it::<cv-sparse-mat-iterator>) ::<cv-sparse-node>
-  (call "cvGetNextSparseNode"))
+  (let* ([ret :: CvSparseNode* (cvInitSparseMatIterator mat it)])
+    (if ret
+      (result (boxing ret <cv-sparse-node>))
+      (result (boxing 0 <boolean>)))))
+
+(define-cproc cv-get-next-sparse-node (it::<cv-sparse-mat-iterator>) ::<top>
+  (let* ([ret :: CvSparseNode* (cvGetNextSparseNode it)])
+    (if ret
+      (result (boxing ret <cv-sparse-node>))
+      (result (boxing 0 <boolean>)))))
 
 ;;
 ;;General clone function
