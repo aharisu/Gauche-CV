@@ -2519,14 +2519,14 @@ typedef double _double_t;
   (result (cvColorToScalar packed-color arrtype)))
 
 (define-cproc cv-ellipse-2-poly (center::<cv-point> axes::<cv-size> angle::<fixnum>
-                                                    arc-start::<fixnum> arc-end::<fixnum> delta::<fixnum>) ::(<int> <vector>)
+                                                    arc-start::<fixnum> arc-end::<fixnum> delta::<fixnum>) :: <vector>
   (let* ([nb-pts::int (cvCeil (+ (/ (- arc-end arc-start) (cast float delta)) 1))]
-         [pts::CvPoint* (SCM_NEW_ARRAY CvPoint nb-pts)]
-         [pts-vec::ScmVector* (cast ScmVector* (Scm_MakeVector nb-pts SCM_UNDEFINED))])
+         [pts::CvPoint* (SCM_NEW_ARRAY CvPoint nb-pts)])
     (set! nb-pts (cvEllipse2Poly center axes angle arc-start arc-end pts delta))
-    (dotimes [i nb-pts]
-      (set! (SCM_VECTOR_ELEMENT pts-vec i) (SCM_MAKE_CVPOINT (aref pts i))))
-    (result nb-pts pts-vec)))
+    (let* ([pts-vec::ScmVector* (cast ScmVector* (Scm_MakeVector nb-pts SCM_UNDEFINED))])
+      (dotimes [i nb-pts]
+        (set! (SCM_VECTOR_ELEMENT pts-vec i) (SCM_MAKE_CVPOINT (aref pts i))))
+      (result pts-vec))))
 
 (define-cproc cv-draw-contours (img::<cv-arr> contour::<cv-seq> external-color::<cv-scalar> 
                                               hole-color::<cv-scalar> max-level::<fixnum>
