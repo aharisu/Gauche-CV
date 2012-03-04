@@ -765,7 +765,7 @@ typedef double _double_t;
 ;;*************data sampling*********
 
 "
-static int max(int x, int y)
+static int _max(int x, int y)
 {
 return (x < y) ? y : x;
 }
@@ -784,7 +784,7 @@ return (x < y) ? y : x;
       [(== 4 connectivity)
        (set! size (+ (abs (- (ref pt2 x) (ref pt1 x))) (abs (- (ref pt2 y) (ref pt1 y))) 1))]
       [(== 8 connectivity)
-       (set! size (max (+ (abs (- (ref pt2 x) (ref pt1 x))) 1) (+ (abs (- (ref pt2 y) (ref pt1 y))) 1)))]
+       (set! size (_max (+ (abs (- (ref pt2 x) (ref pt1 x))) 1) (+ (abs (- (ref pt2 y) (ref pt1 y))) 1)))]
       [else (Scm_Error "connectivity requires 4 or 8, but got %d" connectivity)])
     (set! buffer  (SCM_MALLOC (* (sizeof CvPoint) size)))
     ;;call cvSampleLine
