@@ -40,6 +40,9 @@ typedef double _double_t;
 (define-enum IPL_DEPTH_16S)
 (define-enum IPL_DEPTH_32S)
 (define-enum IPL_DEPTH_32F)
+;;;;;
+;; for storing double-precision
+;; floating point data in IplImage's */
 (define-enum IPL_DEPTH_64F)
 
 ;;Matrix type(CvMat)
@@ -113,9 +116,13 @@ typedef double _double_t;
     (set! (* p-rng) (cvRNG (Scm_GetInteger64Clamp seed SCM_CLAMP_BOTH NULL)))
     (result p-rng)))
 
+;;;;;
+;;@return random 32-bit unsigned integer
 (define-cproc cv-rand-int (rng::<cv-rng>) :: <uint32>
   (result (cvRandInt rng)))
 
+;;;;;
+;;@return random floating-point number between 0 and 1
 (define-cproc cv-rand-real (rng::<cv-rng>) :: <real>
   (result (cvRandReal rng)))
 
@@ -142,6 +149,17 @@ typedef double _double_t;
 ;;--------------
 ;; IplImage
 ;;
+;;;;;
+;;@slot n-channels {@ 1 2 3 4}
+;; Most of OpenCV functions support 1,2,3 or 4 channels.
+;;@slot depth {@ IPL_DEPTH_8U IPL_DEPTH_8S IPL_DEPTH_16S IPL_DEPTH_32S IPL_DEPTH_32F IPL_DEPTH_64F}
+;; Pixel depth is bits.
+;;@slot width Image width in pixels.
+;;@slot height Image height in pixels.
+;;@slot roi Image ROI. 
+;;@slot image-size Image data size in bytes.
+;; (==height*width-step in case of interleaved data)
+;;@slot width-step Size of aligned image row in bytes.
 (define-cclass <iplimage>
   :built-in
   "ScmIplImage*" "Scm_IplImageClass"
@@ -182,32 +200,59 @@ typedef double _double_t;
         )
   ))
 
+;;;;;
+;; Creates IPL image (header and data)
+;;@param depth {@
+;; IPL_DEPTH_8U IPL_DEPTH_8S IPL_DEPTH_16U 
+;; IPL_DEPTH_16S IPL_DEPTH_32S IPL_DEPTH_32F IPL_DEPTH_64F
+;; }
+;;@param nchannels {@ 1 2 3 4}
 (define-cproc make-image (width::<fixnum> height::<fixnum> depth::<int> nchannels::<fixnum>) ::<iplimage>
   (expr "cvCreateImage(cvSize(width, height), depth, nchannels)"))
+
+;;;;;
+;; Releases IPL image header and data
 (define-cproc cv-release-image (obj::<iplimage>) ::<void>
   (body  <void> 
          "if(obj) {
          cvReleaseImage(&obj);
          SCM_IPLIMAGE(obj_scm)->data = NULL;
          }"))
+
+;;;;;
+;; Creates a copy of IPL image (widthStep may differ)
 (define-cproc cv-clone-image (image::<iplimage>) ::<iplimage>
   (ENSURE_NOT_NULL image)
   (result (cvCloneImage image)))
 
+;;;;;
+;; Sets a Channel Of Interest (only a few functions support COI) -
+;; use cv-copy to extract the selected channel and/or put it back
+;; @param coi {@ 1 2 3 4}
 (define-cproc cv-set-image-coi (image::<iplimage> coi::<int>) :: <void>
   (ENSURE_NOT_NULL image)
   (cvSetImageCOI image coi))
 
+;;;;;
+;; Retrieves image Channel Of Interest
 (define-cproc cv-get-image-coi (image::<iplimage>) :: <int>
   (ENSURE_NOT_NULL image)
   (result (cvGetImageCOI image)))
 
+;;;;;
+;; Sets image ROI (region of interest) (COI is not changed)
 (define-cproc cv-set-image-roi (image::<iplimage> rect::<cv-rect>) ::<void>
   (ENSURE_NOT_NULL image)
   (cvSetImageROI image rect))
+
+;;;;;
+;; Retrieves image ROI
 (define-cproc cv-get-image-roi (image::<iplimage>) ::<cv-rect>
   (ENSURE_NOT_NULL image)
   (result (cvGetImageROI image)))
+
+;;;;;
+;; Resets image ROI and COI
 (define-cproc cv-reset-image-roi (image::<iplimage>) ::<void>
   (ENSURE_NOT_NULL image)
   (cvResetImageROI image))
@@ -234,9 +279,24 @@ typedef double _double_t;
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->cols);"
          :setter #f)
    ))
+
+;;;;;
+;; Allocates and initializes <cv-mat> header and allocates data
+;; @param type {@ 
+;; CV_8UC1 CV_8UC2 CV_8UC3 CV_8UC4 
+;; CV_8SC1 CV_8SC2 CV_8SC3 CV_8SC4 
+;; CV_16UC1 CV_16UC2 CV_16UC3 CV_16UC4 
+;; CV_16SC1 CV_16SC2 CV_16SC3 CV_16SC4 
+;; CV_32UC1 CV_32UC2 CV_32UC3 CV_32UC4 
+;; CV_32FC1 CV_32FC2 CV_32FC3 CV_32FC4 
+;; CV_64FC1 CV_64FC2 CV_64FC3 CV_64FC4 
+;;}
 (define-cproc make-cv-mat (rows::<fixnum> cols::<fixnum> type::<int>) ::<cv-mat>
   (call "cvCreateMat"))
 
+;;;;;
+;; Allocates and initializes <cv-mat> header and allocates data
+;;@param  v {@ <s8vector> <u8vector> <s16vector> <u16vector> <s32vector> <f32vector> <f64vector>}
 (define-cproc make-cv-mat-from-uvector (rows::<fixnum> cols::<fixnum> channel::<fixnum> v::<uvector>) :: <cv-mat>
   (let* ([type :: int]
          [mat :: CvMat*])
@@ -253,16 +313,25 @@ typedef double _double_t;
     (memcpy (ref (-> mat data) ptr) (SCM_UVECTOR_ELEMENTS v) (Scm_UVectorSizeInBytes v))
     (result mat)))
 
+;;;;;
+;; Releases <cv-mat> header and deallocates matrix data
+;; (reference counting is used for data)
 (define-cproc cv-release-mat (mat::<cv-mat>) ::<void>
   (body <void>
         "if(mat) {
         cvReleaseMat(&mat);
         SCM_CVMAT(mat_scm)->data = NULL;
         }"))
+
+;;;;;
+;; Creates an exact copy of the input matrix (except, may be, step value)
 (define-cproc cv-clone-mat (mat::<cv-mat>) ::<cv-mat>
   (ENSURE_NOT_NULL mat)
   (result (cvCloneMat mat)))
 
+;;;;;
+;; Makes a new matrix from <cv-rect> subrectangle of input array.
+;; No data is copied
 (define-cproc cv-get-sub-rect (arr::<cv-arr> rect::<cv-rect>) :: <top>
   (ENSURE_NOT_NULL arr)
   (let* ([submat :: CvMat* (SCM_NEW CvMat)]
@@ -271,6 +340,9 @@ typedef double _double_t;
     (create-obj ret-obj ret ScmCvMat SCM_CLASS_CVMAT)
     (result ret-obj)))
 
+;;;;;
+;; Selects row span of the input array: arr(start-row:delta-row:end-row,:)
+;;  (end-row is not included into the span).
 (define-cproc cv-get-rows (arr::<cv-arr> start-row::<fixnum> end-row::<fixnum>
                                          :optional (delta-row::<fixnum> 1)) :: <top>
   (ENSURE_NOT_NULL arr)
@@ -280,6 +352,8 @@ typedef double _double_t;
     (create-obj ret-obj ret ScmCvMat SCM_CLASS_CVMAT)
     (result ret-obj)))
 
+;;;;;
+;; Selects row span of the input array: arr(row:1:row+1)
 (define-cproc cv-get-row (arr::<cv-arr> row::<fixnum>) :: <top>
   (ENSURE_NOT_NULL arr)
   (let* ([submat :: CvMat* (SCM_NEW CvMat)]
@@ -288,6 +362,9 @@ typedef double _double_t;
     (create-obj ret-obj ret ScmCvMat SCM_CLASS_CVMAT)
     (result ret-obj)))
 
+;;;;;
+;; Selects column span of the input array: arr(:,start_col:end_col)
+;; (end_col is not included into the span)
 (define-cproc cv-get-cols (arr::<cv-arr> start-col::<fixnum> end-col::<fixnum>) :: <top>
   (ENSURE_NOT_NULL arr)
   (let* ([submat :: CvMat* (SCM_NEW CvMat)]
@@ -296,6 +373,8 @@ typedef double _double_t;
     (create-obj ret-obj ret ScmCvMat SCM_CLASS_CVMAT)
     (result ret-obj)))
 
+;;;;;
+;; Selects col span of the input array: arr(col:1:col+1)
 (define-cproc cv-get-col (arr::<cv-arr> col::<fixnum>) :: <top>
   (ENSURE_NOT_NULL arr)
   (let* ([submat :: CvMat* (SCM_NEW CvMat)]
@@ -304,6 +383,11 @@ typedef double _double_t;
     (create-obj ret-obj ret ScmCvMat SCM_CLASS_CVMAT)
     (result ret-obj)))
 
+;;;;;
+;; Select a diagonal of the input array.
+;; The diagonal will be represented as a column (nx1 matrix).
+;; @param (diag 0) 
+;; (diag = 0 means the main diagonal, >0 means a diagonal above the main one, <0 - below the main one).
 (define-cproc cv-get-diag (arr::<cv-arr> start-col::<fixnum> 
                                          :optional (diag::<fixnum> 0)) :: <top>
   (ENSURE_NOT_NULL arr)
@@ -357,20 +441,30 @@ typedef double _double_t;
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->dims);"
          :setter #f)
    ))
+
 (define-cproc cv-get-matnd-dim (matnd::<cv-matnd> index::<fixnum>) ::(<int> <int>)
   (body (<int> <int>)
         "ENSURE_NOT_NULL(matnd)" 
         "int size = matnd->dim[index].size;"
         "int step = matnd->dim[index].step;"
         (result size step)))
+
+;;;;;
+;; Allocates and initializes <cv-matnd> header and allocates data
 (define-cproc make-cv-matnd (dims::<fixnum> sizes::<s32vector> type::<int>) ::<cv-matnd>
   (expr "cvCreateMatND(dims, SCM_S32VECTOR_ELEMENTS(sizes), type)"))
+
+;;;;;
+;; Releases <cv-matnd>
 (define-cproc cv-release-matnd (mat::<cv-matnd>) ::<void>
   (body <void>
         "if(mat) {
         cvReleaseMatND(&mat);
         SCM_CVMATND(mat_scm)->data = NULL;
         }"))
+
+;;;;;
+;; Creates a copy of <cv-matnd> (except, may be, steps)
 (define-cproc cv-clone-matnd (mat::<cv-matnd>) ::<cv-matnd>
   (call "cvCloneMatND"))
 
@@ -389,14 +483,23 @@ typedef double _double_t;
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->dims);"
          :setter #f)
    ))
+
+;;;;;
+;; Allocates and initializes <cv-sparse-mat> header and allocates data
 (define-cproc make-cv-sparse-mat (dims::<fixnum> sizes::<s32vector> type::<int>) ::<cv-sparse-mat>
   (expr "cvCreateSparseMat(dims, SCM_S32VECTOR_ELEMENTS(sizes), type)"))
+
+;;;;;
+;; Releases <cv-sparse-mat>
 (define-cproc cv-release-sparse (mat::<cv-sparse-mat>) ::<void>
   (body <void>
         "if(mat) {
         cvReleaseSparseMat(&mat);
         SCM_CVSPARSEMAT(mat_scm)->data = NULL;
         }"))
+
+;;;;;
+;; Creates a copy of <cv-sparse-mat> (except, may be, zero items)
 (define-cproc cv-clone-sparse-mat (mat::<cv-sparse-mat>) ::<cv-sparse-mat>
   (ENSURE_NOT_NULL mat)
   (result (cvCloneSparseMat mat)))
@@ -415,6 +518,9 @@ typedef double _double_t;
 ;(;;slot
 ;))
 
+;;;;;
+;; Initializes sparse array iterator
+;; (returns the first node or NULL if the array is empty)
 (define-cproc cv-init-sparse-mat-iterator (mat::<cv-sparse-mat> it::<cv-sparse-mat-iterator>) ::<top>
   (ENSURE_NOT_NULL mat)
   (let* ([ret :: CvSparseNode* (cvInitSparseMatIterator mat it)])
@@ -422,6 +528,8 @@ typedef double _double_t;
       (result (boxing ret <cv-sparse-node>))
       (result (boxing 0 <boolean>)))))
 
+;;;;;
+;; returns next sparse array node (or NULL if there is no more nodes)
 (define-cproc cv-get-next-sparse-node (it::<cv-sparse-mat-iterator>) ::<top>
   (let* ([ret :: CvSparseNode* (cvGetNextSparseNode it)])
     (if ret
@@ -488,6 +596,9 @@ typedef double _double_t;
 (define-enum CV_TERMCRIT_NUMBER)
 (define-enum CV_TERMCRIT_EPS)
 
+;;;;;
+;;@slot type {@ CV_TERMCRIT_EPS CV_TERMCRIT_ITER}
+;; may be combination of CV_TERMCRIT_EPS CV_TERMCRIT_ITER
 (define-cclass <cv-term-criteria>
   :built-in :struct
   "ScmCvTermCriteria" "Scm_CvTermCriteriaClass"
@@ -630,6 +741,11 @@ typedef double _double_t;
 ;;---------------
 ;; CvBox2D
 ;;
+;;;;;
+;;@slot center Center of the box.
+;;@slot size Box width and length.
+;;@slot angle Angle between the horizontal axis
+;; and the first side (i.e. length) in degrees
 (define-cclass <cv-box-2d>
   :built-in :struct
   "ScmCvBox2D" "Scm_CvBox2DClass"
@@ -741,13 +857,22 @@ typedef double _double_t;
 ;;   Memory storage
 ;;
 
+;;;;;
+;; Creates new memory storage.
+;; @param (block-size 0) 0 means that default,
+;; somewhat optimal size, is used (currently, it is 64K)
 (define-cproc make-cv-mem-storage (:optional (block-size::<fixnum> 0)) ::<cv-mem-storage>
   (call "cvCreateMemStorage"))
 
+;;;;;
+;; Creates a memory storage that will borrow memory blocks from parent storage
 (define-cproc make-cv-child-mem-storage (parent::<cv-mem-storage>) ::<cv-mem-storage>
   (ENSURE_NOT_NULL parent)
   (result (cvCreateChildMemStorage parent )))
 
+;;;;;
+;; Releases memory storage. All the children of a parent must be released before
+;; the parent. A child storage returns all the blocks to parent when it is released
 (define-cproc cv-release-mem-storage (storage::<cv-mem-storage>) ::<void>
   (body <void>
         "if(storage) {
@@ -755,16 +880,25 @@ typedef double _double_t;
         SCM_FOREIGN_POINTER(storage_scm)->ptr = NULL;
         }"))
 
+;;;;;
+;; Clears memory storage. This is the only way(!!!) (besides cv-restore-mem-storage-pos)
+;; to reuse memory allocated for the storage - cv-clear-seq,cv-clear-set...
+;; do not free any memory.
+;; A child storage returns all the blocks to the parent when it is cleared
 (define-cproc cv-clear-mem-storage (storage::<cv-mem-storage>) ::<void>
   (ENSURE_NOT_NULL storage)
   (cvClearMemStorage storage))
 
+;;;;;
+;; Remember a storage "free memory" position
 (define-cproc cv-save-mem-storage-pos (storage::<cv-mem-storage>) ::<cv-mem-storage-pos>
   (ENSURE_NOT_NULL storage)
   (let* ([ret::CvMemStoragePos* (SCM_NEW CvMemStoragePos)])
     (cvSaveMemStoragePos storage ret)
     (result ret)))
 
+;;;;;
+;; Restore a storage "free memory" position
 (define-cproc cv-restore-mem-storage-pos (storage::<cv-mem-storage> pos::<cv-mem-storage-pos>) ::<void>
   (ENSURE_NOT_NULL storage)
   (cvRestoreMemStoragePos storage pos))
@@ -773,7 +907,11 @@ typedef double _double_t;
 ;;-------------------------
 ;;   Sequence
 ;;
-
+;;;;;
+;;@slot prev Previous sequence block.
+;;@slot next NExt sequence block.
+;;@slot start-index Index of the first element in the block + sequence->first->start->index.
+;;@slot count Number of elements in the block.
 (define-cclass <cv-seq-block>
   :built-in
   "ScmCvSeqBlock*" "Scm_CvSeqBlockClass"
@@ -797,6 +935,12 @@ typedef double _double_t;
   (;;slot
    ))
 
+;;;;;
+;;@slot h-prev Previous sequence.
+;;@slot h-next Next sequence.
+;;@slot v-prev 2nd previous sequence.
+;;@slot v-next 2nd next sequnece.
+;;@slot total Total number of elements.
 (define-cclass <cv-seq>
   :built-in
   "ScmCvSeq*" "Scm_CvSeqClass"
@@ -896,6 +1040,9 @@ typedef double _double_t;
 ;;sequence of the integer numbers
 (define-enum CV_SEQ_INDEX)
 
+;;;;;
+;; Creates new empty sequence that will reside in the specified storage
+;; @param ((flag 7) >> (flag CV_SEQ_ELTYPE_PTR))
 (define-cproc make-cv-seq (storage::<cv-mem-storage>
                             :optional (flag::<fixnum> 7)) ;flag 7 is CV_SEQ_ELTYPE_PTR
   ::<cv-seq>
@@ -914,6 +1061,9 @@ typedef double _double_t;
           (else (Scm_Error "unknown element type %d." (logand flag CV_SEQ_ELTYPE_MASK))))))
     (result (cvCreateSeq flag (sizeof CvSeq) size storage))))
 
+;;;;;
+;; Changes default size (granularity) of sequence blocks.
+;; The default size is ~1Kbyte
 (define-cproc cv-set-seq-blocksize (seq::<cv-seq> delta_elems::<fixnum>) ::<void>
   (cvSetSeqBlockSize seq delta_elems))
 
@@ -951,6 +1101,8 @@ typedef double _double_t;
      ([CV_SEQ_ELTYPE_PTR] ,user)
      (else (Scm_Error "unknown element type %d." (CV_SEQ_ELTYPE ,seq)))))
 
+;;;;;
+;; Adds new element to the end of sequence. 
 (define-cproc cv-seq-push (seq::<cv-seq> obj) ::<void>
   (case-seq-type-set seq obj
                      (cvSeqPush seq (& (SCM_CVPOINT_DATA obj)))
@@ -963,6 +1115,8 @@ typedef double _double_t;
                      (cvSeqPush seq (& (SCM_CVPOINT3D32F_DATA obj)))
                      (cvSeqPush seq (& obj))))
 
+;;;;;
+;; Adds new element to the beginning of sequence. 
 (define-cproc cv-seq-push-front (seq::<cv-seq> obj) ::<void>
   (case-seq-type-set seq obj
                      (cvSeqPushFront seq (& (SCM_CVPOINT_DATA obj)))
@@ -975,6 +1129,8 @@ typedef double _double_t;
                      (cvSeqPushFront seq (& (SCM_CVPOINT3D32F_DATA obj)))
                      (cvSeqPushFront seq (& obj))))
 
+;;;;;
+;; Removes the last element from sequence and optionally saves it
 (define-cproc cv-seq-pop (seq::<cv-seq>) ::<top>
   (case-seq-type seq
                  (let* ([pt::CvPoint])
@@ -999,6 +1155,8 @@ typedef double _double_t;
                    (cvSeqPop seq (& obj))
                    (result obj))))
 
+;;;;;
+;; Removes the first element from sequence and optioanally saves it
 (define-cproc cv-seq-pop-front (seq::<cv-seq>) ::<top>
   (case-seq-type seq
                  (let* ([pt::CvPoint])
@@ -1050,6 +1208,8 @@ typedef double _double_t;
   (gen-elem-assign <uint8>)
   (gen-elem-assign <int>)
   )
+;;;;;
+;; Adds several new elements to the end of sequence
 (define-cproc cv-seq-push-multi (seq::<cv-seq> elements
                                                :optional (in-front::<boolean> #f)) ::<void>
   (let* ([size::int]
@@ -1084,6 +1244,8 @@ typedef double _double_t;
        (dotimes [i count] (set! (SCM_VECTOR_ELEMENT vec i)
                             (,boxer (aref t-ary i)))))))
 
+;;;;;
+;; Removes several elements from the end of sequence and optionally saves them
 (define-cproc cv-seq-pop-multi (seq::<cv-seq> count::<fixnum>
                                               :optional (in-front::<boolean> #f)) ::<vector>
   (let* ([vec::ScmVector* (cast ScmVector* (Scm_MakeVector count SCM_UNDEFINED))]
@@ -1107,6 +1269,9 @@ typedef double _double_t;
                    (seq-multi-pop ScmObj SCM_OBJ))
     (result vec)))
 
+;;;;;
+;; Inserts a new element in the middle of sequence.
+;; (cv-seq-insert seq 0 elem) == (cv-seq-push-front seq elem)
 (define-cproc cv-seq-insert (seq::<cv-seq> before-index::<fixnum> obj) ::<void>
   (case-seq-type-set seq obj
                      (cvSeqInsert seq before-index (& (SCM_CVPOINT_DATA obj)))
@@ -1119,12 +1284,23 @@ typedef double _double_t;
                      (cvSeqInsert seq before-index (& (SCM_CVPOINT3D32F_DATA obj)))
                      (cvSeqInsert seq before-index (& obj))))
 
+;;;;;
+;; Removes specified sequence element
 (define-cproc cv-seq-remove (seq::<cv-seq> index::<fixnum>) ::<void>
   (cvSeqRemove seq index))
 
+;;;;;
+;; Removes all the elements from the sequence. The freed memory
+;; can be reused later only by the same sequence unless cv-clear-mem-storage
+;; or cv-restore-mem-sotrage-pos is called
 (define-cproc cv-clear-seq (seq::<cv-seq>) ::<void>
   (cvClearSeq seq))
 
+;;;;;
+;; Retrieves pointer to specified sequence element.
+;; @param index
+;; Negative indices are supported and mean counting from the end
+;; (e.g -1 means the last sequence element)
 (define-cproc cv-get-seq-elem (seq::<cv-seq> index::<fixnum>) ::<top>
   (case-seq-type seq
                  (let* ([pt::CvPoint* (CV_GET_SEQ_ELEM CvPoint seq index)])
@@ -1141,6 +1317,9 @@ typedef double _double_t;
                    (result (SCM_OBJ (SCM_MAKE_CVPOINT3D32F (* pt)))))
                  (result (SCM_OBJ (CV_GET_SEQ_ELEM _pvoid_t seq index)))))
 
+;;;;;
+;; Calculates index of the specified sequence element.
+;; Returns -1 if element does not belong to the sequence
 (define-cproc cv-seq-elem-idx (seq::<cv-seq> obj) ::(<fixnum> <cv-seq-block>)
   (let* ([block::CvSeqBlock* (SCM_MALLOC (sizeof block))])
     (case-seq-type-set seq obj
@@ -1162,8 +1341,8 @@ typedef double _double_t;
                        (result (cvSeqElemIdx seq (& obj) (& block))
                                block))))
 
-
-
+;;;;;
+;; Initializes sequence writer. The new elements will be added to the end of sequence
 (define-cproc cv-start-append-to-seq (seq::<cv-seq>) ::<cv-seq-writer>
   (let* ([writer::CvSeqWriter* (SCM_MALLOC (sizeof writer))])
     (cvStartAppendToSeq seq writer)
@@ -1171,12 +1350,20 @@ typedef double _double_t;
 
 ;;not support cvStartWriteSeq
 
+;;;;;
+;; Closes sequence writer, updates sequence header and returns pointer to the resultant sequence
+;; (which may be useful if the sequence was created using cv-start-write-seq))
 (define-cproc cv-end-write-seq (writer::<cv-seq-writer>) ::<cv-seq>
   (result (cvEndWriteSeq writer)))
 
+;;;;;
+;; Updates sequence header. May be useful to get access to some of previously
+;; written elements via cv-get-seq-elem or sequence reader
 (define-cproc cv-flush-seq-writer (writer::<cv-seq-writer>) ::<void>
   (cvFlushSeqWriter writer))
 
+;;;;;
+;; Add element to sequence
 (define-cproc cv-write-seq-elem (elem-obj writer::<cv-seq-writer>) ::<void>
   (case-seq-type-set (-> writer seq) elem-obj
                      (CV_WRITE_SEQ_ELEM (SCM_CVPOINT_DATA elem-obj) (* writer))
@@ -1189,26 +1376,39 @@ typedef double _double_t;
                      (CV_WRITE_SEQ_ELEM (SCM_CVPOINT3D32F_DATA elem-obj) (* writer))
                      (CV_WRITE_SEQ_ELEM elem-obj (* writer))))
 
-
+;;;;;
+;; Initializes sequence reader.
+;; The sequence can be read in forward or backward direction
 (define-cproc cv-start-read-seq (seq::<cv-seq>
                                   :optional (reverse::<boolean> #f)) ::<cv-seq-reader>
   (let* ([reader::CvSeqReader* (SCM_MALLOC (sizeof reader))])
     (cvStartReadSeq seq reader reverse)
     (result reader)))
 
+;;;;;
+;; Returns current sequence reader position (currently observed sequence element)
 (define-cproc cv-get-seq-reader-pos (reader::<cv-seq-reader>) ::<fixnum>
   (result (cvGetSeqReaderPos reader)))
 
+;;;;;
+;; Changes sequence reader position. It may seek to an absolute or
+;; to relative to the current position
 (define-cproc cv-set-seq-reader-pos (reader::<cv-seq-reader> index::<fixnum>
                                                              :optional (relative?::<boolean> #f)) ::<void>
   (cvSetSeqReaderPos reader index relative?))
 
+;;;;;
+;; Move reader position forward
 (define-cproc cv-next-seq-elem (reader::<cv-seq-reader>) ::<void>
   (CV_NEXT_SEQ_ELEM (-> (-> reader seq) elem_size) (* reader)))
 
+;;;;;
+;; Move reader position backward
 (define-cproc cv-prev-seq-elem (reader::<cv-seq-reader>) ::<void>
   (CV_PREV_SEQ_ELEM (-> (-> reader seq) elem_size) (* reader)))
 
+;;;;;
+;; Read element and move read position forward
 (define-cproc cv-read-seq-elem (reader::<cv-seq-reader>) ::<top>
   (case-seq-type (-> reader seq)
                  (let* ([pt::CvPoint])
@@ -1244,7 +1444,8 @@ typedef double _double_t;
                  (result (SCM_MAKE_CVPOINT3D32F (* (cast CvPoint3D32f* (-> reader ptr)))))
                  (result (* (cast ScmObj* (-> reader ptr))))))
 
-
+;;;;;
+;; Read element and move read position backward
 (define-cproc cv-rev-read-seq-elem (reader::<cv-seq-reader>) ::<top>
   (case-seq-type (-> reader seq)
                  (let* ([pt::CvPoint])
@@ -1277,7 +1478,11 @@ typedef double _double_t;
 
 
 ;;TODO cvCvtSeqToArray
-
+;;;;;
+;;  Set.
+;;  Order is not preserved. There can be gaps between sequence elements.
+;;  After the element has been inserted it stays in the same place all the time.
+;;  The MSB(most-significant or sign bit) of the first field (flags) is 0 iff the element exists.
 (define-cclass <cv-set>
   :built-in
   "ScmCvSet*" "Scm_CvSetClass"
@@ -1288,6 +1493,23 @@ typedef double _double_t;
                  :c-name "active_count")
    ))
 
+;;;;;
+;;  We represent a graph as a set of vertices.
+;;  Vertices contain their adjacency lists (more exactly, pointers to first incoming or
+;;  outcoming edge (or 0 if isolated vertex)). Edges are stored in another set.
+;;  There is a singly-linked list of incoming/outcoming edges for each vertex.
+;;
+;;  Each edge consists of
+;;
+;;     o   Two pointers to the starting and ending vertices
+;;         (vtx[0] and vtx[1] respectively).
+;;
+;;	 A graph may be oriented or not. In the latter case, edges between
+;;	 vertex i to vertex j are not distinguished during search operations.
+;;
+;;     o   Two pointers to next edges for the starting and ending vertices, where
+;;         next[0] points to the next edge in the vtx[0] adjacency list and
+;;         next[1] points to the next edge in the vtx[1] adjacency list.
 (define-cclass <cv-graph>
   :built-in
   "ScmCvGraph*" "Scm_CvGraphClass"
@@ -1322,10 +1544,16 @@ typedef double _double_t;
 ;; CvArr
 ;;
 
+;;;;;
+;; @return Returns type of array elements:
+;; CV_8UC1 ... CV_64FC4 ...
 (define-cproc cv-get-elemtype (arr::<cv-arr>) ::<int>
   (ENSURE_NOT_NULL arr)
   (result (cvGetElemType arr)))
 
+;;;;;
+;; Retrieves number of an array dimensions and
+;; optionally sizes of the dimensions
 (define-cproc cv-get-dims (arr::<cv-arr>)::<s32vector>
   (ENSURE_NOT_NULL arr)
   (let* ([sizes :: (.array int (CV_MAX_DIM))]
@@ -1335,67 +1563,124 @@ typedef double _double_t;
       (set! (SCM_S32VECTOR_ELEMENT vec i) (aref sizes i)))
     (result vec)))
 
+;;;;;
+;; Retrieves size of a particular array dimension.
+;; For 2d arrays cv-get-dimsize arr 0) returns number of rows (image height)
+;; and (cv-get-dimsize arr 1) returns number of columns (image width) */
 (define-cproc cv-get-dimsize (arr::<cv-arr> index::<fixnum>)::<int>
   (ENSURE_NOT_NULL arr)
   (result (cvGetDimSize arr index)))
 
-
+;;;;;
+;; value = arr(idx0)
 (define-cproc cv-get-1d (arr::<cv-arr> idx0::<int>)::<cv-scalar>
   (ENSURE_NOT_NULL arr)
   (result (cvGet1D arr idx0)))
+
+;;;;;
+;; value = arr(idx0, idx1)
 (define-cproc cv-get-2d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum>)::<cv-scalar>
   (ENSURE_NOT_NULL arr)
   (result (cvGet2D arr idx0 idx1)))
+
+;;;;;
+;; value = arr(idx0, idx1, idx2)
 (define-cproc cv-get-3d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum> idx2::<fixnum>)::<cv-scalar>
   (ENSURE_NOT_NULL arr)
   (result (cvGet3D arr idx0 idx1 idx2)))
+
+;;;;;
+;; value = arr(idx0, ...)
 (define-cproc cv-get-nd (arr::<cv-arr> idx::<s32vector>)::<cv-scalar>
   (ENSURE_NOT_NULL arr)
   (result (cvGetND arr (SCM_S32VECTOR_ELEMENTS idx))))
 
+;;;;;
+;; for 1-channel arrays
 (define-cproc cv-get-real1d (arr::<cv-arr> idx0::<int>)::<double>
   (ENSURE_NOT_NULL arr)
   (result (cvGetReal1D arr idx0)))
+
+;;;;;
+;; for 1-channel arrays
 (define-cproc cv-get-real2d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum>)::<double>
   (ENSURE_NOT_NULL arr)
   (result (cvGetReal2D arr idx0 idx1)))
+
+;;;;;
+;; for 1-channel arrays
 (define-cproc cv-get-real3d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum> idx2::<fixnum>)::<double>
   (ENSURE_NOT_NULL arr)
   (result (cvGetReal3D arr idx0 idx1 idx2)))
+
+;;;;;
+;; for 1-channel arrays
 (define-cproc cv-get-realnd (arr::<cv-arr> idx::<s32vector>)::<double>
   (ENSURE_NOT_NULL arr)
   (result (cvGetRealND arr (SCM_S32VECTOR_ELEMENTS idx))))
 
+;;;;;
+;; arr(idx0) = value
 (define-cproc cv-set-1d (arr::<cv-arr> idx0::<int> value::<cv-scalar>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSet1D arr idx0 value))
+
+;;;;;
+;; arr(idx0, idx1) = value
 (define-cproc cv-set-2d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum> value::<cv-scalar>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSet2D arr idx0 idx1 value))
+
+
+;;;;;
+;; arr(idx0, idx1, idx2) = value
 (define-cproc cv-set-3d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum> idx2::<fixnum> value::<cv-scalar>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSet3D arr idx0 idx1 idx2 value))
+
+;;;;;
+;; arr(idx0 ...) = value
 (define-cproc cv-set-nd (arr::<cv-arr> idx::<s32vector> value::<cv-scalar>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSetND arr (SCM_S32VECTOR_ELEMENTS idx) value))
 
+;;;;;
+;; for 1-channel arrays
 (define-cproc cv-set-real1d (arr::<cv-arr> idx0::<int> value::<double>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSetReal1D arr idx0 value))
+
+;;;;;
+;; for 1-channel arrays
 (define-cproc cv-set-real2d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum> value::<double>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSetReal2D arr idx0 idx1 value))
+
+;;;;;
+;; for 1-channel arrays
 (define-cproc cv-set-real3d (arr::<cv-arr> idx0::<fixnum> idx1::<fixnum> idx2::<fixnum> value::<double>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSetReal3D arr idx0 idx1 idx2 value))
+
+;;;;;
+;; for 1-channel arrays
 (define-cproc cv-set-realnd (arr::<cv-arr> idx::<s32vector> value::<double>)::<void>
   (ENSURE_NOT_NULL arr)
   (cvSetRealND arr (SCM_S32VECTOR_ELEMENTS idx) value))
 
+;;;;;
+;; clears element of ND dense array,
+;; in case of sparse arrays it deletes the specified node
 (define-cproc cv-clear-nd(arr::<cv-arr> idx::<s32vector>) ::<void>
   (ENSURE_NOT_NULL arr)
   (cvClearND arr (SCM_S32VECTOR_ELEMENTS idx)))
 
+;;;;;
+;; Converts <cv-arr> (<iplimage> or <cv-mat>,...) to <cv-mat>.
+;; If the last parameter is non-zero, function can
+;; convert multi(>2)-dimensional array to <cv-mat> as long as.
+;; the last array's dimension is continous. The resultant
+;; matrix will be have appropriate (a huge) number of rows */
 (define-cproc cv-get-mat(arr::<cv-arr> :optional (allow-nd::<boolean> #f)) ::<cv-mat>
   (ENSURE_NOT_NULL arr)
   (let* ([tmp::CvMat* (?: (is-type? arr_scm <cv-mat>)
@@ -1403,11 +1688,24 @@ typedef double _double_t;
                         (cvCreateMatHeader 1 1 CV_8UC1))])
     (result (cvGetMat arr tmp NULL allow-nd))))
 
+;;;;;
+;; Converts <cv-arr> (<iplimage> or <cv-mat>) to <iplimage>
 (define-cproc cv-get-image(arr::<cv-arr>) ::<iplimage>
   (ENSURE_NOT_NULL arr)
   (let* ([tmp::IplImage* (cvCreateImageHeader (cvSize 1 1) IPL_DEPTH_8U 1)])
     (result (cvGetImage arr tmp))))
 
+;;;;;
+;; Changes a shape of multi-dimensional array.
+;; new_cn == 0 means that number of channels remains unchanged.
+;; new_dims == 0 means that number and sizes of dimensions remain the same
+;; (unless they need to be changed to set the new number of channels)
+;; if new_dims == 1, there is no need to specify new dimension sizes
+;; The resultant configuration should be achievable w/o data copying.
+;; If the resultant array is sparse, <cv-sparse-mat> header should be passed
+;; to the function else if the result is 1 or 2 dimensional,
+;; <cv-mat> header should be passed to the function
+;; else <cv-matnd> header should be passed
 (define-cproc cv-reshape-mat-nd(arr::<cv-arr> new-cn::<fixnum> new-dims::<s32vector>) ::<top>
   (ENSURE_NOT_NULL arr)
   (let* ([size::int (?: (== 0 (SCM_S32VECTOR_SIZE new-dims)) 
@@ -1436,69 +1734,113 @@ typedef double _double_t;
       [else (Scm_Error "<iplimage> or <cv-mat> or <cv-matnd> required, but got %S" arr)])
     (result ret)))
 
+;;;;;
+;; Changes a shape of multi-dimensional array.
+;; new_cn == 0 means that number of channels remains unchanged.
+;; new_dims == 0 means that number and sizes of dimensions remain the same
+;; (unless they need to be changed to set the new number of channels)
+;; if new_dims == 1, there is no need to specify new dimension sizes
+;; The resultant configuration should be achievable w/o data copying.
+;; If the resultant array is sparse, <cv-sparse-mat> header should be passed
+;; to the function else if the result is 1 or 2 dimensional,
+;; <cv-mat> header should be passed to the function
+;; else <cv-matnd> header should be passed
 (define-cproc cv-reshape (arr::<cv-arr> new-cn::<fixnum> :optional (new_rows::<fixnum> 0)) ::<cv-mat>
   (ENSURE_NOT_NULL arr)
   (let* ([tmp::CvMat* (cvCreateMatHeader 1 1 CV_8UC1)])
     (result (cvReshape arr tmp new-cn new-rows))))
 
+;;;;;
+;; Repeats source 2d array several times in both horizontal and
+;; vertical direction to fill destination array
 (define-cproc cv-repeat (src::<cv-arr> dest::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dest)
   (cvRepeat src dest))
 
 ;;TODO use nnvector
+;;;;;
+;; Attaches user data to the array header. The step is reffered to
+;; the pre-last dimension. That is, all the planes of the array
+;; must be joint (w/o gaps)
 (define-cproc cv-set-data (arr::<cv-arr> data::<uvector> step::<int>) ::<void>
   (ENSURE_NOT_NULL arr)
   (cvSetData arr (SCM_UVECTOR_ELEMENTS data) step))
 
+;;;;;
+;; Returns width and height of array in elements
 (define-cproc cv-get-size (arr::<cv-arr>) ::<cv-size>
   (ENSURE_NOT_NULL arr)
   (result (cvGetSize arr)))
 
-(define-cproc cv-copy (src::<cv-arr> dest::<cv-arr> :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+;;;;;
+;; Copies source array to destination array
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
+(define-cproc cv-copy (src::<cv-arr> dest::<cv-arr> :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dest)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvCopy src dest mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvCopy src dest mask-arr)))
 
-(define-cproc cv-set (src::<cv-arr> value::<cv-scalar> :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+;;;;;
+;; Sets all or "masked" elements of input array to the same value
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
+(define-cproc cv-set (src::<cv-arr> value::<cv-scalar> :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvSet src value mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvSet src value mask-arr)))
 
+;;;;;
+;; Clears all the array elements (sets them to 0)
 (define-cproc cv-set-zero (src::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
   (cvSetZero src))
 
+;;;;;
+;; Clears all the array elements (sets them to 0)
 (define-cproc cv-zero (src::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
   (cvZero src))
 
-(define-cproc cv-split (src::<cv-arr> dst0-obj dst1-obj dst2-obj dst3-obj) ::<void>
+;;;;;
+;; Merges a set of single-channel arrays into the single multi-channel array
+;; or inserts one particular [color] plane to the array
+;;@param dst0 {@ <cv-arr> c:null}
+;;@param dst1 {@ <cv-arr> c:null}
+;;@param dst2 {@ <cv-arr> c:null}
+;;@param dst3 {@ <cv-arr> c:null}
+(define-cproc cv-split (src::<cv-arr> dst0 dst1 dst2 dst3) ::<void>
   (ENSURE_NOT_NULL src)
-  (let* ([dst0::CvArr*]
-         [dst1::CvArr*]
-         [dst2::CvArr*]
-         [dst3::CvArr*])
-    (undef-or-cvarr dst0-obj dst0)
-    (undef-or-cvarr dst1-obj dst1)
-    (undef-or-cvarr dst2-obj dst2)
-    (undef-or-cvarr dst3-obj dst3)
-    (cvSplit src dst0 dst1 dst2 dst3)))
+  (let* ([dst0-arr::CvArr*]
+         [dst1-arr::CvArr*]
+         [dst2-arr::CvArr*]
+         [dst3-arr::CvArr*])
+    (undef-or-cvarr dst0 dst0-arr)
+    (undef-or-cvarr dst1 dst1-arr)
+    (undef-or-cvarr dst2 dst2-arr)
+    (undef-or-cvarr dst3 dst3-arr)
+    (cvSplit src dst0-arr dst1-arr dst2-arr dst3-arr)))
 
-(define-cproc cv-merge (src0-obj src1-obj src2-obj src3-obj dest::<cv-arr>) ::<void>
+;;;;;
+;; Merges a set of single-channel arrays into the single multi-channel array
+;; or inserts one particular [color] plane to the array
+;;@param src0 {@ <cv-arr> c:null}
+;;@param src1 {@ <cv-arr> c:null}
+;;@param src2 {@ <cv-arr> c:null}
+;;@param src3 {@ <cv-arr> c:null}
+(define-cproc cv-merge (src0 src1 src2 src3 dest::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL dest)
-  (let* ([src0::CvArr*]
-         [src1::CvArr*]
-         [src2::CvArr*]
-         [src3::CvArr*])
-    (undef-or-cvarr src0-obj src0)
-    (undef-or-cvarr src1-obj src1)
-    (undef-or-cvarr src2-obj src2)
-    (undef-or-cvarr src3-obj src3)
-    (cvMerge src0 src1 src2 src3 dest)))
+  (let* ([src0-arr::CvArr*]
+         [src1-arr::CvArr*]
+         [src2-arr::CvArr*]
+         [src3-arr::CvArr*])
+    (undef-or-cvarr src0 src0-arr)
+    (undef-or-cvarr src1 src1-arr)
+    (undef-or-cvarr src2 src2-arr)
+    (undef-or-cvarr src3 src3-arr)
+    (cvMerge src0-arr src1-arr src2-arr src3-arr dest)))
 
 (define-cise-stmt (<cv-arr>-elem-assign var obj)
   (let* ([type (cgen-type-from-name '<cv-arr>)])
@@ -1508,84 +1850,127 @@ typedef double _double_t;
          (ENSURE_NOT_NULL ,var))
        (Scm_Error ,#`",(~ type 'description) required, but got %S" ,obj))))
 
-(define-cproc cv-mix-channels (src-obj
-                                dst-obj
-                                from-to-obj) ::<void>
+;;;;;
+;; Copies several channels from input arrays to
+;; certain channels of output arrays
+;;@param src {@ <cv-arr>  <list> <vector> }
+;;@param dst {@ <cv-arr>  <list> <vector> }
+;;@param from-to {@ <s32vector>  <list> <vector> }
+(define-cproc cv-mix-channels (src dst from-to) ::<void>
   (let* ([src-cnt::int]
-         [src::CvArr**]
+         [src-arr::CvArr**]
          [src-tmp-ary::(.array void* (TMP_ARY_SIZE))]
          [dst-cnt::int]
-         [dst::CvArr**]
+         [dst-arr::CvArr**]
          [dst-tmp-ary::(.array void* (TMP_ARY_SIZE))]
          [from-to-cnt::int]
-         [from-to::int*]
+         [from-to-arr::int*]
          [from-to-tmp-ary::(.array void* (TMP_ARY_SIZE))])
     (cond ;src
-      [(is-type? src-obj <vector>)
-       (set! src-cnt (SCM_VECTOR_SIZE src-obj))
-       (vector-to-ary src-obj src src-tmp-ary TMP_ARY_SIZE CvArr* <cv-arr>-elem-assign)]
-      [(is-type? src-obj <list>)
-       (list-to-ary src-obj src src-tmp-ary TMP_ARY_SIZE src-cnt CvArr* <cv-arr>-elem-assign)]
-      [(is-type? src-obj <cv-arr>)
+      [(is-type? src <vector>)
+       (set! src-cnt (SCM_VECTOR_SIZE src))
+       (vector-to-ary src src-arr src-tmp-ary TMP_ARY_SIZE CvArr* <cv-arr>-elem-assign)]
+      [(is-type? src <list>)
+       (list-to-ary src src-arr src-tmp-ary TMP_ARY_SIZE src-cnt CvArr* <cv-arr>-elem-assign)]
+      [(is-type? src <cv-arr>)
        (set! src-cnt 1)
-       (set! (aref src-tmp-ary 0) (unboxing src-obj <cv-arr>))
+       (set! (aref src-tmp-ary 0) (unboxing src <cv-arr>))
        (ENSURE_NOT_NULL (aref src-tmp-ary 0))
-       (set! src src-tmp-ary)]
-      [else (Scm_Error "<list> or <vector> or <cv-arr> required, but got %S" src-obj)])
+       (set! src-arr src-tmp-ary)]
+      [else (Scm_Error "<list> or <vector> or <cv-arr> required, but got %S" src)])
     (cond ;dst
-      [(is-type? dst-obj <vector>)
-       (set! dst-cnt (SCM_VECTOR_SIZE dst-obj))
-       (vector-to-ary dst-obj dst dst-tmp-ary TMP_ARY_SIZE CvArr* <cv-arr>-elem-assign)]
-      [(is-type? dst-obj <list>)
-       (list-to-ary dst-obj dst dst-tmp-ary TMP_ARY_SIZE dst-cnt CvArr* <cv-arr>-elem-assign)]
-      [(is-type? dst-obj <cv-arr>)
+      [(is-type? dst <vector>)
+       (set! dst-cnt (SCM_VECTOR_SIZE dst))
+       (vector-to-ary dst dst-arr dst-tmp-ary TMP_ARY_SIZE CvArr* <cv-arr>-elem-assign)]
+      [(is-type? dst <list>)
+       (list-to-ary dst dst-arr dst-tmp-ary TMP_ARY_SIZE dst-cnt CvArr* <cv-arr>-elem-assign)]
+      [(is-type? dst <cv-arr>)
        (set! dst-cnt 1)
-       (set! (aref dst-tmp-ary 0) (unboxing dst-obj <cv-arr>))
+       (set! (aref dst-tmp-ary 0) (unboxing dst <cv-arr>))
        (ENSURE_NOT_NULL (aref dst-tmp-ary 0))
-       (set! dst dst-tmp-ary)]
-      [else (Scm_Error "<list> or <vector> or <cv-arr> required, but got %S" dst-obj)])
+       (set! dst-arr dst-tmp-ary)]
+      [else (Scm_Error "<list> or <vector> or <cv-arr> required, but got %S" dst)])
     (cond ;from-to
-      [(is-type? from-to-obj <vector>)
-       (set! from-to-cnt (SCM_VECTOR_SIZE from-to-obj))
-       (vector-to-ary from-to-obj from-to from-to-tmp-ary TMP_ARY_SIZE _int_t <int>-elem-assign)]
-      [(is-type? from-to-obj <list>)
-       (list-to-ary from-to-obj from-to from-to-tmp-ary TMP_ARY_SIZE from-to-cnt _int_t <int>-elem-assign)]
-      [(is-type? from-to-obj <s32vector>)
-       (set! from-to-cnt (SCM_S32VECTOR_SIZE from-to-obj))
-       (uvector.int-elem-assign from-to from-to-obj)]
-      [else (Scm_Error "<list> or <vector> of <s32vector> required, but got %S" from-to-obj)])
+      [(is-type? from-to <vector>)
+       (set! from-to-cnt (SCM_VECTOR_SIZE from-to))
+       (vector-to-ary from-to from-to-arr from-to-tmp-ary TMP_ARY_SIZE _int_t <int>-elem-assign)]
+      [(is-type? from-to <list>)
+       (list-to-ary from-to from-to-arr from-to-tmp-ary TMP_ARY_SIZE from-to-cnt _int_t <int>-elem-assign)]
+      [(is-type? from-to <s32vector>)
+       (set! from-to-cnt (SCM_S32VECTOR_SIZE from-to))
+       (uvector.int-elem-assign from-to-arr from-to)]
+      [else (Scm_Error "<list> or <vector> of <s32vector> required, but got %S" from-to)])
 
-    (cvMixChannels (cast (const CvArr**) src) src-cnt 
-                   dst dst-cnt 
-                   (cast (const int*) from-to) (/ from-to-cnt 2))))
+    (cvMixChannels (cast (const CvArr**) src-arr) src-cnt 
+                   dst-arr dst-cnt 
+                   (cast (const int*) from-to-arr) (/ from-to-cnt 2))))
 
-
+;;;;;
+;; Performs linear transformation on every source array element:
+;; dst(x,y,c) = scale*src(x,y,c)+shift.
+;; Arbitrary combination of input and output array depths are allowed
+;; (number of channels must be the same), thus the function can be used
+;; for type conversion
 (define-cproc cv-convert-scale (src::<cv-arr> dst::<cv-arr>
                                               :optional (scale::<double> 1.0) (shift::<double> 0.0)) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvConvertScale src dst scale shift))
+
+;;;;;
+;; Performs linear transformation on every source array element:
+;; dst(x,y,c) = scale*src(x,y,c)+shift.
+;; Arbitrary combination of input and output array depths are allowed
+;; (number of channels must be the same), thus the function can be used
+;; for type conversion
 (define-cproc cv-cvt-scale (src::<cv-arr> dst::<cv-arr>
                                           :optional (scale::<double> 1.0) (shift::<double> 0.0)) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvConvertScale src dst scale shift))
+
+;;;;;
+;; Performs linear transformation on every source array element:
+;; dst(x,y,c) = scale*src(x,y,c)+shift.
+;; Arbitrary combination of input and output array depths are allowed
+;; (number of channels must be the same), thus the function can be used
+;; for type conversion
 (define-cproc cv-scale (src::<cv-arr> dst::<cv-arr>
                                       :optional (scale::<double> 1.0) (shift::<double> 0.0)) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvConvertScale src dst scale shift))
+
+;;;;;
+;; Performs linear transformation on every source array element:
+;; dst(x,y,c) = scale*src(x,y,c)+shift.
+;; Arbitrary combination of input and output array depths are allowed
+;; (number of channels must be the same), thus the function can be used
+;; for type conversion
 (define-cproc cv-convert (src::<cv-arr> dst::<cv-arr>)
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvConvertScale src dst 1 0))
 
+;;;;;
+;; Performs linear transformation on every source array element,
+;; stores absolute value of the result:
+;; dst(x,y,c) = abs(scale*src(x,y,c)+shift).
+;; destination array must have 8u type.
+;; In other cases one may use cv-convert-scale + cv-abs-dff-s
 (define-cproc cv-convert-scale-abs (src::<cv-arr> dst::<cv-arr>
                                                   :optional 
                                                   (scale::<double> 1.0) (shift::<double> 0.0)) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvConvertScaleAbs src dst scale shift))
+
+;;;;;
+;; Performs linear transformation on every source array element,
+;; stores absolute value of the result:
+;; dst(x,y,c) = abs(scale*src(x,y,c)+shift).
+;; destination array must have 8u type.
+;; In other cases one may use cv-convert-scale + cv-abs-dff-s
 (define-cproc cv-cvt-scale-abs (src::<cv-arr> dst::<cv-arr>
                                               :optional 
                                               (scale::<double> 1.0) (shift::<double> 0.0)) ::<void>
@@ -1593,6 +1978,10 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvConvertScaleAbs src dst scale shift))
 
+;;;;;
+;; checks termination criteria validity and
+;; sets eps to default_eps (if it is not set),
+;; max_iter to default_max_iters (if it is not set)
 (define-cproc cv-check-term-criteria (criteria::<cv-term-criteria>
                                        def-eps::<double> def-max-iters::<fixnum>) ::<cv-term-criteria>
   (result (cvCheckTermCriteria criteria def-eps def-max-iters)))
@@ -1602,48 +1991,66 @@ typedef double _double_t;
 ;; Arithmetic, logic and comparison operations
 ;;
 
+;;;;;
+;; dst(mask) = src1(mask) + src2(mask)
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-add (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
-                                     :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+                                     :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvAdd src1 src2 dst mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvAdd src1 src2 dst mask-arr)))
 
+;;;;;
+;; dst(mask) = src(mask) + value
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-add-s (src::<cv-arr> value::<cv-scalar> dst::<cv-arr>
-                                      :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+                                      :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvAddS src value dst mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvAddS src value dst mask-arr)))
 
+;;;;;
+;; dst(mask) = src1(mask) - src2(mask)
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-sub (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
-                                     :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+                                     :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvSub src1 src2 dst mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvSub src1 src2 dst mask-arr)))
 
+;;;;;
+;; dst(mask) = src(mask) - value = src(mask) + (-value)
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-sub-s (src::<cv-arr> value::<cv-scalar> dst::<cv-arr>
-                                      :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+                                      :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvSubS src value dst mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvSubS src value dst mask-arr)))
 
+;;;;;
+;; dst(mask) = value - src(mask)
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-sub-rs (src::<cv-arr> value::<cv-scalar> dst::<cv-arr>
-                                       :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+                                       :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvSubRS src value dst mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvSubRS src value dst mask-arr)))
 
+;;;;;
+;; dst(idx) = src1(idx) * src2(idx) * scale
+;; (scaled element-wise multiplication of 2 arrays)
 (define-cproc cv-mul (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
                                      :optional (scale::<double> 1.0)) ::<void>
   (ENSURE_NOT_NULL src1)
@@ -1651,6 +2058,10 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvMul src1 src2 dst scale))
 
+;;;;;
+;; element-wise division/inversion with scaling:
+;;  dst(idx) = src1(idx) * scale / src2(idx)
+;;  or dst(idx) = scale / src2(idx) if src1 == 0
 (define-cproc cv-div (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
                                      :optional (scale::<double> 1.0)) ::<void>
   (ENSURE_NOT_NULL src1)
@@ -1658,6 +2069,8 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvDiv src1 src2 dst scale))
 
+;;;;;
+;; dst = src1 * scale + src2
 (define-cproc cv-scale-add(src1::<cv-arr> scale::<cv-scalar>
                                           src2::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src1)
@@ -1665,6 +2078,8 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvScaleAdd src1 scale src2 dst))
 
+;;;;;
+;; (cv-scalar-add src (cv-real-scalar value) b c)
 (define-cproc cv-axpy (src1::<cv-arr> value::<double>
                                       src2::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src1)
@@ -1672,6 +2087,8 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvAXPY src1 value src2 dst))
 
+;;;;;
+;; dst = src1 * alpha + src2 * beta + gamma
 (define-cproc cv-add-weighted (src1::<cv-arr> alpha::<double>
                                               src2::<cv-arr> beta::<double>
                                               gamma::<double> dst::<cv-arr>) ::<void>
@@ -1680,67 +2097,91 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvAddWeighted src1 alpha src2 beta gamma dst))
 
+;;;;;
+;; result = sum_i(src1(i) * src2(i)) (results for all channels are accumulated together) */
 (define-cproc cv-dot-product (src1::<cv-arr> src2::<cv-arr>) ::<double>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (result (cvDotProduct src1 src2)))
 
+;;;;;
+;; dst(idx) = src1(idx) & src2(idx)
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-and (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
-                                     :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+                                     :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvAnd src1 src2 dst mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvAnd src1 src2 dst mask-arr)))
 
+;;;;;
+;; dst(idx) = src(idx) & value
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-and-s (src::<cv-arr> value::<cv-scalar> dst::<cv-arr> 
-                                       :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+                                       :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvAndS src value dst mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvAndS src value dst mask-arr)))
 
+;;;;;
+;; dst(idx) = src1(idx) | src2(idx)
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-or (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
-                                    :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+                                    :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvOr src1 src2 dst mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvOr src1 src2 dst mask-arr)))
 
+;;;;;
+;; dst(idx) = src(idx) | value
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-or-s (src::<cv-arr> value::<cv-scalar> dst::<cv-arr> 
-                                      :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+                                      :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvOrS src value dst mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvOrS src value dst mask-arr)))
 
+;;;;;
+;; dst(idx) = src1(idx) ^ src2(idx)
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-xor (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
-                                     :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+                                     :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvXor src1 src2 dst mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvXor src1 src2 dst mask-arr)))
 
+;;;;;
+;; dst(idx) = src(idx) ^ value
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-xor-s (src::<cv-arr> value::<cv-scalar> dst::<cv-arr> 
-                                       :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+                                       :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvXorS src value dst mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvXorS src value dst mask-arr)))
 
+;;;;;
+;; dst(idx) = ~src(idx)
 (define-cproc cv-not (src::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvNot src dst))
 
+;;;;;
+;; dst(idx) = lower(idx) <= src(idx) < upper(idx)
 (define-cproc cv-in-range (src::<cv-arr> lower::<cv-arr>
                                          upper::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
@@ -1749,6 +2190,8 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvInRange src lower upper dst))
 
+;;;;;
+;; dst(idx) = lower <= src(idx) < upper
 (define-cproc cv-in-range-s (src::<cv-arr> lower::<cv-scalar>
                                            upper::<cv-scalar> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
@@ -1766,50 +2209,74 @@ typedef double _double_t;
 (define-enum CV_CMP_LE)
 (define-enum CV_CMP_NE)
 
+;;;;;
+;; The comparison operation support single-channel arrays only.
+;; Destination image should be 8uC1 or 8sC1
+;; dst(idx) = src1(idx) _cmp_op_ src2(idx)
+;; @slot {@ CV_CMP_EQ CV_CMP_GT CV_CMP_GE CV_CMP_LT CV_CMP_LE CV_CMP NE}
 (define-cproc cv-cmp (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr> cmp-op::<fixnum>) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
   (cvCmp src1 src2 dst cmp-op))
 
+;;;;;
+;; The comparison operation support single-channel arrays only.
+;; Destination image should be 8uC1 or 8sC1
+;; dst(idx) = src1(idx) _cmp_op_ value
+;; @slot {@ CV_CMP_EQ CV_CMP_GT CV_CMP_GE CV_CMP_LT CV_CMP_LE CV_CMP NE}
 (define-cproc cv-cmp-s (src::<cv-arr> value::<double> dst::<cv-arr> cmp-op::<fixnum>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvCmpS src value dst cmp-op))
 
+;;;;;
+;; dst(idx) = min(src1(idx),src2(idx))
 (define-cproc cv-min (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
   (cvMin src1 src2 dst))
 
+;;;;;
+;; dst(idx) = max(src1(idx),src2(idx))
 (define-cproc cv-max (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
   (cvMax src1 src2 dst))
 
+;;;;;
+;; dst(idx) = min(src(idx),value)
 (define-cproc cv-min-s (src::<cv-arr> value::<double> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvMinS src value dst))
 
+;;;;;
+;; dst(idx) = max(src(idx),value)
 (define-cproc cv-max-s (src::<cv-arr> value::<double> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvMaxS src value dst))
 
+;;;;;
+;; dst(x,y,c) = abs(src1(x,y,c) - src2(x,y,c))
 (define-cproc cv-abs-diff (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
   (ENSURE_NOT_NULL dst)
   (cvAbsDiff src1 src2 dst))
 
+;;;;;
+;; dst(x,y,c) = abs(src(x,y,c) - value(c))
 (define-cproc cv-abs-diff-s (src::<cv-arr> dst::<cv-arr> value::<cv-scalar>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvAbsDiffS src dst value))
 
+;;;;;
+;; dst(x,y,c) = abs(src(x,y,c) - value(c))
 (define-cproc cv-abs (src::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
@@ -1820,15 +2287,23 @@ typedef double _double_t;
 ;; Math operations
 ;;
 
+;;;;;
+;; Does cartesian->polar coordinates conversion.
+;; Either of output components (magnitude or angle) is optional
+;; @param ((angle (c "SCM_UNDEFINED")) >> (angle c:null))
 (define-cproc cv-cart-to-polar (x::<cv-arr> y::<cv-arr> magnitude::<cv-arr>
-                                            :optional (angle-obj (c "SCM_UNDEFINED")) (angle-in-degrees::<fixnum> 0)) ::<void>
+                                            :optional (angle (c "SCM_UNDEFINED")) (angle-in-degrees::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL x)
   (ENSURE_NOT_NULL y)
   (ENSURE_NOT_NULL magnitude)
-  (let* ([angle::CvArr*])
-    (undef-or-cvarr angle-obj angle)
-    (cvCartToPolar x y magnitude angle angle-in-degrees)))
+  (let* ([angle-arr::CvArr*])
+    (undef-or-cvarr angle angle-arr)
+    (cvCartToPolar x y magnitude angle-arr angle-in-degrees)))
 
+;;;;;
+;; Does polar->cartesian coordinates conversion.
+;; Either of output components (magnitude or angle) is optional.
+;; If magnitude is missing it is assumed to be all 1's
 (define-cproc cv-polar-to-cart (magnitude::<cv-arr> angle::<cv-arr>
                                                     x::<cv-arr> y::<cv-arr>
                                                     :optional (angle-in-degrees::<fixnum> 0)) ::<void>
@@ -1838,24 +2313,38 @@ typedef double _double_t;
   (ENSURE_NOT_NULL y)
   (cvPolarToCart magnitude angle x y angle-in-degrees))
 
+;;;;;
+;; Does powering: dst(idx) = src(idx)^power
 (define-cproc cv-pow (src::<cv-arr> dst::<cv-arr> power::<double>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvPow src dst power))
 
+;;;;;
+;; Does exponention: dst(idx) = exp(src(idx)).
+;; Overflow is not handled yet. Underflow is handled.
+;; Maximal relative error is ~7e-6 for single-precision input
 (define-cproc cv-exp (src::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvExp src dst))
 
+;;;;;
+;; Calculates natural logarithms: dst(idx) = log(abs(src(idx))).
+;; Logarithm of 0 gives large negative number(~-700)
+;; Maximal relative error is ~3e-7 for single-precision output
 (define-cproc cv-log (src::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvLog src dst))
 
+;;;;;
+;; Fast arctangent calculation
 (define-cproc cv-fast-arctan (y::<float> x::<float>) ::<float>
   (cvFastArctan y x))
 
+;;;;;
+;; Fast cubic root calculation
 (define-cproc cv-cbrt (value::<float>) ::<float>
   (cvCbrt value))
 
@@ -1865,12 +2354,24 @@ typedef double _double_t;
 ;;
 (define-enum CV_CHECK_RANGE)
 (define-enum CV_CHECK_QUIET)
+;;;;;
+;; Checks array values for NaNs, Infs or simply for too large numbers
+;; (if CV_CHECK_RANGE is set). If CV_CHECK_QUIET is set,
+;; no runtime errors is raised (function returns zero value in case of "bad" values).
+;; Otherwise cvError is called
+;;@param (flags 0) {@ 0 CV_CHECK_RANGE CV_CHECK_QUIET}
 (define-cproc cv-check-arr (arr::<cv-arr>
                              :optional (flags::<fixnum> 0) 
                              (min-val::<fixnum> 0) (max-val::<fixnum> 0)) ::<int>
   (ENSURE_NOT_NULL arr)
   (result (cvCheckArr arr flags min-val max-val)))
 
+;;;;;
+;; Checks array values for NaNs, Infs or simply for too large numbers
+;; (if CV_CHECK_RANGE is set). If CV_CHECK_QUIET is set,
+;; no runtime errors is raised (function returns zero value in case of "bad" values).
+;; Otherwise cvError is called
+;;@param (flags 0) {@ 0 CV_CHECK_RANGE CV_CHECK_QUIET}
 (define-cproc cv-check-array (arr::<cv-arr>
                                :optional (flags::<fixnum> 0) 
                                (min-val::<fixnum> 0) (max-val::<fixnum> 0)) ::<int>
@@ -1884,6 +2385,8 @@ typedef double _double_t;
 (define-enum CV_RAND_UNI)
 (define-enum CV_RAND_NORMAL)
 
+;;;;;
+;;@param dist-type {@ CV_RAND_UNI CV_RAND_NORMAL}
 (define-cproc cv-rand-arr (rng::<cv-rng> arr::<cv-arr> dist-type::<fixnum>
                                          param1::<cv-scalar> param2::<cv-scalar>) ::<void>
   (ENSURE_NOT_NULL arr)
@@ -1902,21 +2405,30 @@ typedef double _double_t;
 (define-enum CV_SORT_ASCENDING)
 (define-enum CV_SORT_DESCENDING)
 
+;;;;;
+;;@param ((flags 0) >> (flags CV_SORT_EVERY_ROW)) 
+;; {@ CV_SORT_EVERY_ROW CV_SORT_EVERY_COLUMN CV_SORT_ASCENDING CV_SORT_DESCENDING}
+;; @param ((dst (c "SCM_UNDEFINED")) >> (dst c:null))
+;; @param ((idxmat (c "SCM_UNDEFINED")) >> (idxmat c:null))
 (define-cproc cv-sort (src::<cv-arr>
-                        :optional (dst-obj (c "SCM_UNDEFINED")) (idxmat-obj (c "SCM_UNDEFINED"))
+                        :optional (dst (c "SCM_UNDEFINED")) (idxmat (c "SCM_UNDEFINED"))
                         (flags::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL src)
-  (let* ([dst::CvArr*]
-         [idxmat::CvArr*])
-    (undef-or-cvarr dst-obj dst)
-    (undef-or-cvarr idxmat-obj idxmat)
-    (cvSort src dst idxmat flags)))
+  (let* ([dst-arr::CvArr*]
+         [idxmat-arr::CvArr*])
+    (undef-or-cvarr dst dst-arr)
+    (undef-or-cvarr idxmat idxmat-arr)
+    (cvSort src dst-arr idxmat-arr flags)))
 
+;;;;;
+;; Finds real roots of a cubic equation
 (define-cproc cv-solve-cubic (coeffs::<cv-mat> roots::<cv-mat>) ::<int>
   (ENSURE_NOT_NULL coeffs)
   (ENSURE_NOT_NULL roots)
   (result (cvSolveCubic coeffs roots)))
 
+;;;;;
+;; Finds all real and complex roots of a polynomial equation
 (define-cproc cv-solve-poly (coeffs::<cv-mat> roots2::<cv-mat>
                                               :optional (maxiter::<fixnum> 20) (fig::<fixnum> 100)) ::<void>
   (ENSURE_NOT_NULL coeffs)
@@ -1928,6 +2440,8 @@ typedef double _double_t;
 ;; Matrix operations
 ;;
 
+;;;;;
+;; Calculates cross product of two 3d vectors
 (define-cproc cv-cross-product(src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
@@ -1941,6 +2455,10 @@ typedef double _double_t;
 (define-enum CV_GEMM_B_T)
 (define-enum CV_GEMM_C_T)
 
+;;;;;
+;; Extended matrix transform:
+;; dst = alpha*op(A)*op(B) + beta*op(C), where op(X) is X or X^T */
+;;@param (t-abc 0) {@ CV_GEMM_A_T CV_GEMM_B_T CV_GEMM_C_T}
 (define-cproc cv-gemm (src1::<cv-arr> src2::<cv-arr> alpha::<double>
                                       src3::<cv-arr> beta::<double> dst::<cv-arr>
                                       :optional (t-abc::<fixnum> 0)) ::<void>
@@ -1950,6 +2468,10 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvGEMM src1 src2 alpha src3 beta dst t-abc))
 
+;;;;;
+;; Extended matrix transform:
+;; dst = alpha*op(A)*op(B) + beta*op(C), where op(X) is X or X^T */
+;;@param (t-abc 0) {@ CV_GEMM_A_T CV_GEMM_B_T CV_GEMM_C_T}
 (define-cproc cv-mat-mul-add-ex (src1::<cv-arr> src2::<cv-arr> alpha::<double>
                                              src3::<cv-arr> beta::<double> dst::<cv-arr>
                                              :optional (t-abc::<fixnum> 0)) ::<void>
@@ -1959,6 +2481,8 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvMatMulAddEx src1 src2 alpha src3 beta dst t-abc))
 
+;;;;;
+;; Matrix transform: dst = A*B + C, C is optional
 (define-cproc cv-mat-mul-add (src1::<cv-arr> src2::<cv-arr> src3::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src1)
   (ENSURE_NOT_NULL src2)
@@ -1972,66 +2496,99 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvMatMul src1 src2 dst))
 
+;;;;;
+;; Transforms each element of source array and stores
+;; resultant vectors in destination array
+;; @param ((shiftvec (c "SCM_UNDEFINED")) >> (shiftvec c:null))
 (define-cproc cv-transform (src::<cv-arr> dst::<cv-arr> transmat::<cv-mat>
-                                          :optional (shiftvec-obj (c "SCM_UNDEFINED"))) ::<void>
+                                          :optional (shiftvec (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (ENSURE_NOT_NULL transmat)
-  (let* ([shiftvec::CvArr*])
-    (undef-or-cvarr shiftvec-obj shiftvec)
-    (cvTransform src dst transmat shiftvec)))
+  (let* ([shiftvec-arr::CvArr*])
+    (undef-or-cvarr shiftvec shiftvec-arr)
+    (cvTransform src dst transmat shiftvec-arr)))
 
+;;;;;
+;; Transforms each element of source array and stores
+;; resultant vectors in destination array
+;; @param ((shiftvec (c "SCM_UNDEFINED")) >> (shiftvec c:null))
 (define-cproc cv-mat-mul-add-s (src::<cv-arr> dst::<cv-arr> transmat::<cv-mat>
-                                              :optional (shiftvec-obj (c "SCM_UNDEFINED"))) ::<void>
+                                              :optional (shiftvec (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (ENSURE_NOT_NULL transmat)
-  (let* ([shiftvec::CvArr*])
-    (undef-or-cvarr shiftvec-obj shiftvec)
-    (cvMatMulAddS src dst transmat shiftvec)))
+  (let* ([shiftvec-arr::CvArr*])
+    (undef-or-cvarr shiftvec shiftvec-arr)
+    (cvMatMulAddS src dst transmat shiftvec-arr)))
 
+;;;;;
+;; Does perspective transform on every element of input array
 (define-cproc cv-perspective-transform (src::<cv-arr> dst::<cv-arr> mat::<cv-mat>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (ENSURE_NOT_NULL mat)
   (cvPerspectiveTransform src dst mat))
 
+;;;;;
+;; Calculates (A-delta)*(A-delta)^T (order=0) or (A-delta)^T*(A-delta) (order=1)
+;; @param ((delta (c "SCM_UNDEFINED")) >> (delta c:null))
 (define-cproc cv-mul-transposed(src::<cv-arr> dst::<cv-arr> order::<fixnum>
-                                              :optional (delta-obj (c "SCM_UNDEFINED")) (scale::<double> 1.0)) ::<void>
+                                              :optional (delta (c "SCM_UNDEFINED")) (scale::<double> 1.0)) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
-  (let* ([delta::CvArr*])
-    (undef-or-cvarr delta-obj delta)
-    (cvMulTransposed src dst order delta scale)))
+  (let* ([delta-arr::CvArr*])
+    (undef-or-cvarr delta delta-arr)
+    (cvMulTransposed src dst order delta-arr scale)))
 
+;;;;;
+;; Tranposes matrix. Square matrices can be transposed in-place
 (define-cproc cv-transpose (src::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvTranspose src dst))
 
+;;;;;
+;; Tranposes matrix. Square matrices can be transposed in-place
 (define-cproc cv-t (src::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvT src dst))
 
+;;;;;
+;; Completes the symmetric matrix from the lower (LtoR=0) or from the upper (LtoR!=0) part */
 (define-cproc cv-complete-symm (matrix::<cv-mat> 
                                  :optional (l-to-r::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL matrix)
   (cvCompleteSymm matrix l-to-r))
 
+;;;;;
+;; Mirror array data around horizontal (flip=0),
+;; vertical (flip=1) or both(flip=-1) axises:
+;; (cv-flip src) flips images vertically and sequences horizontally (inplace)
+;; @param (flip-mode 0) {@ 0 1 -1}
+;; horizontal (flip=0), vertical (flip=1) or both(flip=-1) axises
+;; @param ((dst (c "SCM_UNDEFINED")) >> (dst c:null))
 (define-cproc cv-flip (src::<cv-arr>
-                        :optional (dst-obj (c "SCM_UNDEFINED")) (flip-mode::<fixnum> 0)) ::<void>
+                        :optional (dst (c "SCM_UNDEFINED")) (flip-mode::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL src)
-  (let* ([dst::CvArr*])
-    (undef-or-cvarr dst-obj dst)
-    (cvFlip src dst flip-mode)))
+  (let* ([dst-arr::CvArr*])
+    (undef-or-cvarr dst dst-arr)
+    (cvFlip src dst-arr flip-mode)))
 
+;;;;;
+;; Mirror array data around horizontal (flip=0),
+;; vertical (flip=1) or both(flip=-1) axises:
+;; (cv-mirror src) flips images vertically and sequences horizontally (inplace)
+;; @param (flip-mode 0) {@ 0 1 -1}
+;; horizontal (flip=0), vertical (flip=1) or both(flip=-1) axises
+;; @param ((dst (c "SCM_UNDEFINED")) >> (dstc c:null))
 (define-cproc cv-mirror (src::<cv-arr>
-                          :optional (dst-obj (c "SCM_UNDEFINED")) (flip-mode::<fixnum> 0)) ::<void>
+                          :optional (dst (c "SCM_UNDEFINED")) (flip-mode::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL src)
-  (let* ([dst::CvArr*])
-    (undef-or-cvarr dst-obj dst)
-    (cvMirror src dst flip-mode)))
+  (let* ([dst-arr::CvArr*])
+    (undef-or-cvarr dst dst-arr)
+    (cvMirror src dst-arr flip-mode)))
 
 
 ;;----------------
@@ -2041,16 +2598,25 @@ typedef double _double_t;
 (define-enum CV_SVD_U_T)
 (define-enum CV_SVD_V_T)
 
+;;;;;
+;; Performs Singular Value Decomposition of a matrix
+;; @param (flags 0) {@ 0 CV_SVD_MODIFY_A CV_SVD_U_T CV_SVD_V_T}
+;; @param ((u (c "SCM_UNDEFINED")) >> (u c:null))
+;; @param ((v (c "SCM_UNDEFINED")) >> (v c:null))
 (define-cproc cv-svd (a::<cv-arr> w::<cv-arr>
-                                  :optional (u-obj (c "SCM_UNDEFINED")) (v-obj (c "SCM_UNDEFINED")) (flags::<fixnum> 0)) ::<void>
+                                  :optional (u (c "SCM_UNDEFINED")) (v (c "SCM_UNDEFINED")) (flags::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL a)
   (ENSURE_NOT_NULL w)
-  (let* ([u::CvArr*]
-         [v::CvArr*])
-    (undef-or-cvarr u-obj u)
-    (undef-or-cvarr v-obj v)
-    (cvSVD a w u v flags)))
+  (let* ([u-arr::CvArr*]
+         [v-arr::CvArr*])
+    (undef-or-cvarr u u-arr)
+    (undef-or-cvarr v v-arr)
+    (cvSVD a w u-arr v-arr flags)))
 
+;;;;;
+;; Performs Singular Value Back Substitution (solves A*X = B):
+;; flags must be the same as in cvSVD
+;;@param flags {@ 0 CV_SVD_MODIFY_A CV_SVD_U_T CV_SVD_V_T}
 (define-cproc cv-svbksb (w::<cv-arr> u::<cv-arr> v::<cv-arr> 
                                      b::<cv-arr> x::<cv-arr> flags::<fixnum>) ::<void>
   (ENSURE_NOT_NULL w)
@@ -2071,19 +2637,31 @@ typedef double _double_t;
 (define-enum CV_QR)
 (define-enum CV_NORMAL)
 
-;;CV_LU 0
+;;;;;
+;; Inverts matrix
+;;@param ((method 0) >> (method CV_LU))
+;;{@ CV_LU CV_SVD CV_SVD_SYM CV_CHOLESKY CV_QR}
 (define-cproc cv-invert (src::<cv-arr> dst::<cv-arr>
                                        :optional (method::<fixnum> 0)) ::<double>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (result (cvInvert src dst method)))
 
+;;;;;
+;; Inverts matrix
+;;@param ((method 0) >> (method CV_LU))
+;;{@ CV_LU CV_SVD CV_SVD_SYM CV_CHOLESKY CV_QR}
 (define-cproc cv-inv (src::<cv-arr> dst::<cv-arr>
                                     :optional (method::<fixnum> 0)) ::<double>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (result (cvInv src dst method)))
 
+;;;;;
+;; Solves linear system (src1)*(dst) = (src2)
+;; (returns 0 if src1 is a singular and CV_LU method is used)
+;;@param ((method 0) >> (method CV_LU))
+;;{@ CV_LU CV_SVD CV_SVD_SYM CV_CHOLESKY CV_QR}
 (define-cproc cv-solve (src1::<cv-arr> src2::<cv-arr> dst::<cv-arr>
                                        :optional (method::<fixnum> 0)) ::<int>
   (ENSURE_NOT_NULL src1)
@@ -2091,14 +2669,20 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (result (cvSolve src1 src2 dst method)))
 
+;;;;;
+;; Calculates determinant of input matrix
 (define-cproc cv-det (mat::<cv-arr>) ::<double>
   (ENSURE_NOT_NULL mat)
   (result (cvDet mat)))
 
+;;;;;
+;; Calculates trace of the matrix (sum of elements on the main diagonal)
 (define-cproc cv-trace (mat::<cv-arr>) ::<cv-scalar>
   (ENSURE_NOT_NULL mat)
   (result (cvTrace mat)))
 
+;;;;;
+;; Finds eigen values and vectors of a symmetric matrix
 (define-cproc cv-eigen-vv (mat::<cv-arr> evects::<cv-arr> evals::<cv-arr>
                                          :optional (eps::<double> 0.0) 
                                          (lowindex::<fixnum> -1) (highindex::<fixnum> -1)) ::<void>
@@ -2107,13 +2691,18 @@ typedef double _double_t;
   (ENSURE_NOT_NULL evals)
   (cvEigenVV mat evects evals eps lowindex highindex))
 
+;;;;;
+;; Makes an identity matrix (mat_ij = i == j)
+;; @param ((value (c "SCM_UNDEFINED")) >> (value c:null))
 (define-cproc cv-set-identity (mat::<cv-arr>
-                                :optional (value-obj (c "SCM_UNDEFINED"))) ::<void>
+                                :optional (value (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL mat)
-  (let* ([value::CvScalar])
-    (undef-or-obj value-obj value <cv-scalar> (cvRealScalar 1))
-    (cvSetIdentity mat value)))
+  (let* ([value-o::CvScalar])
+    (undef-or-obj value value-o <cv-scalar> (cvRealScalar 1))
+    (cvSetIdentity mat value-o)))
 
+;;;;;
+;; Fills matrix with given range of numbers
 (define-cproc cv-range (mat::<cv-arr> start::<double> end::<double>) ::<void>
   (ENSURE_NOT_NULL mat)
   (cvRange mat start end))
@@ -2121,16 +2710,34 @@ typedef double _double_t;
 ;;----------------
 ;; Constants
 ;;
+
+;;;;;
+;; transpose([v1-avg, v2-avg,...]) * [v1-avg,v2-avg,...]
 (define-enum CV_COVAR_SCRAMBLED)
+;;;;;
+;; [v1-avg, v2-avg,...] * transpose([v1-avg,v2-avg,...])
 (define-enum CV_COVAR_NORMAL)
+;;;;;
+;; do not calc average (i.e. mean vector) - use the input vector instead
+;; (useful for calculating covariance matrix by parts)
 (define-enum CV_COVAR_USE_AVG)
+;;;;;
+;; scale the covariance matrix coefficients by number of the vectors
 (define-enum CV_COVAR_SCALE)
+;;;;;
+;; all the input vectors are stored in a single matrix, as its rows
 (define-enum CV_COVAR_ROWS)
+;;;;;
+;; all the input vectors are stored in a single matrix, as its columns
 (define-enum CV_COVAR_COLS)
 
 "
 #define CALCCOVARMATRIX_TMP_ARY_SIZE 100
 "
+;;;;;
+;; Calculates covariation matrix for a set of vectors
+;;@param flags {@ CV_COVAR_SCRAMBLED CV_COVAR_NORMAL CV_COVAR_USE_AVG CV_COVAR_SCALE CV_COVAR_ROWS CV_COVAR_COLS}
+;; logor each bit flags
 (define-cproc cv-calc-covar-matrix (vects-obj::<top> cov-mat::<cv-arr> 
                                                         avg::<cv-arr> flags::<fixnum>) ::<void>
   (ENSURE_NOT_NULL cov-mat)
@@ -2159,6 +2766,8 @@ typedef double _double_t;
 (define-enum CV_PCA_DATA_AS_COL)
 (define-enum CV_PCA_USE_AVG)
 
+;;;;;
+;;@param flags {@ CV_PCA_DATA_AS_ROW CV_PCA_DATA_AS_COL CV_PCA_USE_AVG}
 (define-cproc cv-calc-pca (data::<cv-arr> mean::<cv-arr>
                                           eigenvals::<cv-arr> eigenvects::<cv-arr> flags::<fixnum>) ::<void>
   (ENSURE_NOT_NULL data)
@@ -2183,12 +2792,16 @@ typedef double _double_t;
   (ENSURE_NOT_NULL result)
   (cvBackProjectPCA proj mean eigenvals result))
 
+;;;;;
+;; Calculates Mahalanobis(weighted) distance
 (define-cproc cv-mahalanobis (vec1::<cv-arr> vec2::<cv-arr> mat::<cv-arr>) ::<double>
   (ENSURE_NOT_NULL vec1)
   (ENSURE_NOT_NULL vec2)
   (ENSURE_NOT_NULL mat)
   (result (cvMahalanobis vec1 vec2 mat)))
 
+;;;;;
+;; Calculates Mahalanobis(weighted) distance
 (define-cproc cv-mahalonobis (vec1::<cv-arr> vec2::<cv-arr> mat::<cv-arr>) ::<double>
   (ENSURE_NOT_NULL vec1)
   (ENSURE_NOT_NULL vec2)
@@ -2201,52 +2814,70 @@ typedef double _double_t;
 ;; Array Statistics
 ;;
 
+;;;;;
+;; Finds sum of array elements
 (define-cproc cv-sum (arr::<cv-arr>) ::<cv-scalar>
   (ENSURE_NOT_NULL arr)
   (result (cvSum arr)))
 
+;;;;;
+;; Calculates number of non-zero pixels
 (define-cproc cv-count-non-zero (arr::<cv-arr>) ::<int>
   (ENSURE_NOT_NULL arr)
   (result (cvCountNonZero arr)))
 
+;;;;;
+;; Calculates mean value of array elements
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-avg (arr::<cv-arr> 
-                       :optional (mask-obj (c "SCM_UNDEFINED"))) ::<cv-scalar>
+                       :optional (mask (c "SCM_UNDEFINED"))) ::<cv-scalar>
   (ENSURE_NOT_NULL arr)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (result (cvAvg arr mask))))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (result (cvAvg arr mask-arr))))
 
+;;;;;
+;; Calculates mean and standard deviation of pixel values
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-avg-sdv (arr::<cv-arr>
-                           :optional (mask-obj (c "SCM_UNDEFINED"))) ::(<cv-scalar> <cv-scalar>)
+                           :optional (mask (c "SCM_UNDEFINED"))) ::(<cv-scalar> <cv-scalar>)
   (ENSURE_NOT_NULL arr)
-  (let* ([mask::CvArr*]
+  (let* ([mask-arr::CvArr*]
          [mean::CvScalar]
          [std-dev::CvScalar])
-    (undef-or-cvarr mask-obj mask)
-    (cvAvgSdv arr (& mean) (& std-dev) mask)
+    (undef-or-cvarr mask mask-arr)
+    (cvAvgSdv arr (& mean) (& std-dev) mask-arr)
     (result mean std-dev)))
 
+;;;;;
+;; Finds global minimum, maximum and their positions
+;; @return (values min-val max-val)
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-min-max (arr::<cv-arr>
-                           :optional (mask-obj (c "SCM_UNDEFINED"))) ::(<double> <double>)
+                           :optional (mask (c "SCM_UNDEFINED"))) ::(<double> <double>)
   (ENSURE_NOT_NULL arr)
-  (let* ([mask::CvArr*]
+  (let* ([mask-arr::CvArr*]
          [min-val::double]
          [max-val::double])
-    (undef-or-cvarr mask-obj mask)
-    (cvMinMaxLoc arr (& min-val) (& max-val) 0 0 mask)
+    (undef-or-cvarr mask mask-arr)
+    (cvMinMaxLoc arr (& min-val) (& max-val) 0 0 mask-arr)
     (result min-val max-val)))
 
+;;;;;
+;; Finds global minimum, maximum and their positions
+;; @return (values min-val max-val min-loc max-loc)
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-min-max-loc (arr::<cv-arr>
-                               :optional (mask-obj (c "SCM_UNDEFINED"))) ::(<double> <double> <cv-point> <cv-point>)
+                               :optional (mask (c "SCM_UNDEFINED"))) ::(<double> <double> <cv-point> <cv-point>)
   (ENSURE_NOT_NULL arr)
-  (let* ([mask::CvArr*]
+  (let* ([mask-arr::CvArr*]
          [min-val::double]
          [max-val::double]
          [min-loc::CvPoint]
          [max-loc::CvPoint])
-    (undef-or-cvarr mask-obj mask)
+    (undef-or-cvarr mask mask-arr)
     (cvMinMaxLoc arr (& min-val) (& max-val)
-                 (& min-loc) (& max-loc) mask)
+                 (& min-loc) (& max-loc) mask-arr)
     (result min-val max-val min-loc max-loc)))
 
 ;;----------------
@@ -2255,7 +2886,6 @@ typedef double _double_t;
 (define-enum CV_C)
 (define-enum CV_L1)
 (define-enum CV_L2)
-(define-enum CV_NORM_MASK)
 (define-enum CV_RELATIVE)
 (define-enum CV_DIFF)
 (define-enum CV_MINMAX)
@@ -2267,26 +2897,36 @@ typedef double _double_t;
 (define-enum CV_RELATIVE_L1)
 (define-enum CV_RELATIVE_L2)
 
+;;;;;
+;; Finds norm, difference norm or relative difference norm for an array (or two arrays)
+;;@param ((norm-type 4) >> (norm-type CV_L2))
+;; {@ CV_C CV_L1 CV_L2 CV_DIFF_C CV_DIFF_L1 CV_DIFF_L2 CV_RELATIVE_C CV_RELATIVE_L1 CV_RELATIVE_L2}
+;; @param ((arr2 (c "SCM_UNDEFINED")) >> (arr2 c:null))
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-norm (arr1::<cv-arr> 
-                        :optional (arr2-obj (c "SCM_UNDEFINED"))
+                        :optional (arr2 (c "SCM_UNDEFINED"))
                         (norm-type::<fixnum> 4) ;norm-type 4 is CV_L2
-                        (mask-obj (c "SCM_UNDEFINED"))) ::<double>
+                        (mask (c "SCM_UNDEFINED"))) ::<double>
   (ENSURE_NOT_NULL arr1)
-  (let* ([arr2::CvArr*]
-         [mask::CvArr*])
-    (undef-or-cvarr arr2-obj arr2)
-    (undef-or-cvarr mask-obj mask)
-    (result (cvNorm arr1 arr2 norm-type mask))))
+  (let* ([arr2-arr::CvArr*]
+         [mask-arr::CvArr*])
+    (undef-or-cvarr arr2 arr2-arr)
+    (undef-or-cvarr mask mask-arr)
+    (result (cvNorm arr1 arr2-arr norm-type mask-arr))))
 
+;;;;;
+;;@param ((norm-type 4) >> (norm-type CV_L2))
+;; {@ CV_C CV_L1 CV_L2 CV_DIFF_C CV_MINMAX}
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
 (define-cproc cv-normalize (src::<cv-arr> dst::<cv-arr>
                                           :optional (a::<double> 1.0) (b::<double> 0.0)
                                           (norm-type::<fixnum> 4) ;norm-type 4 is CV_L2
-                                          (mask-obj (c "SCM_UNDEFINED"))) ::<void>
+                                          (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
-  (let* ([mask::CvArr*])
-    (undef-or-cvarr mask-obj mask)
-    (cvNormalize src dst a b norm-type mask)))
+  (let* ([mask-arr::CvArr*])
+    (undef-or-cvarr mask mask-arr)
+    (cvNormalize src dst a b norm-type mask-arr)))
 
 
 ;;----------------
@@ -2297,6 +2937,9 @@ typedef double _double_t;
 (define-enum CV_REDUCE_MAX)
 (define-enum CV_REDUCE_MIN)
 
+;;;;;
+;;@param ((op 0) >> (op CV_REDUCE_SUM))
+;;{@ CV_REDUCE_SUM CV_REDUCE_AGB CV_REDUCE_MAX CV_REDUCE_MIN}
 (define-cproc cv-reduce (src::<cv-arr> dst::<cv-arr>
                                        :optional (dim::<fixnum> -1)
                                        (op::<fixnum> 0)) ;op 0 is CV_REDUCE_SUM
@@ -2317,24 +2960,46 @@ typedef double _double_t;
 ;;
 (define-enum CV_DXT_FORWARD)
 (define-enum CV_DXT_INVERSE)
+;;;;;
+;;divide result by size of array
 (define-enum CV_DXT_SCALE)
 (define-enum CV_DXT_INV_SCALE)
 (define-enum CV_DXT_INVERSE_SCALE)
+;;;;;
+;transform each row individually
 (define-enum CV_DXT_ROWS)
+;;;;;
+;;conjugate the second argument of cvMulSpectrums
 (define-enum CV_DXT_MUL_CONJ)
 
+;;;;;
+;; Discrete Fourier Transform:
+;;  complex->complex,
+;;  real->ccs (forward),
+;;  ccs->real (inverse)
+;;@param flags {@ CV_DXT_FORWARD CV_DXT_INVERSE CV_DXT_SCALE CV_DXT_INV_SCALE
+;; CV_DXT_INVERSE_SCALE CV_DXT_ROWS CV_DXT_MUL_CONJ}
 (define-cproc cv-dft (src::<cv-arr> dst::<cv-arr> flags::<fixnum>
                                     :optional (nonzero-rows::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvDFT src dst flags nonzero-rows))
 
+;;;;;
+;; Discrete Fourier Transform:
+;;  complex->complex,
+;;  real->ccs (forward),
+;;  ccs->real (inverse)
+;;@param flags {@ CV_DXT_FORWARD CV_DXT_INVERSE CV_DXT_SCALE CV_DXT_INV_SCALE
+;; CV_DXT_INVERSE_SCALE CV_DXT_ROWS CV_DXT_MUL_CONJ}
 (define-cproc cv-fft (src::<cv-arr> dst::<cv-arr> flags::<fixnum>
                                     :optional (nonzero-rows::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvFFT src dst flags nonzero-rows))
 
+;;;;;
+;; Multiply results of DFTs: DFT(X)*DFT(Y) or DFT(X)*conj(DFT(Y))
 (define-cproc cv-mul-spectrums (src1::<cv-arr> src2::<cv-arr>
                                                dst::<cv-arr> flags::<fixnum>) ::<void>
   (ENSURE_NOT_NULL src1)
@@ -2342,9 +3007,13 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvMulSpectrums src1 src2 dst flags))
 
+;;;;;
+;; Finds optimal DFT vector size >= size0
 (define-cproc cv-get-optimal-dft-size (size0::<fixnum>) ::<fixnum>
   (result (cvGetOptimalDFTSize size0)))
 
+;;;;;
+;; Discrete Cosine Transform
 (define-cproc cv-dct (src::<cv-arr> dst::<cv-arr> flags::<fixnum>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
@@ -2359,26 +3028,51 @@ typedef double _double_t;
 (define-cproc cv-rgb (r::<fixnum> g::<fixnum> b::<fixnum>) ::<cv-scalar>
   (result (CV_RGB r g b)))
 
+;;;;;
+;; Draws 4-connected, 8-connected or antialiased line segment connecting two points
+;; @param (line-type 8) {@ 4 8 16}
 (define-cproc cv-line (img::<cv-arr> pt1::<cv-point> pt2::<cv-point> color::<cv-scalar>
                                      :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (cvLine img pt1 pt2 color thickness line-type shift))
 
+;;;;;
+;; Draws a rectangle given two opposite corners of the rectangle (pt1 & pt2),
+;; if thickness<0 (e.g. thickness == CV_FILLED), the filled box is drawn
+;; @param (thickness 1) {@ -1 <integer>}
+;; @param (line-type 8) {@ 4 8 16}
 (define-cproc cv-rectangle (img::<cv-arr> pt1::<cv-point> pt2::<cv-point> color::<cv-scalar>
                                           :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (cvRectangle img pt1 pt2 color thickness line-type shift))
 
+;;;;;
+;; Draws a rectangle specified by a CvRect structure
+;; @param (thickness 1) {@ -1 <integer>}
+;; @param (line-type 8) {@ 4 8 16}
 (define-cproc cv-rectangle-r (img::<cv-arr> r::<cv-rect> color::<cv-scalar>
                                             :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (cvRectangleR img r color thickness line-type shift))
 
+;;;;;
+;; Draws a circle with specified center and radius.
+;; Thickness works in the same way as with cvRectangle 
+;; @param (thickness 1) {@ -1 <integer>}
+;; @param (line-type 8) {@ 4 8 16}
 (define-cproc cv-circle (img::<cv-arr> center::<cv-point> radius::<fixnum> color::<cv-scalar>
                                        :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
   (cvCircle img center radius color thickness line-type shift))
 
+;;;;;
+;; Draws ellipse outline, filled ellipse, elliptic arc or filled elliptic sector,
+;; depending on <thickness>, <start_angle> and <end_angle> parameters. The resultant figure
+;; is rotated by <angle>. All the angles are in degrees
+;; @param center {@ <cv-point>}
+;; @param axes {@ <cv-size>}
+;; @param (thickness 1) {@ -1 <integer>}
+;; @param (line-type 8) {@ 4 8 16}
 (define-cproc cv-ellipse (img::<cv-arr> center::<cv-point> axes::<cv-size> 
                                         angle::<double> start-angle::<double> end-angle::<double> color::<cv-scalar>
                                         :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
@@ -2390,6 +3084,9 @@ typedef double _double_t;
   (ENSURE_NOT_NULL img)
   (cvEllipseBox img box color thickness line-type shift))
 
+;;;;;
+;; Fills convex or monotonous polygon.
+;; @param (line-type 8) {@ 4 8 16}
 (define-cproc cv-fill-convex-poly (img::<cv-arr> pts::<top> color::<cv-scalar>
                                                  :optional (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
@@ -2405,6 +3102,9 @@ typedef double _double_t;
       [else (Scm_Error "<list> or <vector> required, but got %S" pts)])
     (cvFillConvexPoly img pts-arr pts-cnt color line-type shift)))
 
+;;;;;
+;; Fills an area bounded by one or more arbitrary polygons
+;; @param (line-type 8) {@ 4 8 16}
 (define-cproc cv-fill-poly (img::<cv-arr> pts-vec::<vector> color::<cv-scalar>
                                           :optional (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
   (ENSURE_NOT_NULL img)
@@ -2425,6 +3125,10 @@ typedef double _double_t;
         (Scm_Error "vector required, but got %S" (SCM_VECTOR_ELEMENT pts-vec i))))
     (cvFillPoly img pts npts vec-size color line-type shift)))
 
+;;;;;
+;; Draws one or more polygonal curves 
+;; @param (thickness 1) {@ -1 <integer>}
+;; @param (line-type 8) {@ 4 8 16}
 (define-cproc cv-poly-line (img::<cv-arr> pts-vec::<vector> 
                                           is-closed::<boolean> color::<cv-scalar>
                                           :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
@@ -2454,12 +3158,19 @@ typedef double _double_t;
 ;;cvDrawEllipse
 ;;cvDrawPolyLine
 
+;;;;;
+;; Clips the line segment connecting *pt1 and *pt2
+;; by the rectangular window
+;; (0<=x<img_size.width, 0<=y<img_size.height).
 (define-cproc cv-clip-line (img-size::<cv-size> pt1::<cv-point> pt2::<cv-point>) ::<boolean>
   (let* ([pt1-tmp::CvPoint pt1]
          [pt2-tmp::CvPoint pt2])
     (result (cvClipLine img-size (& pt1-tmp) (& pt2-tmp)))))
 
-
+;;;;;
+;; Initializes line iterator. Initially, line_iterator->ptr will point
+;; to pt1 (or pt2, see left-to-right description) location in the image.
+;; @return Returns the number of pixels on the line between the ending points.
 (define-cproc cv-init-line-iterator (image::<cv-arr> pt1::<cv-point> pt2::<cv-point>
                                                      :optional (connectivity::<fixnum> 8) (left-to-right::<boolean> #f))
   ::(<int> <cv-line-iterator>)
@@ -2468,6 +3179,8 @@ typedef double _double_t;
     (result (cvInitLineIterator image pt1 pt2 it connectivity left-to-right)
             it)))
 
+;;;;;
+;; Moves iterator to the next line point
 (define-cproc cv-next-line-point (line-iterator::<cv-line-iterator>) ::<void>
   (CV_NEXT_LINE_POINT (* line-iterator)))
 
@@ -2492,32 +3205,53 @@ typedef double _double_t;
 (define-enum CV_FONT_VECTOR0)
 
 ;;TODO modify function name
+;;;;;
+;; Initializes font structure used further in cv-put-text
 (define-cproc make-cv-font (font-face::<fixnum> hscale::<double> vscale::<double>
                                              :optional (shear::<double> 0.0) (thickness::<fixnum> 1) (line-type::<fixnum> 8)) ::<cv-font>
   (let* ([font::CvFont* (SCM_NEW CvFont)])
     (cvInitFont font font-face hscale vscale shear thickness line-type)
     (result font)))
 
+;;;;;
+;; Initializes font structure used further in cv-put-text
 (define-cproc cv-font (scale::<double>
                         :optional (thickness::<fixnum> 1)) ::<cv-font>
   (let* ([font::CvFont* (SCM_NEW CvFont)])
     (cvInitFont font CV_FONT_HERSHEY_PLAIN scale scale 0 thickness CV_AA)
     (result font)))
 
+;;;;;
+;; Renders text stroke with specified font and color at specified location.
+;; @param org {@ <cv-point>}
 (define-cproc cv-put-text (img::<cv-arr> text::<const-cstring> org::<cv-point>
                                          font::<cv-font> color::<cv-scalar>) ::<void>
   (ENSURE_NOT_NULL img)
   (cvPutText img text org font color))
 
+;;;;;
+;; Calculates bounding box of text stroke (useful for alignment)
+;; @return {values <cv-size> baseline}
 (define-cproc cv-get-text-size (text::<const-cstring> font::<cv-font>) ::(<cv-size> <fixnum>)
   (let* ([size::CvSize]
          [baseline::int])
     (cvGetTextSize text font (& size) (& baseline))
     (result size baseline)))
 
+;;;;;
+;; Unpacks color value, if arrtype is CV_8UC?, <color> is treated as
+;; packed color value, otherwise the first channels (depending on arrtype)
+;; of destination scalar are set to the same value = <color>
 (define-cproc cv-color-to-scalar (packed-color::<double> arrtype::<int>) ::<cv-scalar>
   (result (cvColorToScalar packed-color arrtype)))
 
+;;;;;
+;; Returns the polygon points which make up the given ellipse.  
+;; The ellipse is define by the box of size 'axes' rotated 'angle' around the 'center'.
+;; A partial sweep of the ellipse arc can be done by spcifying arc_start and arc_end to be something other than 0 and 360, respectively.
+;; @param center {@<cv-point>}
+;; @param axes {@<cv-size>}
+;; @return The total number of points.
 (define-cproc cv-ellipse-2-poly (center::<cv-point> axes::<cv-size> angle::<fixnum>
                                                     arc-start::<fixnum> arc-end::<fixnum> delta::<fixnum>) :: <vector>
   (let* ([nb-pts::int (cvCeil (+ (/ (- arc-end arc-start) (cast float delta)) 1))]
@@ -2528,16 +3262,22 @@ typedef double _double_t;
         (set! (SCM_VECTOR_ELEMENT pts-vec i) (SCM_MAKE_CVPOINT (aref pts i))))
       (result pts-vec))))
 
+;;;;;
+;; Draws contour outlines or filled interiors on the image
+;; @param ((offset (c "SCM_UNDEFINED")) >> (offset c:null))
 (define-cproc cv-draw-contours (img::<cv-arr> contour::<cv-seq> external-color::<cv-scalar> 
                                               hole-color::<cv-scalar> max-level::<fixnum>
                                               :optional (thickness::<fixnum> 1) (line-type::<fixnum> 8)
-                                              (offset-obj (c "SCM_UNDEFINED"))) ::<void>
+                                              (offset (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL img)
-  (let* ([offset::CvPoint])
-    (undef-or-obj offset-obj offset <cv-point> (cvPoint 0 0))
+  (let* ([offset-obj::CvPoint])
+    (undef-or-obj offset offset-obj <cv-point> (cvPoint 0 0))
     (cvDrawContours img contour external-color hole-color
-                    max-level thickness line-type offset)))
+                    max-level thickness line-type offset-obj)))
 
+;;;;;
+;; Does look-up transformation. Elements of the source array
+;; (that should be 8uC1 or 8sC1) are used as indexes in lutarr 256-element table
 (define-cproc cv-lut (src::<cv-arr> dst::<cv-arr> lut::<top>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)

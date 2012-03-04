@@ -8,12 +8,15 @@
 ;;unitをテキスト文字列に戻すための変換コンテキスト
 (define-class <revert-context> (<convert-context>) ())
 
+(define (unescape-special-character text)
+  (regexp-replace-all #/\\\"/ text "\""))
+
 (define-method output ((context <revert-context>) (unit <unit-top>))
   (format #t ";;;;;\n")
-  (format #t ";;@type ~a\n" (slot-ref unit 'type))
-  (format #t ";;@name ~a\n" (slot-ref unit 'name))
+  (format #t ";;@type ~a\n" (unescape-special-character (slot-ref unit 'type)))
+  (format #t ";;@name ~a\n" (unescape-special-character (slot-ref unit 'name)))
   (unless (null? (slot-ref unit 'description))
-    (format #t ";;@description ~a\n" (string-join (slot-ref unit 'description) "\n;;")))
+    (format #t ";;@description ~a\n" (string-join (map unescape-special-character (slot-ref unit 'description)) "\n;;")))
   )
 
 (define-method output ((context <revert-context>) (unit <unit-proc>))
@@ -22,15 +25,20 @@
     (format #t "~a" (fold-right
                         (lambda (param acc)
                           (string-append ";;@param "
-                                         (car param)
+                                         (unescape-special-character (param-name param))
                                          " "
-                                         (string-join (cadr param) "\n;;")
+                                         (if (null? (param-acceptable param))
+                                           ""
+                                           (string-append "{@"
+                                                          (string-join (map unescape-special-character (param-acceptable param)) " ")
+                                                          "}"))
+                                         (string-join (map unescape-special-character (param-description param)) "\n;;")
                                          "\n"
                                          acc))
                         ""
                         (slot-ref unit 'param))))
   (unless (null? (slot-ref unit 'return))
-    (format #t ";;@return ~a\n" (string-join (slot-ref unit 'return) "\n;;")))
+    (format #t ";;@return ~a\n" (string-join (map unescape-special-character (slot-ref unit 'return)) "\n;;")))
   (newline)
   )
 
@@ -41,14 +49,19 @@
 (define-method output ((context <revert-context>) (unit <unit-class>))
   (next-method)
   (unless (null? (slot-ref unit 'supers))
-    (format #t ";;@supers ~a\n" (string-join (slot-ref unit 'supers) " ")))
+    (format #t ";;@supers ~a\n" (string-join (map unescape-special-character (slot-ref unit 'supers)) " ")))
   (unless (null? (slot-ref unit 'slots))
     (format #t "~a" (fold-right
                         (lambda (s acc)
                           (string-append ";;@slot "
-                                         (car s)
+                                         (unescape-special-character (param-name s))
                                          " "
-                                         (string-join (cadr s) "\n;;")
+                                         (if (null? (param-acceptable s))
+                                           ""
+                                           (string-append "{@"
+                                                          (string-join (map unescape-special-character (param-acceptable s)) " ")
+                                                          "}"))
+                                         (string-join (map unescape-special-character (param-description s)) "\n;;")
                                          "\n"
                                          acc))
                         ""

@@ -22,6 +22,15 @@
 (define-cise-expr (zero? val)
   `(== ,val 0))
 
+;;;;;
+;; load image from file
+;;
+;; @param ((iscolor 1) >> (iscolor CV_LOAD_IMAGE_COLOR)) 
+;; {@ CV_LOAD_IMAGE_UNCHANGED CV_LOAD_IMAGE_GRAYSCALE CV_LOAD_IMAGE_COLOR
+;; CV_LOAD_IMAGE_ANYDEPTH CV_LOAD_IMAGE_COLOR}
+;; iscolor can be a combination of above flags where CV_LOAD_IMAGE_UNCHANGED overrides the other flags
+;; using CV_LOAD_IMAGE_ANYCOLOR alone is equivalent to CV_LOAD_IMAGE_UNCHANGED
+;; unless CV_LOAD_IMAGE_ANYDEPTH is specified images are converted to 8bit
 (define-cproc cv-load-image (name::<const-cstring> 
                               :optional (iscolor::<fixnum> 1)) ::<iplimage>
   (let* ([img::IplImage* (cvLoadImage name iscolor)])
@@ -29,6 +38,8 @@
       (Scm_Error "load failed.")
       (result img))))
 
+;;;;;
+;; save image to file
 (define-cproc cv-save-image (name::<const-cstring> image::<iplimage>) ::<boolean>
   (ENSURE_NOT_NULL image)
   (result (cvSaveImage name image 0)))
@@ -48,29 +59,48 @@
 (define-enum CV_WINDOW_FREERATIO)
 (define-enum CV_WINDOW_KEEPRATIO)
 
+;;;;;
+;;create window
+;;
+;;@param ((flags 1) >> (flags CV_WINDOW_AUTOSIZE)) 
+;; {@ CV_WINDOW_NORMAL CV_WINDOW_AUTOSIZE}
 (define-cproc cv-named-window (name::<const-cstring> 
                                 :optional (flags::<fixnum> 1)) ::<boolean>
   (result (< 0 (cvNamedWindow name flags))))
 
+;;;;;
+;; Set Property of the window
 (define-cproc cv-set-window-property (name::<const-cstring> prop-id::<fixnum> prop-value::<real>) :: <void>
   (cvSetWindowProperty name prop-id prop-value))
 
+;;;;;
+;; Get Property of the window
 (define-cproc cv-get-window-property (name::<const-cstring> prop-id::<fixnum>) :: <real>
   (result (cvGetWindowProperty name prop-id)))
 
+;;;;;
+;;display image within window (highgui windows remember their content)
 (define-cproc cv-show-image (name::<const-cstring> image::<iplimage>) :: <void>
   (ENSURE_NOT_NULL image)
   (cvShowImage name image))
 
+;;;;;
+;; resize window
 (define-cproc cv-resize-window (name::<const-cstring> width::<fixnum> height::<fixnum>) :: <void>
   (cvResizeWindow name width height))
 
+;;;;;
+;; move window
 (define-cproc cv-move-window (name::<const-cstring> x::<int> y::<int>) :: <void>
   (cvMoveWindow name x y))
 
+;;;;;
+;;destroy window and all the trackers associated with it
 (define-cproc cv-destroy-window (name::<const-cstring>) ::<void>
   (cvDestroyWindow name))
 
+;;;;;
+;;destroy all windows and all the trackers associated with it
 (define-cproc cv-destroy-all-windows () ::<void>
   (cvDestroyAllWindows))
 
@@ -82,6 +112,8 @@
 "
 static int trackbar_pos;
 "
+;;;;;
+;; create trackbar and display it on top of given window, set callback
 (define-cproc cv-create-trackbar (trackbar-name::<const-cstring> 
                                    window-name::<const-cstring>
                                    value::<fixnum> count::<fixnum>
@@ -100,9 +132,13 @@ static int trackbar_pos;
      (result (cvCreateTrackbar2 trackbar-name window-name (& trackbar_pos) count trackbar-callback on-change))]
     [else (Scm_Error "<closre> or c:null required, but got %S." on-change)]))
 
+;;;;;
+;; retrieve trackbar position
 (define-cproc cv-get-trackbar-pos (trackbar-name::<const-cstring> window-name::<const-cstring>) :: <int>
   (result (cvGetTrackbarPos trackbar-name window-name)))
 
+;;;;;
+;; set trackbar position
 (define-cproc cv-set-trackbar-pos (trackbar-name::<const-cstring> window-name::<const-cstring> pos::<fixnum>) :: <void>
   (cvSetTrackbarPos trackbar-name window-name pos))
 
@@ -132,28 +168,50 @@ static int trackbar_pos;
     (boxing y <int>)
     (boxing flags <int>)))
 
+;;;;;
+;; assign callback for mouse events
 (define-cproc cv-set-mouse-callback (window-name::<const-cstring> on-mouse::<closure>) :: <void>
   (cvSetMouseCallback window-name mouse-callback on-mouse))
 
+;;;;;
+;;wait for key event infinitely (delay <= 0) or for "delay" milliseconds
 (define-cproc cv-wait-key (delay::<fixnum>) ::<fixnum>
   (result (cvWaitKey delay)))
 
+;;;;;
+;;start capturing frames from camera
+;;
+;;@param index index = camera_index + domain_offset (CV_CAP_*)
 (define-cproc cv-create-camera-capture (index::<fixnum>) ::<cv-capture>
   (result (cvCreateCameraCapture index)))
 
+;;;;;
+;;grab a frame
+;;this function is thought to be fast
+;;
+;;@return return #t on success, #f on fail
 (define-cproc cv-grab-frame (capture::<cv-capture>) ::<boolean>
   (ENSURE_NOT_NULL capture)
   (result (cvGrabFrame capture)))
 
+;;;;;
+;;get the frame grabbed with cv-grab-frame
+;;This function may apply some frame processing like frame decompression, flipping etc.
+;;!!!DO NOT RELEASE or MODIFY the retrived frame!!!
 (define-cproc cv-retrieve-frame (capture::<cv-capture>
                                   :optional (streamIdx::<fixnum> 0)) ::<iplimage>
   (ENSURE_NOT_NULL capture)
   (result (cvRetrieveFrame capture streamIdx)))
 
+;;;;;
+;;Just a combination of cv-grab-frame and cv-retrieve-frame
+;;!!!DO NOT RELEASE or MODIFY the retrived frame!!!
 (define-cproc cv-query-frame (capture::<cv-capture>) ::<iplimage>
   (ENSURE_NOT_NULL capture)
   (result (cvQueryFrame capture)))
 
+;;;;;
+;;stop capturing / reading and free resources
 (define-cproc cv-release-capture (capture::<cv-capture>) ::<void>
   (if capture
     (begin

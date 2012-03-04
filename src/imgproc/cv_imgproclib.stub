@@ -24,6 +24,10 @@ typedef double _double_t;
 (include "../macro.stub.header")
 
 ;;*************Background statistics accumulation*********
+;;;;;
+;; Adds image to accumulator
+;; @param ((mask-obj (c "SCM_UNDEFINED")) >> (mask c:null))
+;; {@ c:null <cv-arr>}
 (define-cproc cv-acc (image::<cv-arr> sum::<cv-arr>
                                       :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL image)
@@ -32,6 +36,10 @@ typedef double _double_t;
     (undef-or-cvarr mask-obj mask)
     (cvAcc image sum mask)))
 
+;;;;;
+;; Adds squared image to accumulator
+;; @param ((mask-obj (c "SCM_UNDEFINED")) >> (mask c:null))
+;; {@ c:null <cv-arr>}
 (define-cproc cv-square-acc (image::<cv-arr> sqsum::<cv-arr>
                                              :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL image)
@@ -40,6 +48,10 @@ typedef double _double_t;
     (undef-or-cvarr mask-obj mask)
     (cvSquareAcc image sqsum mask)))
 
+;;;;;
+;; Adds a product of two images to accumulator
+;; @param ((mask-obj (c "SCM_UNDEFINED")) >> (mask c:null))
+;; {@ c:null <cv-arr>}
 (define-cproc cv-multiply-acc (image1::<cv-arr> image2::<cv-arr> acc::<cv-arr>
                                                 :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void> 
   (ENSURE_NOT_NULL image1)
@@ -49,6 +61,10 @@ typedef double _double_t;
     (undef-or-cvarr mask-obj mask)
     (cvMultiplyAcc image1 image2 acc mask)))
 
+;;;;;
+;; Adds image to accumulator with weights: acc = acc*(1-alpha) + image*alpha
+;; @param ((mask-obj (c "SCM_UNDEFINED")) >> (mask c:null))
+;; {@ c:null <cv-arr>}
 (define-cproc cv-running-ave (image::<cv-arr> acc::<cv-arr> alpha::<real>
                                               :optional (mask-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL image)
@@ -62,6 +78,11 @@ typedef double _double_t;
 ;;Image Processing
 ;;******************
 
+;;;;;
+;; Copies source 2D array inside of the larger destination array and
+;; makes a border of the specified type (IPL_BORDER_*) around the copied area.
+;; @param ((value-obj (c "SCM_UNDEFINED")) >> (value c:null))
+;; {@ c:null <cv-scalar>}
 (define-cproc cv-copy-make-border (src::<cv-arr> dst::<cv-arr> offset::<cv-point> bordertype::<fixnum>
                                                  :optional (value-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
@@ -73,11 +94,23 @@ typedef double _double_t;
 
 ;;-------------
 ;;Constants
+;;;;;
+;; Image smooth methods
 (define-enum CV_BLUR_NO_SCALE)
+;;;;;
+;; Image smooth methods
 (define-enum CV_BLUR)
+;;;;;
+;; Image smooth methods
 (define-enum CV_GAUSSIAN)
+;;;;;
+;; Image smooth methods
 (define-enum CV_MEDIAN)
+;;;;;
+;; Image smooth methods
 (define-enum CV_BILATERAL)
+;;;;;
+;; Smoothes array (removes noise)
 (define-cproc cv-smooth (src::<cv-arr> dst::<cv-arr>
                                        :optional (smoothtype::<fixnum> 2) ;;smoothtype 2 is CV_GAUSSIAN
                                        (size1::<fixnum> 3) (size2::<fixnum> 0)
@@ -86,6 +119,10 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvSmooth src dst smoothtype size1 size2 sigma1 sigma2))
 
+;;;;;
+;; Convolves the image with the kernel
+;; @param ((anchor-obj (c "SCM_UNDEFINED")) >> (anchor c:null))
+;; {@ c:null <cv-point>}
 (define-cproc cv-filter-2d (src::<cv-arr> dst::<cv-arr> kernel::<cv-mat>
                                           :optional (anchor-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
@@ -94,6 +131,12 @@ typedef double _double_t;
     (undef-or-obj anchor-obj anchor <cv-point> (cvPoint -1 -1))
     (cvFilter2D src dst kernel anchor)))
 
+;;;;;
+;; Finds integral image: SUM(X,Y) = sum(x<X,y<Y)I(x,y)
+;; @param ((sqsum-obj (c "SCM_UNDEFINED")) >> (sqsum c:null))
+;; {@ c:null <cv-arr>}
+;; @param ((tilted-sum-obj (c "SCM_UNDEFINED")) >> (tilted-sum c:null))
+;; {@ c:null <cv-arr>}
 (define-cproc cv-integral (image::<cv-arr> sum::<cv-arr>
                                            :optional (sqsum-obj (c "SCM_UNDEFINED")) (tilted-sum-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL image)
@@ -104,14 +147,24 @@ typedef double _double_t;
     (undef-or-cvarr tilted-sum-obj tilted-sum)
     (cvIntegral image sum sqsum tilted-sum)))
 
+;;;;;
+;; Filters used in pyramid decomposition 
 (define-enum CV_GAUSSIAN_5x5)
 
+;;;;;
+;; Smoothes the input image with gaussian kernel and then down-samples it.
+;; dst_width = floor(src_width/2)[+1],
+;; dst_height = floor(src_height/2)[+1]
 (define-cproc cv-pyr-down (src::<cv-arr> dst::<cv-arr>
                                          :optional (filter::<fixnum> 7)) ::<void> ;;filter 7 is CV_GAUSSIAN_5x5
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvPyrDown src dst filter))
 
+;;;;;
+;; Up-samples image and smoothes the result with gaussian kernel.
+;; dst_width = src_width*2,
+;; dst_height = src_height*2
 (define-cproc cv-pyr-up (src::<cv-arr> dst::<cv-arr>
                                        :optional (filter::<fixnum> 7)) ::<void> ;;filter 7 is CV_GAUSSIAN_5x5
   (ENSURE_NOT_NULL src)
@@ -123,6 +176,11 @@ typedef double _double_t;
 ;;cvCreatePyramid
 ;;cvReleaseaPyramid
 
+;;;;;
+;; Splits color or grayscale image into multiple connected components
+;; of nearly the same color/brightness using modification of Burt algorithm.
+;; comp with contain a pointer to sequence <cv-seq>
+;; of connected components <cv-connected-comp>
 (define-cproc cv-pyr-segmentation (src::<iplimage> dst::<iplimage> storage::<cv-mem-storage>
                                                    level::<fixnum> threshold1::<real> threshold2::<real>) ::<cv-seq>
   (ENSURE_NOT_NULL src)
@@ -132,6 +190,10 @@ typedef double _double_t;
     (cvPyrSegmentation src dst storage (& comp) level threshold1 threshold2)
     (result comp)))
 
+;;;;;
+;; Filters image using meanshift algorithm
+;; @param ((termcrit-obj (c "SCM_UNDEFINED")) >> (termcrit c:null))
+;; {@ c:null <cv-term-criteria>}
 (define-cproc cv-pyr-mean-shift-filtering (src::<cv-arr> dst::<cv-arr>
                                                          sp::<real> sr::<real>
                                                          :optional (max-level::<fixnum> 1) (termcrit-obj (c "SCM_UNDEFINED"))) ::<void>
@@ -139,14 +201,22 @@ typedef double _double_t;
     (undef-or-obj termcrit-obj termcrit <cv-term-criteria> (cvTermCriteria 3 5 1)) ;;3 is CV_TERMCRIT_ITER + CV_TERMCRIT_EPS
     (cvPyrMeanShiftFiltering src dst sp sr max-level termcrit)))
 
+;;;;;
+;; Segments image using seed "markers"
 (define-cproc cv-watershed (image::<cv-arr> markers::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL markers)
   (cvWatershed image markers))
 
+;;;;;
+;; Inpainting algorithms
 (define-enum CV_INPAINT_NS)
+;;;;;
+;; Inpainting algorithms
 (define-enum CV_INPAINT_TELEA)
 
+;;;;;
+;; Inpaints the selected region in the image
 (define-cproc cv-inpaint (src::<cv-arr> inpaint_mask::<cv-arr> dst::<cv-arr>
                                         inpaint-range::<real> flags::<fixnum>) ::<void>
   (ENSURE_NOT_NULL src)
@@ -154,12 +224,18 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvInpaint src inpaint_mask dst inpaint-range flags))
 
+;;;;;
+;; Calculates an image derivative using generalized Sobel
+;; Scharr can be used only for the first dx or dy derivative
+;; @param (aperture-size 3) {@ -1 1 3 5 7 etc...}
 (define-cproc cv-sobel (src::<cv-arr> dst::<cv-arr> xorder::<fixnum> yorder::<fixnum>
                                       :optional (aperture-size::<fixnum> 3)) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvSobel src dst xorder yorder aperture-size))
 
+;;;;;
+;; Calculates the image Laplacian: (d2/dx + d2/dy)I
 (define-cproc cv-laplace (src::<cv-arr> dst::<cv-arr>
                                         :optional (aperture-size::<fixnum> 3)) ::<void>
   (ENSURE_NOT_NULL src)
@@ -268,6 +344,8 @@ typedef double _double_t;
 (define-enum CV_RGB2YUV)
 (define-enum CV_YUV2BGR)
 (define-enum CV_YUV2RGB)
+;;;;;
+;; Converts input array pixels from one color space to another
 (define-cproc cv-cvt-color (src::<cv-arr> dst::<cv-arr> code::<fixnum>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
@@ -290,6 +368,10 @@ typedef double _double_t;
 ;;Constants
 (define-enum CV_WARP_FILL_OUTLIERS)
 (define-enum CV_WARP_INVERSE_MAP)
+;;;;;
+;; Warps image with affine transform
+;; @param ((fillval-obj (c "SCM_UNDEFINED")) >> (fillval c:null))
+;; {@ c:null <cv-scalar>}
 (define-cproc cv-warp-affine (src::<cv-arr> dst::<cv-arr> map-matrix::<cv-mat>
                                             :optional (flags::<fixnum> 9) ;; 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
                                             (fillval-obj (c "SCM_UNDEFINED"))) ::<void>
@@ -299,6 +381,13 @@ typedef double _double_t;
     (undef-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
     (cvWarpAffine src dst map-matrix flags fillval)))
 
+;;;;;
+;; Computes affine transform matrix for mapping src[i] to dst[i] (i=0,1,2)
+;; @param src {@ <list of <cv-point-2d32f>> <vector of <cv-point-2d32f>>}
+;; @param dst {@ <list of <cv-point-2d32f>> <vector of <cv-point-2d32f>>}
+;; @param ((map-matrix (c "SCM_UNDEFINED")) >> (map c:null))
+;; {@ c:null <cv-mat>}
+;; @return <cv-mat> or #undef
 (define-cproc cv-get-affine-transform (src::<top> dst::<top>
                                                   :optional (map-matrix (c "SCM_UNDEFINED"))) ::<top>
   (let* ([src-ary::(.array CvPoint2D32f (3))]
@@ -339,9 +428,15 @@ typedef double _double_t;
       (result (boxing map <cv-mat>))
       (result SCM_UNDEFINED))))
 
+;;;;;
+;; Computes rotation_matrix matrix
 (define-cproc cv-2d-rotation-matrix (center::<cv-point-2d32f> angle::<real> scale::<real> map-matrix::<cv-mat>) ::<void>
   (cv2DRotationMatrix center angle scale map-matrix))
 
+;;;;;
+;; Warps image with perspective (projective) transform
+;; @param ((fillval-obj (c "SCM_UNDEFINED")) >> (fillval c:null))
+;; {@ c:null <cv-scalar>}
 (define-cproc cv-warp-perspective (src::<cv-arr> dst::<cv-arr> map-matrix::<cv-mat>
                                                  :optional (flags::<fixnum> 9) ;;flags 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
                                                  (fillval-obj (c "SCM_UNDEFINED"))) ::<void>
@@ -352,6 +447,13 @@ typedef double _double_t;
     (undef-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
     (cvWarpPerspective src dst map-matrix flags fillval)))
 
+;;;;;
+;; Computes perspective transform matrix for mapping src[i] to dst[i] (i=0,1,2,3)
+;; @param src {@ <list of <cv-point-2d32f>> <vector of <cv-point-2d32f>>}
+;; @param dst {@ <list of <cv-point-2d32f>> <vector of <cv-point-2d32f>>}
+;; @param ((map-matrix (c "SCM_UNDEFINED")) >> (map c:null))
+;; {@ c:null <cv-mat>}
+;; @return <cv-mat> or #undef
 (define-cproc cv-get-perspective-transform (src::<top> dst::<top>
                                             :optional (map-matrix (c "SCM_UNDEFINED"))) :: <top>
   (let* ([src-ary::(.array CvPoint2D32f (4))]
@@ -397,6 +499,10 @@ typedef double _double_t;
       (result (boxing map <cv-mat>))
       (return map-matrix-scm))))
 
+;;;;;
+;; Performs generic geometric transformation using the specified coordinate maps
+;; @param ((fillval-obj (c "SCM_UNDEFINED")) >> (fillval c:null))
+;; {@ c:null <cv-scalar>}
 (define-cproc cv-remap (src::<cv-arr> dst::<cv-arr> mapx::<cv-arr> mapy::<cv-arr>
                                       :optional (flags::<fixnum> 9) ;;flags 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
                                       (fillval-obj (c "SCM_UNDEFINED"))) ::<void>
@@ -408,6 +514,8 @@ typedef double _double_t;
     (undef-or-obj fillval-obj fillval <cv-scalar> (cvScalarAll 0))
     (cvRemap src dst mapx mapy flags fillval)))
 
+;;;;;
+;; Converts mapx & mapy from floating-point to integer formats for cvRemap
 (define-cproc cv-convert-maps (mapx::<cv-arr> mapy::<cv-arr>
                                               mapxy::<cv-arr> mapalpha::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL mapx)
@@ -416,6 +524,8 @@ typedef double _double_t;
   (ENSURE_NOT_NULL mapalpha)
   (cvConvertMaps mapx mapy mapxy mapalpha))
 
+;;;;;
+;; Performs forward or inverse log-polar image transform
 (define-cproc cv-log-polar (src::<cv-arr> dst::<cv-arr>
                                           center::<cv-point-2d32f> m::<real>
                                           :optional (flags::<fixnum> 9)) ::<void> ;;flags 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
@@ -423,7 +533,8 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvLogPolar src dst center m flags))
 
-
+;;;;;
+;; Performs forward or inverse linear-polar image transform
 (define-cproc cv-linear-polar (src::<cv-arr> dst::<cv-arr>
                                              center::<cv-point-2d32f> m::<real>
                                              :optional (flags::<fixnum> 9)) ::<void> ;;flags 9 is CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS
@@ -431,6 +542,10 @@ typedef double _double_t;
   (ENSURE_NOT_NULL dst)
   (cvLinearPolar src dst center m flags))
 
+;;;;;
+;; Transforms the input image to compensate lens distortion
+;; @param ((new-camera-matrix-obj (c "SCM_UNDEFINED")) >> (new-camera-matrix c:null))
+;; {@ c:null <cv-mat>}
 (define-cproc cv-undistort2 (src::<cv-arr> dst::<cv-arr>
                                            camera-matrix::<cv-mat> distortion-coeffs::<cv-mat>
                                            :optional (new-camera-matrix-obj (c "SCM_UNDEFINED"))) ::<void>
@@ -442,6 +557,8 @@ typedef double _double_t;
     (undef-or-obj new-camera-matrix-obj new-camera-matrix <cv-mat> NULL)
     (cvUndistort2 src dst camera-matrix distortion-coeffs new-camera-matrix)))
 
+;;;;;
+;; Computes transformation map from intrinsic camera parameters that can used by cvRemap
 (define-cproc cv-init-undistort-map (camera-matrix::<cv-mat> distortion-coeffs::<cv-mat>
                                                              mapx::<cv-arr> mapy::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL camera-matrix)
@@ -450,6 +567,8 @@ typedef double _double_t;
   (ENSURE_NOT_NULL mapy)
   (cvInitUndistortMap camera-matrix distortion-coeffs mapx mapy))
 
+;;;;;
+;; Computes undistortion+rectification map for a head of stereo camera
 (define-cproc cv-init-undistort-rectify-map (camera-matrix::<cv-mat> dist-coeffs::<cv-mat>
                                                                      r::<cv-mat> new-camera-matrix::<cv-mat>
                                                                      mapx::<cv-arr> mapy::<cv-arr>) ::<void>
@@ -461,6 +580,12 @@ typedef double _double_t;
   (ENSURE_NOT_NULL mapy)
   (cvInitUndistortRectifyMap camera-matrix dist-coeffs r new-camera-matrix mapx mapy))
 
+;;;;;
+;; Computes the original (undistorted) feature coordinates from the observed (distorted) coordinates
+;; @param ((r-obj (c "SCM_UNDEFINED")) >> (r c:null))
+;; {@ c:null <cv-mat>}
+;; @param ((p-obj (c "SCM_UNDEFINED")) >> (p c:null))
+;; {@ c:null <cv-mat>}
 (define-cproc cv-undistort-points (src::<cv-mat> dst::<cv-mat>
                                                  camera-matrix::<cv-mat> dist-coeffs::<cv-mat>
                                                  :optional (r-obj (c "SCM_UNDEFINED")) (p-obj (c "SCM_UNDEFINED"))) ::<void>
@@ -489,6 +614,10 @@ typedef double _double_t;
 (define-enum CV_MOP_TOPHAT)
 (define-enum CV_MOP_BLACKHAT)
 
+;;;;;
+;; creates structuring element used for morphological operations
+;; @param ((values-obj (c "SCM_UNDEFINED")) >> (values c:null))
+;; {@ c:null <list> <vector> <s32vector>}
 (define-cproc cv-create-structuring-element-ex (cols::<fixnum> rows::<fixnum> anchor-x::<fixnum> anchor-y::<fixnum> shape::<fixnum>
                                                                :optional (values-obj (c "SCM_UNDEFINED"))) ::<iplconv-kernel>
   (let* ([values::int*]
@@ -510,6 +639,8 @@ typedef double _double_t;
       (Scm_Error "values list length != cols * rows"))
     (result (cvCreateStructuringElementEx cols rows anchor-x anchor-y shape values))))
 
+;;;;;
+;; releases structuring element
 (define-cproc cv-release-structuring-element (element::<iplconv-kernel>) ::<void>
   (if element
     (begin
@@ -526,6 +657,11 @@ typedef double _double_t;
           (ENSURE_NOT_NULL ,element))]
        [else (Scm_Error ,#`",(~ type'description) or c:null required, but got %S" ,element-obj)])))
 
+;;;;;
+;; erodes input image (applies minimum filter) one or more times.
+;; If element pointer is c:null, 3x3 rectangular element is used
+;; @param ((element-obj (c "SCM_UNDEFINED")) >> (element c:null))
+;; {@ c:null <iplconv-kernel>}
 (define-cproc cv-erode (src::<cv-arr> dst::<cv-arr>
                                       :optional (element-obj (c "SCM_UNDEFINED")) (iterations::<fixnum> 1)) ::<void>
   (ENSURE_NOT_NULL src)
@@ -534,6 +670,11 @@ typedef double _double_t;
     (get-element element-obj element)
     (cvErode src dst element iterations)))
 
+;;;;;
+;; dilates input image (applies maximum filter) one or more times.
+;; If element pointer is c:null, 3x3 rectangular element is used
+;; @param ((element-obj (c "SCM_UNDEFINED")) >> (element c:null))
+;; {@ c:null <iplconv-kernel>}
 (define-cproc cv-dilate (src::<cv-arr> dst::<cv-arr>
                                        :optional (element-obj (c "SCM_UNDEFINED")) (iterations::<fixnum> 1)) ::<void>
   (ENSURE_NOT_NULL src)
@@ -542,6 +683,8 @@ typedef double _double_t;
     (get-element element-obj element)
     (cvDilate src dst element iterations)))
 
+;;;;;
+;; Performs complex morphological transformation
 (define-cproc cv-morphology-ex (src::<cv-arr> dst::<cv-arr> tmp::<cv-arr>
                                               element::<iplconv-kernel> operation::<fixnum>
                                               :optional (iterations::<fixnum> 1)) ::<void>
@@ -562,6 +705,8 @@ typedef double _double_t;
    )
   )
 
+;;;;;
+;; Calculates all spatial and central moments up to the 3rd order
 (define-cproc cv-moments (arr::<cv-arr> 
                            :optional (binary?::<boolean> #f)) ::<cv-moments>
   (ENSURE_NOT_NULL arr)
@@ -569,12 +714,18 @@ typedef double _double_t;
     (cvMoments arr (& moments) binary?)
     (result moments)))
 
+;;;;;;
+;; Retrieve particular spatial central moments
 (define-cproc cv-get-spatial-moment (moments::<cv-moments> x-order::<fixnum> y-order::<fixnum>) ::<real>
   (result (cvGetSpatialMoment (& moments) x-order y-order)))
 
+;;;;;;
+;; Retrieve particular central central moments
 (define-cproc cv-get-central-moment (moments::<cv-moments> x-order::<fixnum> y-order::<fixnum>) ::<real>
   (result (cvGetCentralMoment (& moments) x-order y-order)))
 
+;;;;;;
+;; Retrieve particular normalized central moments
 (define-cproc cv-get-normalized-central-moment (moments::<cv-moments> x-order::<fixnum> y-order::<fixnum>) ::<real>
   (result (cvGetNormalizedCentralMoment (& moments) x-order y-order)))
 
@@ -603,6 +754,8 @@ typedef double _double_t;
    )
   )
 
+;;;;;
+;; Calculates 7 Hu's invariants from precalculated spatial and central moments
 (define-cproc cv-get-hu-moments (moments::<cv-moments>) ::<cv-hu-moments>
   (let* ([hu-moments::CvHuMoments])
     (cvGetHuMoments (& moments) (& hu-moments))
@@ -618,6 +771,9 @@ return (x < y) ? y : x;
 }
 "
 
+;;;;;
+;; Fetches pixels that belong to the specified line segment and stores them to the buffer.
+;; Returns the number of retrieved points.
 (define-cproc cv-sample-line (image::<cv-arr> pt1::<cv-point> pt2::<cv-point>
                                               :optional (connectivity::<fixnum> 8)) ::<list>
   (ENSURE_NOT_NULL image)
@@ -641,11 +797,20 @@ return (x < y) ? y : x;
         (set! pair (SCM_CDR pair)))
       (result list))))
 
+;;;;;
+;; Retrieves the rectangular image region with specified center from the input array.
+;; dst(x,y) <- src(x + center.x - dst_width/2, y + center.y - dst_height/2).
+;; Values of pixels with fractional coordinates are retrieved using bilinear interpolation.
 (define-cproc cv-get-rect-sub-pix (src::<cv-arr> dst::<cv-arr> center::<cv-point-2d32f>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
   (cvGetRectSubPix src dst center))
 
+;;;;;
+;; Retrieves quadrangle from the input array.
+;;  matrixarr = ( a11  a12 | b1 )   dst(x,y) <- src(A[x y]' + b)
+;;              ( a21  a22 | b2 )   (bilinear interpolation is used to retrieve pixels
+;;                                   with fractional coordinates)
 (define-cproc cv-get-quadrangle-sub-pix (src::<cv-arr> dst::<cv-arr> map-matrix::<cv-mat>) ::<void>
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
@@ -661,6 +826,9 @@ return (x < y) ? y : x;
 (define-enum CV_TM_CCORR_NORMED)
 (define-enum CV_TM_CCOEFF)
 (define-enum CV_TM_CCOEFF_NORMED)
+;;;;;
+;; Measures similarity between template and overlapped windows in the source image
+;; and fills the resultant image with the measurements
 (define-cproc cv-match-template (image::<cv-arr> templ::<cv-arr>
                                                  result::<cv-arr> method::<fixnum>) ::<void>
   (ENSURE_NOT_NULL image)
@@ -693,6 +861,11 @@ return (x < y) ? y : x;
 (define-enum CV_CHAIN_APPROX_TC89_KCOS)
 (define-enum CV_LINK_RUNS)
 
+;;;;;
+;; Retrieves outer and optionally inner boundaries of white (non-zero) connected
+;; components in the black (zero) background
+;; @param ((offset-obj (c "SCM_UNDEFINED")) >> (offset c:null))
+;; {@ c:null <cv-point>}
 (define-cproc cv-find-contours (image::<cv-arr> storage::<cv-mem-storage> 
                                                 :optional (mode::<fixnum> 1) ;;mode 1 is CV_RETR_LIST
                                                 (method::<fixnum> 2) ;;method 2 is CV_CHAIN_APPROX_SIMPLE
@@ -709,6 +882,13 @@ return (x < y) ? y : x;
       (result (boxing seq <cv-seq>))
       (result (boxing 0 <boolean>)))))
 
+;;;;;
+;; Initalizes contour retrieving process.
+;; Calls cvStartFindContours.
+;; Calls cvFindNextContour until null pointer is returned or some other condition becomes true.
+;; Calls cvEndFindContours at the end.
+;; @param ((offset-obj (c "SCM_UNDEFINED")) >> (offset c:null))
+;; {@ c:null <cv-point>}
 (define-cproc cv-start-find-contours (image::<cv-arr> storage::<cv-mem-storage>
                                                       :optional (mode::<fixnum> 1) ;;mode 1 is CV_RETR_LIST
                                                       (method::<fixnum> 2) ;;method 2 is CV_CHAIN_APPROX_SIMPLE
@@ -721,18 +901,27 @@ return (x < y) ? y : x;
     (undef-or-obj offset-obj offset <cv-point> (cvPoint 0 0))
     (result (cvStartFindContours image storage header-size mode method offset))))
 
+;;;;;
+;; Retrieves next contour
 (define-cproc cv-find-next-contour (scanner::<cv-contour-scanner>) :: <top>
   (let* ([seq :: CvSeq* (cvFindNextContour scanner)])
     (if seq
       (result (boxing seq <cv-seq>))
       (result (boxing 0 <boolean>)))))
 
+;;;;;
+;; Substitutes the last retrieved contour with the new one
+;; (if the substitutor is null, the last retrieved contour is removed from the tree) 
 (define-cproc cv-substitute-contour (scanner::<cv-contour-scanner> new-contour::<cv-seq>) ::<void>
   (cvSubstituteContour scanner new-contour))
 
+;;;;;
+;; Releases contour scanner and returns pointer to the first outer contour
 (define-cproc cv-end-find-contours (scanner::<cv-contour-scanner>) ::<cv-seq>
   (result (cvEndFindContours (& scanner))))
 
+;;;;;
+;; Approximates a single Freeman chain or a tree of chains to polygonal curves
 (define-cproc cv-approx-chains (src-seq::<cv-seq> storage::<cv-mem-storage>
                                                   :optional (method::<fixnum> 2) ;;method 2 is CV_CHAIN_APPROX_SIMPLE
                                                   (parameter::<real> 0)
@@ -741,11 +930,17 @@ return (x < y) ? y : x;
   (ENSURE_NOT_NULL storage)
   (result (cvApproxChains src-seq storage method parameter minimal-permeter recursive)))
 
+;;;;;
+;; Initalizes Freeman chain reader.
+;; The reader is used to iteratively get coordinates of all the chain points.
+;; If the Freeman codes should be read as is, a simple sequence reader should be used
 (define-cproc cv-start-read-chain-points (chain::<cv-chain>) ::<cv-chain-pt-reader>
   (let* ([reader::CvChainPtReader* (SCM_MALLOC (sizeof CvChainPtReader))])
     (cvStartReadChainPoints chain reader)
     (result reader)))
 
+;;;;;
+;; Retrieves the next chain point
 (define-cproc cv-read-chain-point (reader::<cv-chain-pt-reader>) ::<cv-point>
   (result (cvReadChainPoint reader)))
 
@@ -799,7 +994,8 @@ return (x < y) ? y : x;
        :setter #f)
    ))
 
-
+;;;;;
+;; Initializes Delaunay triangulation
 (define-cproc cv-init-subdiv-delaunay2d (rect::<cv-rect>) ::<cv-subdiv-2d>
   (let* ([subdiv::CvSubdiv2D* (SCM_MALLOC (sizeof CvSubdiv2D))])
     (cvInitSubdivDelaunay2D subdiv rect)
@@ -807,10 +1003,14 @@ return (x < y) ? y : x;
 
 ;;cvCreateSubdiv2D not support
 
+;;;;;
+;; Simplified Delaunay diagram creation
 (define-cproc cv-create-subdiv-delaunay2d (rect::<cv-rect> storage::<cv-mem-storage>) ::<cv-subdiv-2d>
   (ENSURE_NOT_NULL storage)
   (result (cvCreateSubdivDelaunay2D rect storage)))
 
+;;;;;
+;; Inserts new point to the Delaunay triangulation
 (define-cproc cv-subdiv-delaunay-2d-insert (subdiv::<cv-subdiv-2d> pt::<cv-point-2d32f>) ::<cv-subdiv-2d-point>
   (result (cvSubdivDelaunay2DInsert subdiv pt)))
 
@@ -823,17 +1023,26 @@ return (x < y) ? y : x;
 (define-enum CV_PTLOC_INSIDE)
 (define-enum CV_PTLOC_VERTEX)
 (define-enum CV_PTLOC_ON_EDGE)
+;;;;;
+;; Locates a point within the Delaunay triangulation (finds the edge
+;; the point is left to or belongs to, or the triangulation point the given point coinsides with
 (define-cproc cv-subdiv-2d-locate (subdiv::<cv-subdiv-2d> pt::<cv-point-2d32f>) ::(<fixnum> <int>)
   (let* ([e::CvSubdiv2DEdge]
          [ret::CvSubdiv2DPointLocation (cvSubdiv2DLocate subdiv pt (& e) 0)])
     (result ret e)))
 
+;;;;;
+;; Calculates Voronoi tesselation (i.e. coordinates of Voronoi points)
 (define-cproc cv-calc-subdiv-voronoi-2d (subdiv::<cv-subdiv-2d>) ::<void>
   (cvCalcSubdivVoronoi2D subdiv))
 
+;;;;;
+;; Removes all Voronoi points from the tesselation
 (define-cproc cv-clear-subdiv-voronoi-2d (subdiv::<cv-subdiv-2d>) ::<void>
   (cvClearSubdivVoronoi2D subdiv))
 
+;;;;;
+;; Finds the nearest to the given point vertex in subdivision.
 (define-cproc cv-find-nearest-point-2d (subdiv::<cv-subdiv-2d> pt::<cv-point-2d32f>) ::<cv-subdiv-2d-point>
   (result (cvFindNearestPoint2D subdiv pt)))
 
@@ -875,12 +1084,18 @@ return (x < y) ? y : x;
 ;;Contour Processing and Shape Analysis
 ;;******************
 
+;;;;;;
+;; Approximates a single polygonal curve (contour) or a tree of polygonal curves (contours)
 (define-cproc cv-approx-poly (src-seq::<cv-seq> storage::<cv-mem-storage> method::<fixnum> parameter::<real>
                                                 :optional (parameter2::<fixnum> 0))::<cv-seq>
   (ENSURE_NOT_NULL storage)
   (result (cvApproxPoly src-seq 0
                         storage method parameter parameter2)))
 
+;;;;;
+;; Calculates perimeter of a contour or length of a part of contour
+;; @param ((slice-obj (c "SCM_UNDEFINED")) >> (slice c:null))
+;; {@ c:null <cv-slice>}
 (define-cproc cv-arc-length (curve::<cv-seq>
                               :optional (slice-obj (c "SCM_UNDEFINED")) (is-closed::<fixnum> -1))::<real>
   (let* ([slice::CvSlice])
@@ -911,6 +1126,9 @@ return (x < y) ? y : x;
        (cvSeqPush ,cv-arr (& (unboxing p <cv-point>))))]
     [else (Scm_Error "<cv-arr> or <vector> or <list> required, but got %S." ,seq)]))
 
+;;;;;
+;; Calculates contour boundning rectangle (update=1) or
+;; just retrieves pre-calculated rectangle (update=0)
 (define-cproc cv-bounding-rect (points::<top>
                                  :optional (update::<fixnum> 0)) ::<cv-rect>
   (let* ([points-arr :: CvArr*]
@@ -920,6 +1138,11 @@ return (x < y) ? y : x;
     (when storage
       (cvReleaseMemStorage (& storage)))))
 
+;;;;;
+;; Calculates area of a contour or contour segment
+;; @param contour {@ <cv-arr> <vector of <cv-point>> <list of <cv-point>>}
+;; @param ((slice-obj (c "SCM_UNDEFINED")) >> (slice c:null))
+;; {@ c:null <cv-slice>}
 (define-cproc cv-contour-area (contour::<top>
                                 :optional (slice-obj (c "SCM_UNDEFINED")) (oriented::<fixnum> 0))::<real>
   (let* ([contour-arr :: CvArr*]
@@ -931,6 +1154,11 @@ return (x < y) ? y : x;
     (when storage
       (cvReleaseMemStorage (& storage)))))
 
+;;;;;
+;; Finds minimum area rotated rectangle bounding a set of points
+;; @param points {@ <cv-arr> <vector of <cv-point>> <list of <cv-point>>}
+;; @param ((storage-obj (c "SCM_UNDEFINED")) >> (storage c:null))
+;; {@ c:null <cv-mem-storage>}
 (define-cproc cv-min-area-rect2 (points::<top>
                                   :optional (storage-obj (c "SCM_UNDEFINED"))) ::<cv-box-2d>
   (let* ([points-arr :: CvArr*]
@@ -942,6 +1170,8 @@ return (x < y) ? y : x;
     (when storage
       (cvReleaseMemStorage (& storage)))))
 
+;;;;;
+;; Finds minimum enclosing circle for a set of points
 (define-cproc cv-min-enclosing-circle (points::<top>) ::(<top> <top>)
   (let* ([points-arr :: CvArr*]
          [storage :: CvMemStorage* 0]
@@ -959,6 +1189,8 @@ return (x < y) ? y : x;
 (define-enum CV_CONTOURS_MATCH_I1)
 (define-enum CV_CONTOURS_MATCH_I2)
 (define-enum CV_CONTOURS_MATCH_I3)
+;;;;;
+;; Compares two contours by matching their moments
 (define-cproc cv-match-shapes (obj1 obj2 method::<fixnum>
                                     :optional (parameter::<real> 0)) ::<real>
   (let* ([object1::void* (?: (is-type? obj1 <cv-arr>)
@@ -1118,6 +1350,8 @@ Scm_Error(\"internal error\");
 (define-enum CV_CLOCKWISE)
 (define-enum CV_COUNTER_CLOCKWISE)
 
+;;;;;
+;; Calculates exact convex hull of 2d point set
 (define-cproc cv-convex-hull2 (input-obj ;<cv-point> or <cv-point-2d32f> of vecotr or sequence
                                 :optional (orientation::<fixnum> 1) ;orientation 1 is CV_CLOCKWISE
                                 ) ::<vector>
@@ -1156,7 +1390,8 @@ Scm_Error(\"internal error\");
       (cvReleaseMat (cast CvMat** (& input))))
     ))
 
-
+;;;;;
+;; Checks whether the contour is convex or not (returns #t if convex, #f if not)
 (define-cproc cv-check-contour-convexity (contour) ::<boolean>
   (let* ([input :: void*]
          [create-mat? :: int 0])
@@ -1168,12 +1403,18 @@ Scm_Error(\"internal error\");
 
 ;;not support cvConvexityDefects
 
+;;;;;
+;; Fits ellipse into a set of 2d points
 (define-cproc cv-fit-ellipse2 (points::<cv-seq>) ::<cv-box-2d>
   (result (cvFitEllipse2 points)))
 
+;;;;;
+;; Finds minimum rectangle containing two given rectangles
 (define-cproc cv-max-rect (rect1::<cv-rect> rect2::<cv-rect>)::<cv-rect>
   (result (cvMaxRect (& rect1) (& rect2))))
 
+;;;;;
+;; Finds coordinates of the box vertices
 (define-cproc cv-box-points (box::<cv-box-2d>) ::<vector>
   (let* ([vec::ScmVector* (cast ScmVector* (Scm_MakeVector 4 SCM_UNDEFINED))]
          [pt::(.array CvPoint2D32f (4))])
@@ -1184,6 +1425,9 @@ Scm_Error(\"internal error\");
     (set! (SCM_VECTOR_ELEMENT vec 3) (boxing (aref pt 3) <cv-point-2d32f>))
     (result vec)))
 
+;;;;;
+;; Initializes sequence header for a matrix (column or row vector) of points -
+;; a wrapper for cvMakeSeqHeaderForArray (it does not initialize bounding rectangle!!!)
 (define-cproc cv-point-polygon-test (contour-obj pt::<cv-point-2d32f> measure-dist::<boolean>) ::<real>
   (let* ([contour::void*])
     (cond
@@ -1200,6 +1444,12 @@ Scm_Error(\"internal error\");
 ;;Histogram functions
 ;;******************
 
+;;;;;
+;; Creates new histogram
+;; @param (sizes-obj >> sizes)
+;; {@ c:null <list> <vector> <s32vector>}
+;; @param ((ranges-obj (c "SCM_UNDEFINED")) >> (ranges c:null))
+;; {@ c:null <list of <f32vector>> <vector of <f32vector>>}
 (define-cproc cv-create-hist (sizes-obj type::<fixnum>
                                         :optional (ranges-obj (c "SCM_UNDEFINED"))
                                         (uniform::<boolean> #t)) :: <cv-histogram>
@@ -1231,6 +1481,8 @@ Scm_Error(\"internal error\");
       )
     (result (cvCreateHist dims sizes type ranges uniform))))
 
+;;;;;
+;; Assignes histogram bin ranges
 (define-cproc cv-set-hist-bin-ranges (hist::<cv-histogram> ranges-obj
                                                            :optional (uniform::<boolean> #t)) ::<void>
   (ENSURE_NOT_NULL hist)
@@ -1250,16 +1502,22 @@ Scm_Error(\"internal error\");
 
 ;;not support cvMakeHistHeaderForArray
 
+;;;;;
+;; Releases histogram
 (define-cproc cv-release-hist (hist::<cv-histogram>) ::<void>
   (if hist
     (begin
       (cvReleaseHist (& hist))
       (set! (-> (SCM_FOREIGN_POINTER hist_scm) ptr) NULL))))
 
+;;;;;
+;; Clears all the histogram bins
 (define-cproc cv-clear-hist (hist::<cv-histogram>) ::<void>
   (ENSURE_NOT_NULL hist)
   (cvClearHist hist))
 
+;;;;;
+;; Finds indices and values of minimum and maximum histogram bins
 (define-cproc cv-get-minmax-hist-value (hist::<cv-histogram>) ::(<float> <float>)
   (ENSURE_NOT_NULL hist)
   (let* ([min :: float]
@@ -1267,10 +1525,15 @@ Scm_Error(\"internal error\");
     (cvGetMinMaxHistValue hist (& min) (& max) 0 0)
     (result min max)))
 
+;;;;;
+;; Normalizes histogram by dividing all bins by sum of the bins, multiplied by <factor>.
+;; After that sum of histogram bins is equal to <factor>
 (define-cproc cv-normalize-hist (hist::<cv-histogram> factor::<real>) ::<void>
   (ENSURE_NOT_NULL hist)
   (cvNormalizeHist hist factor))
 
+;;;;;
+;; Clear all histogram bins that are below the threshold
 (define-cproc cv-thresh-hist (hist::<cv-histogram> threshold::<real>) ::<void>
   (ENSURE_NOT_NULL hist)
   (cvThreshHist hist threshold))
@@ -1281,12 +1544,18 @@ Scm_Error(\"internal error\");
 (define-enum CV_COMP_CHISQR)
 (define-enum CV_COMP_INTERSECT)
 (define-enum CV_COMP_BHATTACHARYYA)
+;;;;;
+;; Compares two histogram
 (define-cproc cv-compare-hist (hist1::<cv-histogram> hist2::<cv-histogram>
                                                      method::<fixnum>) ::<real>
   (ENSURE_NOT_NULL hist1)
   (ENSURE_NOT_NULL hist2)
   (result (cvCompareHist hist1 hist2 method)))
 
+;;;;;
+;; Copies one histogram to another. Destination histogram is created if the destination pointer is c:null
+;; @param ((out-obj (c "SCM_UNDEFINED")) >> (out c:null))
+;; {@ c:null <cv-histogram> }
 (define-cproc cv-copy-hist (hist::<cv-histogram>
                              :optional (out-obj (c "SCM_UNDEFINED"))) ::<cv-histogram>
   (ENSURE_NOT_NULL hist)
@@ -1310,6 +1579,11 @@ Scm_Error(\"internal error\");
 #define CALC_HIST_TMP_SIZE 10
 "
 
+;;;;;
+;; Calculates array histogram
+;; @param arr {@ <list> <vector> <cv-arr>}
+;; @param ((mask-obj (c "SCM_UNDEFINED")) >> (mask c:null))
+;; {@ c:null <cv-arr>}
 (define-cproc cv-calc-arr-hist (arr hist::<cv-histogram>
                                     :optional (accumulate::<fixnum> 0)
                                     (mask-obj (c "SCM_UNDEFINED"))) ::<void>
@@ -1330,6 +1604,10 @@ Scm_Error(\"internal error\");
     (undef-or-cvarr mask-obj mask)
     (cvCalcArrHist array hist accumulate mask)))
 
+;;;;;
+;; @param image {@ <list> <vector> <cv-arr>}
+;; @param ((mask-obj (c "SCM_UNDEFINED")) >> (mask c:null))
+;; {@ c:null <cv-arr>}
 (define-cproc cv-calc-hist (image hist::<cv-histogram>
                                   :optional (accumulate::<fixnum> 0)
                                   (mask-obj (c "SCM_UNDEFINED"))) ::<void>
@@ -1350,7 +1628,8 @@ Scm_Error(\"internal error\");
     (undef-or-cvarr mask-obj mask)
     (cvCalcArrHist array hist accumulate mask)))
 
-
+;;;;;
+;; equalizes histogram of 8-bit single-channel image
 (define-cproc cv-equalize-hist (src::<cv-arr> dst::<cv-arr>)
   (ENSURE_NOT_NULL src)
   (ENSURE_NOT_NULL dst)
@@ -1367,6 +1646,12 @@ Scm_Error(\"internal error\");
 (define-enum CV_DIST_FAIR)
 (define-enum CV_DIST_WELSCH)
 (define-enum CV_DIST_HUBER)
+;;;;;
+;; Applies distance transform to binary image
+;; @param ((mask-obj (c "SCM_UNDEFINED")) >> (mask c:null))
+;; {@ c:null <f32vector> <list> <vector>}
+;; @param ((labels-obj (c "SCM_UNDEFINED")) >> (labels c:null))
+;; {@ c:null <cv-arr>}
 (define-cproc cv-dist-transform (src::<cv-arr> dst::<cv-arr>
                                                :optional (distance-type::<fixnum> 2) ;;distance-type 2 is CV_DIST_L2
                                                (mask-size::<fixnum> 3)
@@ -1398,6 +1683,14 @@ Scm_Error(\"internal error\");
 (define-enum CV_THRESH_TOZERO_INV)
 (define-enum CV_THRESH_MASK)
 (define-enum CV_THRESH_OTSU)
+;;;;;
+;; Applies fixed-level threshold to grayscale image.
+;; This is a basic operation applied before retrieving contours
+;; @param threshold-type {@
+;; CV_THRESH_BINARY CV_THRESH_BINARY_INV
+;; CV_THRESH_TRUNC
+;; CV_THRESH_TOZERO CV_THRESH_TOZERO_INV
+;; CV_THRESH_MASK CV_THRESH_OTSU }
 (define-cproc cv-threshold (src::<cv-arr> dst::<cv-arr>
                                           threshold::<real> max-value::<real> 
                                           threshold-type::<fixnum>) ::<real>
@@ -1409,6 +1702,13 @@ Scm_Error(\"internal error\");
 ;;Constants
 (define-enum CV_ADAPTIVE_THRESH_MEAN_C)
 (define-enum CV_ADAPTIVE_THRESH_GAUSSIAN_C)
+;;;;;
+;; Applies adaptive threshold to grayscale image.
+;; @param ((adaptive-method 0) >> (adaptive-method CV_ADAPTIVE_THRESH_MEAN_C))
+;; {@ CV_ADAPTIVE_THRESH_MEAN_C CV_ADAPTIVE_THRESH_GAUSSIAN_C}
+;; @param ((threshold-type 0) >> (threshold-type CV_THRESH_BINARY))
+;; {@ CV_THRESH_BINARY CV_THRESH_BINARY_INV}
+;; @param (block-size 3) {@ 3 5 7 etc...}
 (define-cproc cv-adaptive-threshold (src::<cv-arr> dst::<cv-arr> max-value::<real>
                                                    :optional (adaptive-method::<fixnum> 0) ;adaptive-method 0 is CV_ADAPTIVE_THRESH_MEAN_C
                                                    (threshold-type::<fixnum> 0) ;threshold-type 0 is CV_THRESH_BINARY
@@ -1440,6 +1740,14 @@ Scm_Error(\"internal error\");
 ;;Constants
 (define-enum CV_FLOODFILL_FIXED_RANGE)
 (define-enum CV_FLOODFILL_MASK_ONLY)
+;;;;;
+;; Fills the connected component until the color difference gets large enough
+;; @param ((lo-diff-obj (c "SCM_UNDEFINED")) >> (lo-diff c:null))
+;; {@ c:null <cv-scalar>}
+;; @param ((up-diff-obj (c "SCM_UNDEFINED")) >> (up-diff c:null))
+;; {@ c:null <cv-scalar>}
+;; @param ((mask-obj (c "SCM_UNDEFINED")) >> (mask c:null))
+;; {@ c:null <cv-arr>}
 (define-cproc cv-flood-fill (image::<cv-arr> seed-point::<cv-point> new-val::<cv-scalar>
                                              :optional (lo-diff-obj (c "SCM_UNDEFINED")) (up-diff-obj (c "SCM_UNDEFINED")) 
                                              (flags::<fixnum> 4) (mask-obj (c "SCM_UNDEFINED"))) ::<cv-connected-comp>
@@ -1459,6 +1767,8 @@ Scm_Error(\"internal error\");
 ;;Feature detection
 ;;******************
 
+;;;;;
+;; Runs canny edge detector
 (define-cproc cv-canny (image::<cv-arr> edges::<cv-arr> 
                                         threshold1::<real> threshold2::<real>
                                         :optional (aperture-size::<fixnum> 3)) ::<void>
@@ -1466,24 +1776,35 @@ Scm_Error(\"internal error\");
   (ENSURE_NOT_NULL edges)
   (cvCanny image edges threshold1 threshold2 aperture-size))
 
+;;;;;
+;; Calculates constraint image for corner detection
+;; Dx^2 * Dyy + Dxx * Dy^2 - 2 * Dx * Dy * Dxy.
+;; Applying threshold to the result gives coordinates of corners
 (define-cproc cv-pre-corner-detect (image::<cv-arr> corners::<cv-arr>
                                                     :optional (aperture-size::<fixnum> 3)) ::<void>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL corners)
   (cvPreCornerDetect image corners aperture-size))
 
+;;;;;
+;; Calculates eigen values and vectors of 2x2 gradient covariation matrix at every image pixel
 (define-cproc cv-corner-eigen-vals-and-vecs (image::<cv-arr> eigenvv::<cv-arr> block-size::<fixnum>
                                                              :optional (aperture-size::<fixnum> 3)) ::<void>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL eigenvv)
   (cvCornerEigenValsAndVecs image eigenvv block-size aperture-size))
 
+;;;;;
+;; Calculates minimal eigenvalue for 2x2 gradient covariation matrix at every image pixel
 (define-cproc cv-corner-min-eigen-val (image::<cv-arr> eigenval::<cv-arr> block-size::<fixnum>
                                                        :optional (aperture-size::<fixnum> 3)) ::<void>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL eigenval)
   (cvCornerMinEigenVal image eigenval block-size aperture-size))
 
+;;;;;
+;; Harris corner detector:
+;; Calculates det(M) - k*(trace(M)^2), where M is 2x2 gradient covariation matrix for each pixel
 (define-cproc cv-corner-harris (image::<cv-arr> harris-response::<cv-arr> block-size::<fixnum>
                                                 :optional (aperture-size::<fixnum> 3)
                                                 (k::<real> 0.04)) ::<void>
@@ -1494,6 +1815,8 @@ Scm_Error(\"internal error\");
 "
 #define TEMP_CORNER_COUNT 150
 "
+;;;;;
+;; Adjust corner position using some sort of gradient search
 (define-cproc cv-find-corner-sub-pix (image::<cv-arr> corners-obj::<top>
                                                       win::<cv-size> zero-zone::<cv-size>
                                                       criteria::<cv-term-criteria>) ::<void>
@@ -1510,6 +1833,10 @@ Scm_Error(\"internal error\");
       [else (Scm_Error "<list> or <vector> required, but got %S" corners-obj)])
     (cvFindCornerSubPix image corners count win zero-zone criteria)))
 
+;;;;;
+;; Finds a sparse set of points within the selected region that seem to be easy to track
+;; @param ((mask-obj (c "SCM_UNDEFINED")) >> (mask c:null))
+;; {@ c:null <cv-arr>}
 (define-cproc cv-good-features-to-track (image::<cv-arr> eig-image::<top> temp-image::<top>
                                                          corner-count::<fixnum>
                                                          quality-level::<real> min-distance::<real>
@@ -1542,6 +1869,15 @@ Scm_Error(\"internal error\");
 (define-enum CV_HOUGH_PROBABILISTIC)
 (define-enum CV_HOUGH_MULTI_SCALE)
 (define-enum CV_HOUGH_GRADIENT)
+;;;;;
+;; Finds lines on binary image using one of several methods.
+;; @param (line-storage-obj >> line-storage) {@ <cv-mem-storage> <cv-mat>}
+;; line-storage is either memory storage 
+;; or 1 x <max number of lines> CvMat, its number of columns is changed by the function.
+;; @param method {@ CV_HOUGH_STANDARD CV_HOUGH_PROBABILISTIC CV_HOUGH_MULTI_SCALE CV_HOUGH_GRADIENT}
+;; rho, theta and threshold are used for each of those methods;
+;; param1 ~ line length, param2 ~ line gap - for probabilistic,
+;; param1 ~ srn, param2 ~ stn - for multi-scale
 (define-cproc cv-hough-lines2 (image::<cv-arr> line-storage-obj::<top> method::<fixnum>
                                                rho::<real> theta::<real> threshold::<fixnum>
                                                :optional (param1::<real> 0) (param2::<real> 0)) ::<cv-seq>
@@ -1556,6 +1892,8 @@ Scm_Error(\"internal error\");
     (ENSURE_NOT_NULL line-storage)
     (result (cvHoughLines2 image line-storage method rho theta threshold param1 param2))))
 
+;;;;;
+;; Finds circles in the image
 (define-cproc cv-hough-circles (image::<cv-arr> circle-storage-obj::<top> method::<fixnum>
                                                 dp::<real> min-dist::<real>
                                                 :optional (param1::<real> 100) (param2::<real> 100)
@@ -1589,10 +1927,17 @@ Scm_Error(\"internal error\");
 (define-enum CV_DIST_FAIR)
 (define-enum CV_DIST_WELSCH)
 (define-enum CV_DIST_HUBER)
+;;;;;
+;; Fits a line into set of 2d or 3d points in a robust way (M-estimator technique)
+;; @param dist-type {@
+;; CV_DIST_USER CV_DIST_L1 CV_DIST_L2 CV_DIST_C
+;; CV_DIST_L12 CV_DIST_FAIR CV_DIST_WELSCH CV_DIST_HUBER
+;; }
+;; @param dims {@ 2 3}
+;; dims is original parameter of gauche-cv.
+;; specify points dimention(2 or 3).
 (define-cproc cv-fit-line (points-obj::<top> dist-type::<fixnum> param::<real>
                                              reps::<real> aeps::<real>
-                                             ;;dims is original parameter
-                                             ;;specify points dimension(2 or 3)
                                              dims::<fixnum>)::<vector>
   (if (or (== dims 2) (== dims 3))
     (Scm_Error "dims: 2 or 3 required."))
@@ -1633,22 +1978,31 @@ Scm_Error(\"internal error\");
       (result vec))))
 
 
+;;;;;
+;; Constructs kd-tree from set of feature descriptors 
 (define-cproc cv-create-kd-tree (desc::<cv-mat>) ::<cv-feature-tree>
   (ENSURE_NOT_NULL desc)
   (result (cvCreateKDTree desc)))
 
+;;;;;
+;; Constructs spill-tree from set of feature descriptors
 (define-cproc cv-create-spill-tree (raw-data::<cv-mat>
                                      :optional (naive::<fixnum> 60)
                                      (rho::<real> 0.7) (tau::<real> 0.1)) ::<cv-feature-tree>
   (ENSURE_NOT_NULL raw-data)
   (result (cvCreateSpillTree raw-data naive rho tau)))
 
+;;;;;
+;; Release feature tree
 (define-cproc cv-release-feature-tree (tree::<cv-feature-tree>) ::<void>
   (if tree
     (begin
       (cvReleaseFeatureTree tree)
       (set! (-> (SCM_FOREIGN_POINTER tree_scm) ptr) NULL))))
 
+;;;;;
+;; Searches feature tree for k nearest neighbors of given reference points,
+;; searching (in case of kd-tree/bbf) at most emax leaves.
 (define-cproc cv-find-features (tree::<cv-feature-tree> query-points::<cv-mat>
                                                         indices::<cv-mat> dist::<cv-mat>
                                                         :optional (k::<fixnum> 2) (emax::<fixnum> 20)) ::<void>
@@ -1658,6 +2012,9 @@ Scm_Error(\"internal error\");
   (ENSURE_NOT_NULL dist)
   (cvFindFeatures tree query-points indices dist k emax))
 
+;;;;;
+;; Search feature tree for all points that are inlier to given rect region.
+;; Only implemented for kd trees
 (define-cproc cv-find-features-boxed (tree::<cv-feature-tree> bounds-min::<cv-mat> bounds-max::<cv-mat>
                                                               out-indices::<cv-mat>) ::<fixnum>
   (ENSURE_NOT_NULL tree)
@@ -1666,22 +2023,32 @@ Scm_Error(\"internal error\");
   (ENSURE_NOT_NULL out-indices)
   (result (cvFindFeaturesBoxed tree bounds-min bounds-max out-indices)))
 
+;;;;;
+;; Construct in-memory LSH table, with n bins.
 (define-cproc cv-create-memory-lsh (d::<fixnum> n::<fixnum>
                                                 :optional (L::<fixnum> 10) (k::<fixnum> 10)
                                                 (type::<fixnum> 6) ;type 6 is CV_64FC1
                                                 (r::<real> 4) (seed::<long> -1)) ::<cv-lsh>
   (result (cvCreateMemoryLSH d n L k type r seed)))
 
+;;;;;
+;; Free the given LSH structure.
 (define-cproc cv-release-lsh (lsh::<cv-lsh>)::<void>
   (if lsh
     (begin
       (cvReleaseLSH (& lsh))
       (set! (-> (SCM_FOREIGN_POINTER lsh_scm) ptr) NULL))))
 
+;;;;;
+;; Return the number of vectors in the LSH.
 (define-cproc lsh-size (lsh::<cv-lsh>) ::<uint32>
   (ENSURE_NOT_NULL lsh)
   (result (LSHSize lsh)))
 
+;;;;;
+;; Add vectors to the LSH structure, optionally returning indices.
+;; @param ((indices-obj (c "SCM_UNDEFINED")) >> (indices c:null))
+;; {@ c:null <cv-mat>}
 (define-cproc cv-lsh-add (lsh::<cv-lsh> data::<cv-mat>
                                         :optional (indices-obj (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL lsh)
@@ -1690,11 +2057,16 @@ Scm_Error(\"internal error\");
     (undef-or-obj indices-obj indices <cv-mat> 0)
     (cvLSHAdd lsh data indices)))
 
+;;;;;
+;; Remove vectors from LSH, as addressed by given indices.
 (define-cproc cv-lsh-remove (lsh::<cv-lsh> indices::<cv-mat>) ::<void>
   (ENSURE_NOT_NULL lsh)
   (ENSURE_NOT_NULL indices)
   (cvLSHRemove lsh indices))
 
+;;;;;
+;; Query the LSH n times for at most k nearest points; data is n x d,
+;; indices and dist are n x k. At most emax stored points will be accessed.
 (define-cproc cv-lsh-query (lsh::<cv-lsh> query-points::<cv-mat>
                                           indices::<cv-mat> dist::<cv-mat> k::<fixnum> emax::<fixnum>) ::<void>
   (ENSURE_NOT_NULL lsh)
