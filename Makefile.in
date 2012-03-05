@@ -50,6 +50,7 @@ collect :
 	@mkdir -p $(OUTDIR)/scm
 	@mkdir -p $(OUTDIR)/dll
 	@mkdir -p $(OUTDIR)/header
+	@cp -p -u LICENSE $(OUTDIR)/
 	@cp -p -u README $(OUTDIR)/
 	cd src; $(MAKE) collect
 	cd lib; $(MAKE) collect
