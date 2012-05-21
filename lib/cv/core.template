@@ -61,3 +61,7 @@
 (define-method object-apply ((obj <cv-mat>) x y (v <cv-scalar>))
   (cv-set-2d obj x y v))
 
+;;;;;
+;;@type cmd
+;;@@parse-relative #f
+

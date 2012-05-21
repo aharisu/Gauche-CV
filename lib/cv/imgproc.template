@@ -29,6 +29,11 @@
 ;;; foo.yobina@gmail.com
 ;;;
 
+;;;;;
+;;@type cmd
+;;@@parse-relative #f
+
+
 (define-module cv.imgproc
   (use cv.core)
 	(export-all)
