@@ -255,3 +255,23 @@
       (ENSURE_NOT_NULL ,from)]
      [else (Scm_Error "CvArr or c:null required, but got %S" ,to)]))
 
+(define-cise-expr (@ expr)
+  (define (add-prefix list prefix)
+    (fold
+      (lambda (x acc)
+        (cons (string-append prefix x) acc))
+      (cons (car list) '())
+      (cdr list)))
+
+  (let* ([tokens (fold (lambda (x acc)
+                         (append (reverse (add-prefix (string-split x "->") "a")) acc))
+                       '()
+                       (add-prefix (string-split (symbol->string expr) ".") "d"))])
+    (fold
+      (lambda (token acc)
+        `(,(if (eq? (string-ref token 0) #\d) 'ref '->)
+           ,acc
+           ,(string->symbol (substring token 1 (string-length token)))))
+      (string->symbol (car tokens))
+      (cdr tokens))))
+

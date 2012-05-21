@@ -32,6 +32,7 @@
 "
 #include \"gauche_cv_core.h\"
 #include <opencv2/core/core_c.h>
+#include <string.h> //for memmove
 
 #include \"core_type.gen.h\"
 
@@ -223,8 +224,36 @@ typedef double _double_t;
         :getter "ENSURE_NOT_NULL(obj);
         return Scm_MakeInteger(cvGetImageCOI(obj));"
         :setter "ENSURE_NOT_NULL(obj);
-        cvSetImageCOI(obj, Scm_GetInteger(value));"
-        )
+        cvSetImageCOI(obj, Scm_GetInteger(value));")
+   (image-data :type <top>
+              :setter #f
+              :getter "
+              ScmObj vec;
+
+              ENSURE_NOT_NULL(obj);
+              switch(obj->depth)
+              {
+              case IPL_DEPTH_8U:
+                vec = Scm_MakeU8VectorFromArrayShared(obj->imageSize, (unsigned char*)obj->imageData);
+                break;
+              case IPL_DEPTH_8S:
+                vec = Scm_MakeS8VectorFromArrayShared(obj->imageSize, (signed char*)obj->imageData);
+              break;
+              case IPL_DEPTH_16S:
+                vec = Scm_MakeS16VectorFromArrayShared(obj->imageSize, (signed short*)obj->imageData);
+              break;
+              case IPL_DEPTH_32S:
+                vec = Scm_MakeS32VectorFromArrayShared(obj->imageSize, (signed int*)obj->imageData);
+              break;
+              case IPL_DEPTH_32F:
+                vec = Scm_MakeF32VectorFromArrayShared(obj->imageSize, (float*)obj->imageData);
+              break;
+              case IPL_DEPTH_64F:
+                vec = Scm_MakeF64VectorFromArrayShared(obj->imageSize, (double*)obj->imageData);
+              break;
+              }
+              return vec;
+              ")
   ))
 
 ;;;;;
@@ -236,6 +265,20 @@ typedef double _double_t;
 ;;@param nchannels {@ 1 2 3 4}
 (define-cproc make-image (width::<fixnum> height::<fixnum> depth::<int> nchannels::<fixnum>) ::<iplimage>
   (expr "cvCreateImage(cvSize(width, height), depth, nchannels)"))
+
+;;;;;
+;; Creates IPL image (header only. shared vector buffer)
+;;@param depth {@
+;; IPL_DEPTH_8U IPL_DEPTH_8S IPL_DEPTH_16U 
+;; IPL_DEPTH_16S IPL_DEPTH_32S IPL_DEPTH_32F IPL_DEPTH_64F
+;; }
+;;@param nchannels {@ 1 2 3 4}
+(define-cproc make-image-shared (width::<fixnum> height::<fixnum> depth::<int> nchannels::<fixnum> vec::<uvector>) ::<iplimage>
+  (let* ([image :: IplImage* (cvCreateImageHeader (cvSize width height) depth nchannels)])
+    (when (< (Scm_UVectorSizeInBytes vec) (@ image->imageSize))
+      (cvReleaseImage (& image))
+      (Scm_Error "vec is to small"))
+    (set! (@ image->imageData) (SCM_UVECTOR_ELEMENTS vec))))
 
 ;;;;;
 ;; Releases IPL image header and data
@@ -283,6 +326,16 @@ typedef double _double_t;
 (define-cproc cv-reset-image-roi (image::<iplimage>) ::<void>
   (ENSURE_NOT_NULL image)
   (cvResetImageROI image))
+
+
+(define-cproc cv-copy-buffer-to-image (buf::<uvector> image::<iplimage>) :: <void>
+  (ENSURE_NOT_NULL image)
+  (let* ([size :: int (Scm_UVectorSizeInBytes buf)])
+    (when (< (@ image->imageSize)  size)
+      (Scm_Error "buf is too large"))
+    (memmove (@ image->imageData) (SCM_UVECTOR_ELEMENTS buf) size)))
+
+
 
 ;;-------------
 ;; CvMat
