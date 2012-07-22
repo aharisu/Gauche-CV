@@ -55,6 +55,27 @@ typedef double _double_t;
 (define-constant c:null (c "SCM_UNDEFINED"))
 
 
+(define-cise-stmt raise-cv-error 
+  [(_ func-name msg)
+    `(Scm_RaiseCondition
+      (SCM_OBJ SCM_CLASS_OPENCV_ERROR)
+       SCM_RAISE_CONDITION_MESSAGE
+        "%s: %s"
+         ,(symbol->string func-name) ,msg)]
+  )
+
+;;---------------
+;; CvRNG
+;;
+(define-cclass <cv-object>
+  :built-in
+  "ScmCvObject" "Scm_CvObjectClass"
+  ()
+  (;;slot
+   )
+  )
+
+
 ;;--------------------------------------
 ;; Constants
 ;;
@@ -191,7 +212,7 @@ typedef double _double_t;
 (define-cclass <iplimage>
   :built-in
   "ScmIplImage*" "Scm_IplImageClass"
-  () ;cpa
+  ("Scm_CvObjectClass") ;cpa
   (;;slot
    (n-channels :type <fixnum>
                :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(obj->nChannels);"
@@ -344,7 +365,7 @@ typedef double _double_t;
 (define-cclass <cv-mat>
   :built-in
   "ScmCvMat*" "Scm_CvMatClass"
-  () ;cpa
+  ("Scm_CvObjectClass") ;cpa
   (;;slot
    (type :type <int>
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(CV_MAT_TYPE(obj->type));"
@@ -512,7 +533,7 @@ typedef double _double_t;
 (define-cclass <cv-matnd>
   :built-in
   "ScmCvMatND*" "Scm_CvMatNDClass"
-  () ;cpa
+  ("Scm_CvObjectClass") ;cpa
   (;;slot
    (type :type <int>
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(CV_MAT_TYPE(obj->type));"
@@ -554,7 +575,7 @@ typedef double _double_t;
 (define-cclass <cv-sparse-mat>
   :built-in
   "ScmCvSparseMat*" "Scm_CvSparseMatClass"
-  () ;cpa
+  ("Scm_CvObjectClass") ;cpa
   (;;slot
    (type :type <int>
          :getter "ENSURE_NOT_NULL(obj) return Scm_MakeInteger(CV_MAT_TYPE(obj->type));"
@@ -1011,7 +1032,7 @@ typedef double _double_t;
 (define-cclass <cv-tree-node>
   :built-in
   "ScmCvTreeNode*" "Scm_CvTreeNodeClass"
-  ()
+  ("Scm_CvObjectClass")
   (;;slot
    ))
 
@@ -1024,7 +1045,7 @@ typedef double _double_t;
 (define-cclass <cv-seq>
   :built-in
   "ScmCvSeq*" "Scm_CvSeqClass"
-  ("Scm_CvTreeNodeClass")
+  ("Scm_CvTreeNodeClass" "Scm_CvObjectClass")
   (;;slot
    (h-prev :type <cv-seq>
            :setter #f
@@ -1566,7 +1587,7 @@ typedef double _double_t;
 (define-cclass <cv-set>
   :built-in
   "ScmCvSet*" "Scm_CvSetClass"
-  ("Scm_CvSeqClass" "Scm_CvTreeNodeClass")
+  ("Scm_CvSeqClass" "Scm_CvTreeNodeClass" "Scm_CvObjectClass")
   (;;slot
    (active-count :type <fixnum>
                  :setter #f
@@ -1593,7 +1614,7 @@ typedef double _double_t;
 (define-cclass <cv-graph>
   :built-in
   "ScmCvGraph*" "Scm_CvGraphClass"
-  ("Scm_CvSetClass" "Scm_CvSeqClass" "Scm_CvTreeNodeClass")
+  ("Scm_CvSetClass" "Scm_CvSeqClass" "Scm_CvTreeNodeClass" "Scm_CvObjectClass")
   (;;slot
    (edges :type <cv-set>
           :setter #f)
@@ -1602,7 +1623,7 @@ typedef double _double_t;
 (define-cclass <cv-chain>
   :built-in
   "ScmCvChain*" "Scm_CvChainClass"
-  ("Scm_CvSeqClass" "Scm_CvTreeNodeClass")
+  ("Scm_CvSeqClass" "Scm_CvTreeNodeClass" "Scm_CvObjectClass")
   (;;slot
    (origin :type <cv-point>
            :setter #f)
@@ -1611,7 +1632,7 @@ typedef double _double_t;
 (define-cclass <cv-contour>
   :built-in
   "ScmCvContour*" "Scm_CvContourClass"
-  ("Scm_CvSeqClass" "Scm_CvTreeNodeClass")
+  ("Scm_CvSeqClass" "Scm_CvTreeNodeClass" "Scm_CvObjectClass")
   (;;slot
    (rect	:type <cv-rect>
                 :setter #f)
@@ -1833,10 +1854,10 @@ typedef double _double_t;
 ;;;;;
 ;; Repeats source 2d array several times in both horizontal and
 ;; vertical direction to fill destination array
-(define-cproc cv-repeat (src::<cv-arr> dest::<cv-arr>) ::<void>
+(define-cproc cv-repeat (src::<cv-arr> dst::<cv-arr>) ::<void>
   (ENSURE_NOT_NULL src)
-  (ENSURE_NOT_NULL dest)
-  (cvRepeat src dest))
+  (ENSURE_NOT_NULL dst)
+  (cvRepeat src dst))
 
 ;;TODO use nnvector
 ;;;;;
@@ -1856,12 +1877,12 @@ typedef double _double_t;
 ;;;;;
 ;; Copies source array to destination array
 ;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
-(define-cproc cv-copy (src::<cv-arr> dest::<cv-arr> :optional (mask (c "SCM_UNDEFINED"))) ::<void>
+(define-cproc cv-copy (src::<cv-arr> dst::<cv-arr> :optional (mask (c "SCM_UNDEFINED"))) ::<void>
   (ENSURE_NOT_NULL src)
-  (ENSURE_NOT_NULL dest)
+  (ENSURE_NOT_NULL dst)
   (let* ([mask-arr::CvArr*])
     (undef-or-cvarr mask mask-arr)
-    (cvCopy src dest mask-arr)))
+    (cvCopy src dst mask-arr)))
 
 ;;;;;
 ;; Sets all or "masked" elements of input array to the same value
@@ -1910,8 +1931,8 @@ typedef double _double_t;
 ;;@param src1 {@ <cv-arr> c:null}
 ;;@param src2 {@ <cv-arr> c:null}
 ;;@param src3 {@ <cv-arr> c:null}
-(define-cproc cv-merge (src0 src1 src2 src3 dest::<cv-arr>) ::<void>
-  (ENSURE_NOT_NULL dest)
+(define-cproc cv-merge (src0 src1 src2 src3 dst::<cv-arr>) ::<void>
+  (ENSURE_NOT_NULL dst)
   (let* ([src0-arr::CvArr*]
          [src1-arr::CvArr*]
          [src2-arr::CvArr*]
@@ -1920,7 +1941,7 @@ typedef double _double_t;
     (undef-or-cvarr src1 src1-arr)
     (undef-or-cvarr src2 src2-arr)
     (undef-or-cvarr src3 src3-arr)
-    (cvMerge src0-arr src1-arr src2-arr src3-arr dest)))
+    (cvMerge src0-arr src1-arr src2-arr src3-arr dst)))
 
 (define-cise-stmt (<cv-arr>-elem-assign var obj)
   (let* ([type (cgen-type-from-name '<cv-arr>)])
@@ -3382,5 +3403,60 @@ typedef double _double_t;
        (set! mat (cvMat 256 1 type (SCM_UVECTOR_ELEMENTS lut)))
        (cvLUT src dst (& mat)))]
     [else (Scm_Error "<cv-arr> or <uvector> required, but got %S." lut)]))
+
+
+;;--------------
+;;Adding own types
+;;--------------
+
+;;simple API for reading/writing data
+
+(define-cproc cv-save (filename::<const-cstring> 
+                        obj::<top>
+                        :optional
+                        (name (c "SCM_UNDEFINED"))
+                        (comment (c "SCM_UNDEFINED"))) :: <void>
+  (let* ([name-obj::(const char*)]
+         [comment-obj::(const char*)])
+    (undef-or-obj-null-check name name-obj <const-cstring>)
+    (undef-or-obj-null-check comment comment-obj <const-cstring>)
+    (cond
+      [(SCM_ISA obj (& Scm_CvObjectClass))
+       (ENSURE_NOT_NULL (unboxing obj <cv-object>))
+       (cvSave filename (unboxing obj <cv-object>)
+               name-obj comment-obj (cvAttrList NULL NULL))]
+      [else (Scm_Error "Invalid object %S." obj)])))
+
+(define-cproc cv-load (filename::<const-cstring> 
+                        :optional
+                        (storage (c "SCM_UNDEFINED"))
+                        (name (c "SCM_UNDEFINED"))
+                        (real-name (c "SCM_UNDEFINED"))) :: <cv-object>
+  (let* ([storage-obj::CvMemStorage*]
+         [name-obj::(const char*)]
+         [real-name-obj::char**])
+    (undef-or-obj-null-check storage storage-obj <cv-mem-storage>)
+    (undef-or-obj-null-check name name-obj <const-cstring>)
+    ;;TODO
+    ;(undef-or-obj real-name real-name-obj <const-cstring> NULL)
+    (let* ([obj::void* (cvLoad filename storage-obj name-obj 
+                               (cast (const char**) real-name-obj))])
+      (when (zero? obj)
+        (raise-cv-error cv-load "failure load"))
+      (result obj))))
+
+(define-cproc cv-release (obj::<cv-object>)
+  (when obj
+    (cvRelease obj)
+    (set! (SCM_CVOBJECT_DATA obj-scm) 0)))
+
+(define-cproc cv-cast (scm-class::<class> obj::<cv-object>) :: <top>
+  (if (Scm_SubtypeP scm-class SCM_CLASS_FOREIGN_POINTER)
+    (result (Scm_MakeForeignPointer scm-class obj))
+    (let* ([allocator::t_allocator (allocator_getter scm-class)])
+      (if allocator
+        (result (allocator obj))
+        (Scm_Error "invalid cast error.To %S" obj scm-class)))))
+
 
 ;; end:

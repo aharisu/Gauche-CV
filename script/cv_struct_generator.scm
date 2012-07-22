@@ -7,6 +7,9 @@
 (use gauche.cgen)
 (use gauche.parameter)
 
+(define (scm-class-name name) (string-append "SCM_CLASS_" (string-upcase (x->string name))))
+(define (scm-allocator-name name) (string-append "Scm_Make" (x->string name)))
+
 (define (gen-type filename 
                   struct-name-list forign-struct-name-list
                   prologue epilogue)
@@ -50,12 +53,12 @@
         (cgen-extern (format "}~a;" scm-name))
 
         (cgen-extern (format "SCM_CLASS_DECL(Scm_~aClass);" name))
-        (cgen-extern (format "#define SCM_CLASS_~a (&Scm_~aClass)" up-name name))
+        (cgen-extern (format "#define ~a (&Scm_~aClass)" (scm-class-name name) name))
         (cgen-extern (format "#define SCM_~a(obj) ((~a*)(obj))" up-name scm-name))
         (cgen-extern (format "#define SCM_~a_P(obj) SCM_ISA(obj, SCM_CLASS_~a)" up-name up-name))
         (cgen-extern (format "#define SCM_~a_DATA(obj) (SCM_~a(obj)->data)" up-name up-name))
-        (cgen-extern (format "#define SCM_MAKE_~a(data) (Scm_Make~a(data))" up-name name))
-        (cgen-extern (format "extern ScmObj Scm_Make~a(~a~a data);" name name ster))
+        (cgen-extern (format "#define SCM_MAKE_~a(data) (~a(data))" up-name (scm-allocator-name name)))
+        (cgen-extern (format "extern ScmObj ~a(~a~a data);" (scm-allocator-name name) name ster))
         (cgen-extern "")
 
         ;;c file
@@ -71,7 +74,7 @@
           (cgen-body "	}")
           (cgen-body "}"))
 
-        (cgen-body (format "ScmObj Scm_Make~a(~a~a data) {" name name ster))
+        (cgen-body (format "ScmObj ~a(~a~a data) {" (scm-allocator-name name) name ster))
         (cgen-body (format "	~a* obj = SCM_NEW(~a);" scm-name scm-name))
         (cgen-body (format "	SCM_SET_CLASS(obj, SCM_CLASS_~a);" up-name))
         (if (string? finalize)

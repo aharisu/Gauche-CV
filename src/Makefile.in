@@ -53,6 +53,8 @@ all : $(TARGET)
 	cd highgui; $(MAKE) all
 	cd imgproc; $(MAKE) all
 
+only : $(TARGET)
+
 
 #generate sutb -> c file
 .SUFFIXES:.stub .c

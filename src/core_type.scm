@@ -34,6 +34,20 @@
 
 (use file.util)
 
+(define (register-allocator types)
+  (for-each
+    (lambda (t)
+      (when (caddr t)
+        (cgen-init
+          (string-append
+            "allocator_register("
+            (scm-class-name (car t))
+            ",(t_allocator)"
+            (scm-allocator-name (car t))
+            ");"))
+        ))
+    types))
+
 (define (main args)
   (gen-type (simplify-path (path-sans-extension (car args)))
             structs foreign-pointer
@@ -56,8 +70,39 @@
                            CvPoint p1;
                            CvPoint p2;
                            }CvLineSegmentPoint;
+
+                           typedef void* CvObject;
                            ")
-              (cgen-extern ""))
+              (cgen-extern "
+                           typedef ScmObj (*t_allocator)(void*);
+                           t_allocator allocator_getter(ScmClass* klass);
+                           ")
+              (cgen-extern "")
+
+              (cgen-body "
+                         static ScmHashCore allocator_table;
+                         static void allocator_register(ScmClass* klass, t_allocator allocator)
+                         {
+                          ScmDictEntry* e;
+                          e = Scm_HashCoreSearch(&allocator_table, (intptr_t)klass, SCM_DICT_CREATE);
+                          e->value = (intptr_t)allocator;
+                         }
+
+                         t_allocator allocator_getter(ScmClass* klass)
+                         {
+                          ScmDictEntry* e;
+                          e = Scm_HashCoreSearch(&allocator_table, (intptr_t)klass, SCM_DICT_GET);
+                          if(e != NULL)
+                            return (void(*)(void*))SCM_DICT_VALUE(e);
+                          else
+                            return NULL;
+                         }
+                         ")
+
+              (cgen-init "
+                         Scm_HashCoreInitSimple(&allocator_table, SCM_HASH_EQ, 8, NULL);
+                         ")
+              )
             (lambda () ;;epilogue
               (cgen-extern "
 
@@ -142,14 +187,18 @@
                                                                    Scm_ClassOf(SCM_OBJ(SCM_CLASS_CONDITION)),
                                                                    SCM_FALSE,
                                                                    NULL, 0);
-                                      ")))
+                                      ")
+                           (register-allocator structs)
+                           ))
 
-                           0)
+  0)
 
 
 ;;sym-name sym-scm-type pointer? finalize-name finalize-ref
 (define structs 
   '(
+    (CvObject <cv-object> #f #f "") 
+
     (IplImage <iplimage> #t "cvReleaseImage" "&")
     (CvMat <cv-mat> #t "cvReleaseMat" "&")
     (CvMatND <cv-matnd> #t "cvReleaseMatND" "&")
