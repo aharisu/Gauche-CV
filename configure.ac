@@ -94,5 +94,5 @@ AC_MSG_NOTICE([creating ${PACKAGE_NAME}.gpd])
 
 dnl Output
 echo $PACKAGE_VERSION > VERSION
-AC_OUTPUT(Makefile src/Makefile src/highgui/Makefile src/imgproc/Makefile lib/Makefile lib/cv/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/highgui/Makefile src/imgproc/Makefile src/objdetect/Makefile lib/Makefile lib/cv/Makefile)
 

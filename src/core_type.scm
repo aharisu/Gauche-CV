@@ -75,13 +75,14 @@
                            ")
               (cgen-extern "
                            typedef ScmObj (*t_allocator)(void*);
+                           void allocator_register(ScmClass* klass, t_allocator allocator);
                            t_allocator allocator_getter(ScmClass* klass);
                            ")
               (cgen-extern "")
 
               (cgen-body "
                          static ScmHashCore allocator_table;
-                         static void allocator_register(ScmClass* klass, t_allocator allocator)
+                         void allocator_register(ScmClass* klass, t_allocator allocator)
                          {
                           ScmDictEntry* e;
                           e = Scm_HashCoreSearch(&allocator_table, (intptr_t)klass, SCM_DICT_CREATE);
@@ -93,7 +94,7 @@
                           ScmDictEntry* e;
                           e = Scm_HashCoreSearch(&allocator_table, (intptr_t)klass, SCM_DICT_GET);
                           if(e != NULL)
-                            return (void(*)(void*))SCM_DICT_VALUE(e);
+                            return (t_allocator)SCM_DICT_VALUE(e);
                           else
                             return NULL;
                          }

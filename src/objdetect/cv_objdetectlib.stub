@@ -1,0 +1,134 @@
+;;;
+;;; cv_objdetectlib.stub
+;;;
+;;; MIT License
+;;; Copyright 2011-2012 aharisu
+;;; All rights reserved.
+;;;
+;;; Permission is hereby granted, free of charge, to any person obtaining a copy
+;;; of this software and associated documentation files (the "Software"), to deal
+;;; in the Software without restriction, including without limitation the rights
+;;; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+;;; copies of the Software, and to permit persons to whom the Software is
+;;; furnished to do so, subject to the following conditions:
+;;;
+;;; The above copyright notice and this permission notice shall be included in all
+;;; copies or substantial portions of the Software.
+;;;
+;;;
+;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+;;; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+;;; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+;;; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+;;; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+;;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+;;; SOFTWARE.
+;;;
+;;;
+;;; aharisu
+;;; foo.yobina@gmail.com
+;;;
+
+"
+
+#include \"gauche_cv_objdetect.h\"
+#include <opencv2/objdetect/objdetect.hpp>
+
+#include \"../core_type.gen.h\"
+#include \"objdetect_type.gen.h\"
+
+typedef void* _pvoid_t;
+typedef unsigned char _char_t;
+typedef signed char _schar_t;
+typedef signed short _short_t;
+typedef unsigned short _ushort_t;
+typedef int _int_t;
+typedef unsigned int _uint_t;
+typedef float _float_t;
+typedef double _double_t;
+
+"
+
+(include "objdetect_type.gen.stub.header")
+(include "../cv_type.stub.header")
+(include "../core_type.gen.stub.header")
+(include "../macro.stub.header")
+
+(define-cclass <cv-haar-classifier-cascade>
+  :built-in
+  "ScmCvHaarClassifierCascade*" "Scm_CvHaarClassifierCascadeClass"
+  ()
+  (;;slot
+   (count :type <fixnum>
+          :setter #f)
+   (orig-window-size :type <cv-size>
+                     :setter #f)
+   (real-window-size :type <cv-size>
+                     :setter #f)
+   (scale :type <real>
+          :setter #f)
+   ))
+
+(define-cclass <cv-avg-comp>
+  :built-in :struct
+  "ScmCvAvgComp*" "Scm_CvAvgCompClass"
+  ()
+  (;;slot
+   (rect :type <cv-rect>
+         :setter #f)
+   (neighbors :type <int>
+              :setter #f)
+   ))
+
+(define-cproc cv-load-haar-classifier-cascade (directory::<const-cstring> orig-window-size::<cv-size>) :: <cv-haar-classifier-cascade>
+  (result (cvLoadHaarClassifierCascade directory orig-window-size)))
+
+(define-cproc cv-release-haar-classifier-cascade (cascade::<cv-haar-classifier-cascade>) :: <void>
+  (when cascade
+    (cvReleaseHaarClassifierCascade (& cascade))
+    (set! (SCM_CVHAARCLASSIFIERCASCADE_DATA cascade-scm) 0)))
+
+
+(define-enum CV_HAAR_DO_CANNY_PRUNING)
+(define-enum CV_HAAR_SCALE_IMAGE)
+(define-enum CV_HAAR_FIND_BIGGEST_OBJECT)
+(define-enum CV_HAAR_DO_ROUGH_SEARCH)
+
+;;;;;
+;; @param ((min-size (c "SCM_UNDEFINED")) >> (min-size c:null))
+;; @param ((max-size (c "SCM_UNDEFINED")) >> (max-size c:null))
+(define-cproc cv-haar-detect-objects (image::<cv-arr> 
+                                       cascade::<cv-haar-classifier-cascade>
+                                       storage::<cv-mem-storage> 
+                                       :optional
+                                       (scale-factor::<real> 1.1)
+                                       (min-neighbors::<fixnum> 3)
+                                       (flags::<fixnum> 0)
+                                       (min-size (c "SCM_UNDEFINED"))
+                                       (max-size (c "SCM_UNDEFINED"))) :: <cv-seq>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL cascade)
+  (ENSURE_NOT_NULL storage)
+  (let* ([min-size-obj::CvSize]
+         [max-size-obj::CvSize])
+    (undef-or-obj min-size min-size-obj <cv-size> (cvSize 0 0))
+    (undef-or-obj max-size max-size-obj <cv-size> (cvSize 0 0))
+    (result (cvHaarDetectObjects image cascade storage scale-factor min-neighbors flags min-size-obj max-size-obj))))
+                                       
+(define-cproc cv-set-images-for-haar-classifier-cascade (cascade::<cv-haar-classifier-cascade>
+                                                          sum::<cv-arr> sqsum::<cv-arr>
+                                                          tilted-sum::<cv-arr> scale::<real>) :: <void>
+  (ENSURE_NOT_NULL cascade)
+  (ENSURE_NOT_NULL sum)
+  (ENSURE_NOT_NULL sqsum)
+  (ENSURE_NOT_NULL tilted-sum)
+  (cvSetImagesForHaarClassifierCascade cascade sum sqsum tilted-sum scale))
+
+(define-cproc cv-run-haar-classifier-cascade (cascade::<cv-haar-classifier-cascade>
+                                               pt::<cv-point>
+                                               :optional
+                                               (start-stage::<fixnum> 0)) :: <int>
+  (ENSURE_NOT_NULL cascade)
+  (result (cvRunHaarClassifierCascade cascade pt start-stage)))
+
+

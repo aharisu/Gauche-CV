@@ -52,6 +52,7 @@ cv_CORE_SRCS = gauche_cv_core.c \
 all : $(TARGET)
 	cd highgui; $(MAKE) all
 	cd imgproc; $(MAKE) all
+	cd objdetect; $(MAKE) all
 
 only : $(TARGET)
 
@@ -80,35 +81,42 @@ check :
 	$(GOSH) -I. -I$(srcdir) test.scm > test.log
 	cd highgui; $(MAKE) check
 	cd imgproc; $(MAKE) check
+	cd objdetect; $(MAKE) check
 
 install :
 	$(INSTALL) -m 555 -T $(GAUCHE_PKGARCHDIR) $(ARCHFILES)
 	cd highgui; $(MAKE) install
 	cd imgproc; $(MAKE) install
+	cd objdetect; $(MAKE) install
 
 uninstall :
 	$(INSTALL) -U $(GAUCHE_PKGARCHDIR) $(ARCHFILES)
 	cd highgui; $(MAKE) uninstall
 	cd imgproc; $(MAKE) uninstall
+	cd objdetect; $(MAKE) uninstall
 
 clean :
 	$(GAUCHE_PACKAGE) compile --clean $(cv_CORE_SRCS) 
 	rm -rf $(TARGET) $(GENERATED) *~ test.log so_locations
 	cd highgui; $(MAKE) clean
 	cd imgproc; $(MAKE) clean
+	cd objdetect; $(MAKE) clean
 
 distclean : clean
 	rm -rf $(CONFIG_GENERATED)
 	cd highgui; $(MAKE) distclean
 	cd imgproc; $(MAKE) distclean
+	cd objdetect; $(MAKE) distclean
 
 maintainer-clean : clean
 	rm -rf $(CONFIG_GENERATED) configure VERSION
 	cd highgui; $(MAKE) maintainer-clean
 	cd imgproc; $(MAKE) maintainer-clean
+	cd objdetect; $(MAKE) maintainer-clean
 
 collect :
 	@if test "$(ARCHFILES)" != ""; then (cp -p -u $(ARCHFILES) $(OUTDIR)/dll/); fi
 	cd highgui; $(MAKE) collect
 	cd imgproc; $(MAKE) collect
+	cd objdetect; $(MAKE) collect
 

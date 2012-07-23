@@ -1418,6 +1418,50 @@ typedef double _double_t;
                    (result (SCM_OBJ (SCM_MAKE_CVPOINT3D32F (* pt)))))
                  (result (SCM_OBJ (CV_GET_SEQ_ELEM _pvoid_t seq index)))))
 
+"
+typedef struct struct_4Byte { int v1; }struct_4Byte;
+typedef struct obj_4Byte { SCM_HEADER; struct_4Byte v; }obj_4Byte;
+
+typedef struct struct_8Byte { int v1,v2; }struct_8Byte;
+typedef struct obj_8Byte{ SCM_HEADER; struct_8Byte v; }obj_8Byte;
+
+typedef struct struct_12Byte{ int v1,v2,v3; }struct_12Byte;
+typedef struct obj_12Byte{ SCM_HEADER; struct_12Byte v; }obj_12Byte;
+
+typedef struct struct_16Byte{ int v1,v2,v3,v4; }struct_16Byte;
+typedef struct obj_16Byte{ SCM_HEADER; struct_16Byte v; }obj_16Byte;
+
+typedef struct struct_20Byte{ int v1,v2,v3,v4,v5; }struct_20Byte;
+typedef struct obj_20Byte{ SCM_HEADER; struct_20Byte v; }obj_20Byte;
+
+typedef struct struct_24Byte{ int v1,v2,v3,v4,v5; }struct_24Byte;
+typedef struct obj_24Byte{ SCM_HEADER; struct_24Byte v; }obj_24Byte;
+"
+
+(define-cise-stmt (elem-size-cast byte)
+  `(begin
+     (set! src (cast _int_t* (CV_GET_SEQ_ELEM 
+                               ,(string->symbol (string-append "struct_" byte))
+                               seq index)))
+     (set! obj (SCM_OBJ (SCM_NEW ,(string->symbol (string-append "obj_" byte)))))
+     (set! dst (cast _int_t* (& (-> (cast ,(string->symbol (string-append "obj_" byte "*")) obj) v))))))
+
+(define-cproc cv-get-seq-elem-cast (to-class::<class> seq::<cv-seq> index::<fixnum>)::<top>
+  (let* ([obj::ScmObj]
+         [src::_int_t*]
+         [dst::_int_t*])
+    (case (@ seq->elem_size)
+      [(4) (elem-size-cast "4Byte")]
+      [(8) (elem-size-cast "8Byte")]
+      [(12) (elem-size-cast "12Byte")]
+      [(16) (elem-size-cast "16Byte")]
+      [(20)(elem-size-cast "20Byte")]
+      [(24) (elem-size-cast "24Byte")])
+    (dotimes [i (/ (@ seq->elem_size) 4)]
+      (set! (aref dst i) (aref src i)))
+    (SCM_SET_CLASS obj to-class)
+    (result obj)))
+
 ;;;;;
 ;; Calculates index of the specified sequence element.
 ;; Returns -1 if element does not belong to the sequence
@@ -3411,6 +3455,9 @@ typedef double _double_t;
 
 ;;simple API for reading/writing data
 
+;;;;;
+;; @param ((name (c "SCM_UNDEFINED")) >> (name c:null))
+;; @param ((comment (c "SCM_UNDEFINED")) >> (comment c:null))
 (define-cproc cv-save (filename::<const-cstring> 
                         obj::<top>
                         :optional
@@ -3427,6 +3474,10 @@ typedef double _double_t;
                name-obj comment-obj (cvAttrList NULL NULL))]
       [else (Scm_Error "Invalid object %S." obj)])))
 
+;;;;;
+;; @param ((storage (c "SCM_UNDEFINED")) >> (storage c:null))
+;; @param ((name (c "SCM_UNDEFINED")) >> (name c:null))
+;; @param ((real-name (c "SCM_UNDEFINED")) >> (real-name c:null))
 (define-cproc cv-load (filename::<const-cstring> 
                         :optional
                         (storage (c "SCM_UNDEFINED"))
@@ -3442,7 +3493,7 @@ typedef double _double_t;
     (let* ([obj::void* (cvLoad filename storage-obj name-obj 
                                (cast (const char**) real-name-obj))])
       (when (zero? obj)
-        (raise-cv-error cv-load "failure load"))
+        (raise-cv-error cv-load "load failure"))
       (result obj))))
 
 (define-cproc cv-release (obj::<cv-object>)
@@ -3450,13 +3501,15 @@ typedef double _double_t;
     (cvRelease obj)
     (set! (SCM_CVOBJECT_DATA obj-scm) 0)))
 
-(define-cproc cv-cast (scm-class::<class> obj::<cv-object>) :: <top>
-  (if (Scm_SubtypeP scm-class SCM_CLASS_FOREIGN_POINTER)
-    (result (Scm_MakeForeignPointer scm-class obj))
-    (let* ([allocator::t_allocator (allocator_getter scm-class)])
+;;;;;
+;; type cast <cv-object> instance to 'to-class' class instance.
+(define-cproc cv-cast (to-class::<class> cv-object::<cv-object>) :: <top>
+  (if (Scm_SubtypeP to-class SCM_CLASS_FOREIGN_POINTER)
+    (result (Scm_MakeForeignPointer to-class cv-object))
+    (let* ([allocator::t_allocator (allocator_getter to-class)])
       (if allocator
-        (result (allocator obj))
-        (Scm_Error "invalid cast error.To %S" obj scm-class)))))
+        (result (allocator cv-object))
+        (Scm_Error "invalid cast error.To %S" cv-object to-class)))))
 
 
 ;; end:

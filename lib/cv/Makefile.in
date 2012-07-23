@@ -26,8 +26,8 @@ OUTDIR = "@OUTDIR@"
 
 
 
-SCMFILES = core.scm highgui.scm imgproc.scm 
-GENERATED = core.scm highgui.scm imgproc.scm 
+SCMFILES = core.scm highgui.scm imgproc.scm objdetect.scm
+GENERATED = core.scm highgui.scm imgproc.scm objdetect.scm
 
 CONFIG_GENERATED = Makefile
 
@@ -41,6 +41,9 @@ highgui.scm: $(STUBDIR)/highgui/cv_highguilib.stub highgui.template
 
 imgproc.scm: $(STUBDIR)/imgproc/cv_imgproclib.stub imgproc.template
 	$(GOSH) -I$(SCRIPTDIR) $(GENDOC) -s $(STUBDIR)/imgproc/cv_imgproclib.stub -t imgproc.template -o imgproc.scm
+
+objdetect.scm: $(STUBDIR)/objdetect/cv_objdetectlib.stub objdetect.template
+	$(GOSH) -I$(SCRIPTDIR) $(GENDOC) -s $(STUBDIR)/objdetect/cv_objdetectlib.stub -t objdetect.template -o objdetect.scm
 
 test :
 
