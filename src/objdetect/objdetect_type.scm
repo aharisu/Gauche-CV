@@ -66,11 +66,12 @@
   '(
     (CvHaarClassifierCascade <cv-haar-classifier-cascade> #t "cvReleaseHaarClassifierCascade" "&")
     (CvAvgComp <cv-avg-comp> #f #f "")
+    (CvLSVMFilterPosition <cv-lsvm-filter-position> #f #f "")
+    (CvLatentSvmDetector <cv-latent-svm-detector> #t "cvReleaseLatentSvmDetector" "&")
+    (CvObjectDetection <cv-object-detection> #f #f "")
     ))
 
 ;;sym-name sym-scm-type ponter? finalize finalize-ref
 (define foreign-pointer 
   '(
-    ;(IplConvKernel <iplconv-kernel> #t "cvReleaseStructuringElement" "&")
-
     ))

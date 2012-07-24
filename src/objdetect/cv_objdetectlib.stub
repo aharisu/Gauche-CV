@@ -78,7 +78,10 @@ typedef double _double_t;
          :setter #f)
    (neighbors :type <int>
               :setter #f)
-   ))
+   )
+  (printer #t)
+  (compare #t)
+  )
 
 (define-cproc cv-load-haar-classifier-cascade (directory::<const-cstring> orig-window-size::<cv-size>) :: <cv-haar-classifier-cascade>
   (result (cvLoadHaarClassifierCascade directory orig-window-size)))
@@ -130,5 +133,98 @@ typedef double _double_t;
                                                (start-stage::<fixnum> 0)) :: <int>
   (ENSURE_NOT_NULL cascade)
   (result (cvRunHaarClassifierCascade cascade pt start-stage)))
+
+
+;****************************************************************************************\
+;*                         Latent SVM Object Detection functions                          *
+;****************************************************************************************/
+
+;;;;;
+;;@slot l level in the feature pyramid
+(define-cclass <cv-lsvm-filter-position> 
+  :built-in :struct
+  "ScmCvLSVMFilterPosition*" "Scm_CvLSVMFilterPositionClass"
+  ()
+  (;;slot
+   (x :type <int>
+         :setter #f)
+   (y :type <int>
+         :setter #f)
+   (l :type <int>
+         :setter #f)
+   )
+  (printer #t)
+  (compare #t)
+  )
+
+;;;;;
+;;structure contains internal representation of trained Latent SVM detector
+;;@slot num-filters total number of filters (root plus part) in model 
+;;@slot num-components number of components in model
+;;@slot score-threshold confidence level threshold
+(define-cclass <cv-latent-svm-detector>
+  :built-in
+  "ScmCvLatentSvmDetector*" "Scm_CvLatentSvmDetectorClass"
+  ()
+  (;;slot
+   (num-filters :type <fixnum>
+                :setter #f)
+   (num-components :type <fixnum> 
+                   :setter #f)
+   (score-threshold :type <real>
+                    :setter #f)
+   )
+  (printer #t)
+  (compare #t)
+  )
+
+;;;;;
+;;@slot rect bounding box for a detected object
+;;@slot score confidence level
+(define-cclass <cv-object-detection>
+  :built-in :struct
+  "ScmCvObjectDetection*" "Scm_CvObjectDetectionClass"
+  ()
+  (;;slot
+   (rect :type <cv-rect>
+         :setter #f)
+   (score :type <real>
+          :setter #f)
+   )
+  (printer #t)
+  (compare #t)
+  )
+
+;;;;;
+;;load trained detector from a file
+;;@param filename path to the file containing the parameters of trained Latent SVM detector
+;;@return trained Latent SVM detector in internal representation
+(define-cproc cv-load-latent-svm-detector (filename::<const-cstring>) :: <cv-latent-svm-detector>
+  (result (cvLoadLatentSvmDetector filename)))
+
+;;;;;
+;;release memory allocated for CvLatentSvmDetector structure
+;;@param detect <cv-latent-svm-detector> structure to be released
+(define-cproc cv-release-latent-svm-detector (detector::<cv-latent-svm-detector>) :: <void>
+  (when detector
+    (cvReleaseLatentSvmDetector (& detector))
+    (set! (SCM_CVLATENTSVMDETECTOR_DATA detector-scm) 0)))
+
+;;;;;
+;;find rectangular regions in the given image that are likely 
+;;to contain objects and corresponding confidence levels
+;;@param image image to detect objects in
+;;@param detector Latent SVM detector in internal representation
+;;@param storage memory storage to store the resultant sequence of the object candidate rectangles
+;;@param overlap-threshold threshold for the non-maximum suppression algorithm = 0.5f [here will be the reference to original paper]
+(define-cproc cv-latent-svm-detect-objects (image::<iplimage>
+                                             detector::<cv-latent-svm-detector>
+                                             storage::<cv-mem-storage>
+                                             :optional
+                                             (overlap-threshold::<real> 0.5)) :: <cv-seq>
+  (ENSURE_NOT_NULL image)
+  (ENSURE_NOT_NULL detector)
+  (ENSURE_NOT_NULL storage)
+  (result (cvLatentSvmDetectObjects image detector storage overlap-threshold)))
 
 
