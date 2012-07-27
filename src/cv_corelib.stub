@@ -430,6 +430,14 @@ typedef double _double_t;
   (ENSURE_NOT_NULL mat)
   (result (cvCloneMat mat)))
 
+(define-cproc cv-m-get (mat::<cv-mat> row::<fixnum> col::<fixnum>) :: <real>
+  (ENSURE_NOT_NULL mat)
+  (result (cvmGet mat row col)))
+
+(define-cproc cv-m-set (mat::<cv-mat> row::<fixnum> col::<fixnum> value::<real>) :: <void>
+  (ENSURE_NOT_NULL mat)
+  (cvmSet mat row col value))
+
 ;;;;;
 ;; Makes a new matrix from <cv-rect> subrectangle of input array.
 ;; No data is copied
