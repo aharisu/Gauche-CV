@@ -3498,7 +3498,7 @@ typedef struct { SCM_HEADER; struct_32Byte v; }obj_32Byte;
                         (real-name (c "SCM_UNDEFINED"))) :: <cv-object>
   (let* ([storage-obj::CvMemStorage*]
          [name-obj::(const char*)]
-         [real-name-obj::char**])
+         [real-name-obj::char** NULL])
     (undef-or-obj-null-check storage storage-obj <cv-mem-storage>)
     (undef-or-obj-null-check name name-obj <const-cstring>)
     ;;TODO
