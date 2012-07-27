@@ -221,10 +221,13 @@ typedef double _double_t;
                                              detector::<cv-latent-svm-detector>
                                              storage::<cv-mem-storage>
                                              :optional
-                                             (overlap-threshold::<real> 0.5)) :: <cv-seq>
+                                             (overlap-threshold::<real> 0.5)
+                                             (num-threads::<fixnum> -1)) :: <cv-seq>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL detector)
   (ENSURE_NOT_NULL storage)
-  (result (cvLatentSvmDetectObjects image detector storage overlap-threshold)))
+  (.if OPENCV2_2
+       (result (cvLatentSvmDetectObjects image detector storage overlap-threshold))
+       (result (cvLatentSvmDetectObjects image detector storage overlap-threshold num-threads))))
 
 

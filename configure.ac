@@ -62,7 +62,20 @@ PKG_PROG_PKG_CONFIG()
 
 dnl Check for libraries
 dnl Add your macro calls to check required libraries, if you have any.
-PKG_CHECK_MODULES([OPENCV], [opencv])
+PKG_CHECK_MODULES([OPENCV],[opencv])
+case `pkg-config --modversion opencv` in
+  2.2.*)
+    OPENCV_VERSION=OPENCV2_2
+  ;;
+  2.3.*)
+    OPENCV_VERSION=OPENCV2_3
+  ;;
+  *)
+    AC_MSG_ERROR([The version of the OpenCV does not support])
+  ;;
+esac
+AC_SUBST(OPENCV_VERSION)
+
 AC_SUBST(OPENCV_CFLAGS)
 AC_SUBST(OPENCV_LIBS)
 

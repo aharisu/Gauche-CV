@@ -17,7 +17,7 @@ GAUCHE_PACKAGE = "@GAUCHE_PACKAGE@"
 INSTALL        = "@GAUCHE_INSTALL@" -C
 
 # Other parameters
-OPENCV_CFLAGS = @OPENCV_CFLAGS@
+OPENCV_CFLAGS=@OPENCV_CFLAGS@
 OPENCV_LIBS = @OPENCV_LIBS@
 SOEXT  = @SOEXT@
 OBJEXT = @OBJEXT@
@@ -25,7 +25,9 @@ EXEEXT = @EXEEXT@
 COREDIR = @COREDIR@
 LOCAL_PATHS = "@LOCAL_PATHS@"
 
-core_LIBS = @CORE_LIBS@
+OPENCV_VERSION=-D@OPENCV_VERSION@=1
+
+core_LIBS=@CORE_LIBS@
 
 # Module-specific stuff
 PACKAGE   = gauche-cv-objdetect
@@ -77,7 +79,7 @@ gauche_cv_objdetect.$(SOEXT): $(cv_objdetect_SRCS) $(cv_TYPE_HDRS)
 	$(GAUCHE_PACKAGE) compile \
 	  --local=$(LOCAL_PATHS)	\
 		--verbose \
-		--cflags="$(OPENCV_CFLAGS)" \
+		--cflags="$(OPENCV_VERSION) $(OPENCV_CFLAGS)" \
 		--ldflags="$(COREDIR)" \
 		--libs="$(OPENCV_LIBS) $(core_LIBS)" \
 		gauche_cv_objdetect \
