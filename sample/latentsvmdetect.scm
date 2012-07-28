@@ -1,6 +1,8 @@
 (use cv)
 (use cv.objdetect)
 
+;;tbb not support
+
 (let* ([image (cv-load-image "data/image/cat.jpg")]
        [detector (cv-load-latent-svm-detector "data/data/cat.xml")]
        [storage (make-cv-mem-storage)]

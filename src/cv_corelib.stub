@@ -47,6 +47,43 @@ typedef float _float_t;
 typedef double _double_t;
 
 "
+(define-type
+	<cv-object>
+	"CvObject"
+	"CvObject"
+	"SCM_CVOBJECT_P"
+	"SCM_CVOBJECT_DATA"
+	"SCM_MAKE_CVOBJECT")
+
+(define-type
+	<cv-struct>
+	"CvStruct"
+	"CvStruct"
+	"SCM_CVSTRUCT_P"
+	"SCM_CVSTRUCT_DATA"
+	"SCM_MAKE_CVSTRUCT")
+
+;;---------------
+;; CvObject
+;;
+(define-cclass <cv-object>
+  :built-in :struct
+  "ScmCvObject" "Scm_CvObjectClass"
+  ()
+  (;;slot
+   )
+  )
+
+;;---------------
+;; CvStruct
+;;
+(define-cclass <cv-struct>
+  :built-in :struct
+  "ScmCvStruct" "Scm_CvStructClass"
+  ()
+  (;;slot
+   )
+  )
 
 (include "cv_type.stub.header")
 (include "core_type.gen.stub.header")
@@ -64,16 +101,20 @@ typedef double _double_t;
          ,(symbol->string func-name) ,msg)]
   )
 
-;;---------------
-;; CvRNG
-;;
-(define-cclass <cv-object>
-  :built-in
-  "ScmCvObject" "Scm_CvObjectClass"
-  ()
-  (;;slot
-   )
-  )
+(define-cproc cv-round (value::<real>) :: <int>
+  (result (cvRound value)))
+
+(define-cproc cv-floor (value::<real>) :: <int>
+  (result (cvFloor value)))
+
+(define-cproc cv-ceil (value::<real>)::<int>
+  (result (cvCeil value)))
+
+(define-cproc cv-is-nan? (value::<real>)::<boolean>
+  (result (cvIsNaN value)))
+
+(define-cproc cv-is-inf? (value::<real>)::<boolean>
+  (result (cvIsInf value)))
 
 
 ;;--------------------------------------
@@ -155,7 +196,7 @@ typedef double _double_t;
 (define-cclass <cv-rng>
   :built-in
   "ScmCvRNG" "Scm_CvRNGClass"
-  ()
+  ("Scm_CvObjectClass")
   (;;slot
    )
   )
@@ -181,7 +222,7 @@ typedef double _double_t;
 (define-cclass <cv-rect>
   :built-in :struct
   "ScmCvRect" "Scm_CvRectClass"
-  ()
+  ("Scm_CvObjectClass")
   (;;slot
    (x :type <fixnum>)
    (y :type <fixnum>)
@@ -190,6 +231,7 @@ typedef double _double_t;
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvRect")
   )
 
 (define-cproc make-cv-rect (x::<int> y::<int> width::<int> height::<int>)::<cv-rect>
@@ -676,7 +718,7 @@ typedef double _double_t;
 (define-cclass <cv-histogram>
   :built-in
   "ScmCvHistogram*" "Scm_CvHistogramClass"
-  () ;cpa
+  ("Scm_CvObjectClass") ;cpa
   (;;slot
    (bins :type <cv-arr>
          :getter "ENSURE_NOT_NULL(obj) 
@@ -711,7 +753,7 @@ typedef double _double_t;
 (define-cclass <cv-term-criteria>
   :built-in :struct
   "ScmCvTermCriteria" "Scm_CvTermCriteriaClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (type	:type <int>)
    (max-iter :type <int>
@@ -720,6 +762,7 @@ typedef double _double_t;
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvTermCriteria")
   )
 
 (define-cproc make-cv-term-criteria (type::<int> max-iter::<int> epsilon::<double>) ::<cv-term-criteria>
@@ -732,13 +775,14 @@ typedef double _double_t;
 (define-cclass <cv-point>
   :built-in :struct
   "ScmCvPoint" "Scm_CvPointClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (x :type <int>)
    (y :type <int>)
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvPoint")
   )
 (define-cproc make-cv-point (x::<int> y::<int>) ::<cv-point>
   (call "cvPoint"))
@@ -749,13 +793,14 @@ typedef double _double_t;
 (define-cclass <cv-point-2d32f>
   :built-in :struct
   "ScmCvPoint2D32f" "Scm_CvPoint2D32fClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (x :type <float>)
    (y :type <float>)
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvPoint2D32f")
   )
 (define-cproc make-cv-point-2d32f (x::<float> y::<float>) ::<cv-point-2d32f>
   (call "cvPoint2D32f"))
@@ -766,7 +811,7 @@ typedef double _double_t;
 (define-cclass <cv-point-3d32f>
   :built-in :struct
   "ScmCvPoint3D32f" "Scm_CvPoint3D32fClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (x :type <float>)
    (y :type <float>)
@@ -774,6 +819,7 @@ typedef double _double_t;
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvPoint3D32f")
   )
 (define-cproc make-cv-point-3d32f (x::<float> y::<float> z::<float>) ::<cv-point-3d32f>
   (call "cvPoint3D32f"))
@@ -784,13 +830,14 @@ typedef double _double_t;
 (define-cclass <cv-point-2d64f>
   :built-in :struct
   "ScmCvPoint2D64f" "Scm_CvPoint2D64fClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (x :type <double>)
    (y :type <double>)
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvPoint2D64f")
   )
 (define-cproc make-cv-point-2d64f (x::<double> y::<double>) ::<cv-point-2d64f>
   (call "cvPoint2D64f"))
@@ -801,7 +848,7 @@ typedef double _double_t;
 (define-cclass <cv-point-3d64f>
   :built-in :struct
   "ScmCvPoint3D64f" "Scm_CvPoint3D64fClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (x :type <double>)
    (y :type <double>)
@@ -809,6 +856,7 @@ typedef double _double_t;
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvPoint3D64f")
   )
 (define-cproc make-cv-point-3d64f (x::<double> y::<double> z::<double>) ::<cv-point-3d64f>
   (call "cvPoint3D64f"))
@@ -819,13 +867,14 @@ typedef double _double_t;
 (define-cclass <cv-size>
   :built-in :struct
   "ScmCvSize" "Scm_CvSizeClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (width :type <int>)
    (height :type <int>)
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvSize")
   )
 (define-cproc make-cv-size (width::<int> height::<int>) ::<cv-size>
   (call "cvSize"))
@@ -836,13 +885,14 @@ typedef double _double_t;
 (define-cclass <cv-size-2d32f>
   :built-in :struct
   "ScmCvSize2D32f" "Scm_CvSize2D32fClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (width :type <float>)
    (height :type <float>)
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvSize2D32f")
   )
 (define-cproc make-cv-size-2d32f (width::<float> height::<float>) ::<cv-size-2d32f>
   (call "cvSize2D32f"))
@@ -858,7 +908,7 @@ typedef double _double_t;
 (define-cclass <cv-box-2d>
   :built-in :struct
   "ScmCvBox2D" "Scm_CvBox2DClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (center :type <cv-point-2d32f>)
    (size :type <cv-size-2d32f>)
@@ -866,6 +916,7 @@ typedef double _double_t;
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvBox2D")
   )
 (define-cproc make-cv-box-2d (center::<cv-point-2d32f> size::<cv-size-2d32f> angle::<float>) ::<cv-box-2d>
   (body <cv-box-2d>
@@ -879,7 +930,7 @@ typedef double _double_t;
 (define-cclass <cv-slice>
   :built-in :struct
   "ScmCvSlice" "Scm_CvSliceClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (start :type <fixnum>
           :c-name "start_index")
@@ -888,6 +939,7 @@ typedef double _double_t;
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvSlice")
   )
 (define-cproc make-cv-slice (start::<fixnum> end::<fixnum>) ::<cv-slice>
   (call "cvSlice"))
@@ -900,7 +952,7 @@ typedef double _double_t;
 (define-cclass <cv-scalar>
   :built-in :struct
   "ScmCvScalar" "Scm_CvScalarClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (val0 :type <double>
          :c-name "val[0]")
@@ -913,6 +965,7 @@ typedef double _double_t;
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvScalar")
   )
 
 (define-cproc make-cv-scalar (val0::<double> :optional
@@ -932,11 +985,15 @@ typedef double _double_t;
 (define-cclass <cv-line-segment-polar>
   :built-in :struct
   "ScmCvLineSegmentPolar" "Scm_CvLineSegmentPolarClass"
-  ()
+  ("Scm_CvStructClass")
   (
    (rho :type <real>)
    (theta :type <real>)
-   ))
+   )
+  (printer #t)
+  (compare #t)
+  (c-core-type "CvLineSegmentPolar")
+  )
 
 (define-cproc make-cv-line-segment-polar (rho::<real> theta::<real>) :: <cv-line-segment-polar>
   (let* ([v :: CvLineSegmentPolar])
@@ -950,11 +1007,15 @@ typedef double _double_t;
 (define-cclass <cv-line-segment-point>
   :built-in :struct
   "ScmCvLineSegmentPoint" "Scm_CvLineSegmentPointClass"
-  ()
+  ("Scm_CvStructClass")
   (
    (p1 :type <cv-point>)
    (p2 :type <cv-point>)
-   ))
+   )
+  (printer #t)
+  (compare #t)
+  (c-core-type "CvLineSegmentPoint")
+  )
 
 (define-cproc make-cv-line-segment-point (p1::<cv-point> p2::<cv-point>) :: <cv-line-segment-point>
   (let* ([v :: CvLineSegmentPoint])
@@ -1024,7 +1085,7 @@ typedef double _double_t;
 (define-cclass <cv-seq-block>
   :built-in
   "ScmCvSeqBlock*" "Scm_CvSeqBlockClass"
-  ()
+  ("Scm_CvObjectClass")
   (;;slot
    (prev :type <cv-seq-block>
          :setter #f)
@@ -1092,6 +1153,10 @@ typedef double _double_t;
            "
            :c-name "v_next")
    (total	:type <fixnum>
+                :setter #f)
+   (elem-size :type <fixnum>
+              :setter #f)
+   (delta-elems :type <fixnum>
                 :setter #f)
    ))
 
@@ -1427,53 +1492,82 @@ typedef double _double_t;
                  (result (SCM_OBJ (CV_GET_SEQ_ELEM _pvoid_t seq index)))))
 
 "
-typedef struct { int v[1]; }struct_4Byte;
-typedef struct { SCM_HEADER; struct_4Byte v; }obj_4Byte;
-
-typedef struct { int v[2]; }struct_8Byte;
-typedef struct { SCM_HEADER; struct_8Byte v; }obj_8Byte;
-
-typedef struct { int v[3]; }struct_12Byte;
-typedef struct { SCM_HEADER; struct_12Byte v; }obj_12Byte;
-
-typedef struct { int v[4]; }struct_16Byte;
-typedef struct { SCM_HEADER; struct_16Byte v; }obj_16Byte;
-
-typedef struct { int v[5]; }struct_20Byte;
-typedef struct { SCM_HEADER; struct_20Byte v; }obj_20Byte;
-
-typedef struct { int v[6]; }struct_24Byte;
-typedef struct { SCM_HEADER; struct_24Byte v; }obj_24Byte;
-
-typedef struct { int v[7] }struct_28Byte;
-typedef struct { SCM_HEADER; struct_28Byte v; }obj_28Byte;
-
-typedef struct { int v[8]; }struct_32Byte;
-typedef struct { SCM_HEADER; struct_32Byte v; }obj_32Byte;
+#define def_byte_struct(num) \
+  typedef struct { char v[num]; }struct_##num##Byte; \
+  typedef struct { SCM_HEADER; struct_##num##Byte v; }obj_##num##Byte;
+def_byte_struct(4)
+def_byte_struct(8)
+def_byte_struct(12)
+def_byte_struct(16)
+def_byte_struct(20)
+def_byte_struct(24)
+def_byte_struct(28)
+def_byte_struct(32)
+def_byte_struct(36)
+def_byte_struct(40)
+def_byte_struct(44)
+def_byte_struct(48)
+def_byte_struct(52)
+def_byte_struct(56)
+def_byte_struct(60)
 "
-
-(define-cise-stmt (elem-size-cast byte)
+(define-cise-stmt (elem-size-cast byte src-setter)
   `(begin
-     (set! src (CV_GET_SEQ_ELEM ,(string->symbol (string-append "struct_" byte)) seq index))
+     (,src-setter src ,(string->symbol (string-append "struct_" byte)))
      (set! obj (SCM_OBJ (SCM_NEW ,(string->symbol (string-append "obj_" byte)))))
      (set! dst (& (-> (cast ,(string->symbol (string-append "obj_" byte "*")) obj) v)))))
 
+(define-cise-stmt (object-cast to-class elem-size src-setter)
+  `(if (Scm_SubtypeP ,to-class SCM_CLASS_CVOBJECT)
+     (let* ([obj::ScmCvObject* (SCM_NEW ScmCvObject)])
+       (case ,elem-size
+         [(4) (,src-setter (@ obj->data) struct_4Byte)]
+         [(8) (,src-setter (@ obj->data) struct_8Byte)]
+         [(12) (,src-setter (@ obj->data) struct_12Byte)]
+         [(16) (,src-setter (@ obj->data) struct_16Byte)]
+         [(20) (,src-setter (@ obj->data) struct_20Byte)]
+         [(24) (,src-setter (@ obj->data) struct_24Byte)]
+         [(28) (,src-setter (@ obj->data) struct_28Byte)]
+         [(32) (,src-setter (@ obj->data) struct_32Byte)]
+         [(36) (,src-setter (@ obj->data) struct_36Byte)]
+         [(40) (,src-setter (@ obj->data) struct_40Byte)]
+         [(44) (,src-setter (@ obj->data) struct_44Byte)]
+         [(48) (,src-setter (@ obj->data) struct_48Byte)]
+         [(52) (,src-setter (@ obj->data) struct_52Byte)]
+         [(58) (,src-setter (@ obj->data) struct_56Byte)]
+         [(60) (,src-setter (@ obj->data) struct_60Byte)]
+         [else (Scm_Error "Can't be cast object")])
+       (SCM_SET_CLASS obj ,to-class)
+       (return (SCM_OBJ obj)))
+     (let* ([obj::ScmObj]
+            [src::_pvoid_t]
+            [dst::_pvoid_t])
+       (case ,elem-size
+         [(4) (elem-size-cast "4Byte" ,src-setter)]
+         [(8) (elem-size-cast "8Byte" ,src-setter)]
+         [(12) (elem-size-cast "12Byte" ,src-setter)]
+         [(16) (elem-size-cast "16Byte" ,src-setter)]
+         [(20) (elem-size-cast "20Byte" ,src-setter)]
+         [(24) (elem-size-cast "24Byte" ,src-setter)]
+         [(28) (elem-size-cast "28Byte" ,src-setter)]
+         [(32) (elem-size-cast "32Byte" ,src-setter)]
+         [(36) (elem-size-cast "36Byte" ,src-setter)]
+         [(40) (elem-size-cast "40Byte" ,src-setter)]
+         [(44) (elem-size-cast "44Byte" ,src-setter)]
+         [(48) (elem-size-cast "48Byte" ,src-setter)]
+         [(52) (elem-size-cast "52Byte" ,src-setter)]
+         [(56) (elem-size-cast "56Byte" ,src-setter)]
+         [(60) (elem-size-cast "60Byte" ,src-setter)]
+         [else (Scm_Error "Can't be cast object")])
+       (memcpy dst src ,elem-size)
+       (SCM_SET_CLASS obj ,to-class)
+       (return obj))))
+
+(define-cise-stmt (cv-get-seq-elem-setter src type)
+  `(set! ,src (CV_GET_SEQ_ELEM ,type seq index)))
+
 (define-cproc cv-get-seq-elem-cast (to-class::<class> seq::<cv-seq> index::<fixnum>)::<top>
-  (let* ([obj::ScmObj]
-         [src::_pvoid_t]
-         [dst::_pvoid_t])
-    (case (@ seq->elem_size)
-      [(4) (elem-size-cast "4Byte")]
-      [(8) (elem-size-cast "8Byte")]
-      [(12) (elem-size-cast "12Byte")]
-      [(16) (elem-size-cast "16Byte")]
-      [(20) (elem-size-cast "20Byte")]
-      [(24) (elem-size-cast "24Byte")]
-      [(28) (elem-size-cast "28Byte")]
-      [(32) (elem-size-cast "32Byte")])
-    (memcpy dst src (@ seq->elem_size))
-    (SCM_SET_CLASS obj to-class)
-    (result obj)))
+  (object-cast to-class (@ seq->elem_size) cv-get-seq-elem-setter))
 
 ;;;;;
 ;; Calculates index of the specified sequence element.
@@ -1539,7 +1633,7 @@ typedef struct { SCM_HEADER; struct_32Byte v; }obj_32Byte;
 ;; The sequence can be read in forward or backward direction
 (define-cproc cv-start-read-seq (seq::<cv-seq>
                                   :optional (reverse::<boolean> #f)) ::<cv-seq-reader>
-  (let* ([reader::CvSeqReader* (SCM_MALLOC (sizeof reader))])
+  (let* ([reader::CvSeqReader* (SCM_NEW CvSeqReader)])
     (cvStartReadSeq seq reader reverse)
     (result reader)))
 
@@ -1564,6 +1658,8 @@ typedef struct { SCM_HEADER; struct_32Byte v; }obj_32Byte;
 ;; Move reader position backward
 (define-cproc cv-prev-seq-elem (reader::<cv-seq-reader>) ::<void>
   (CV_PREV_SEQ_ELEM (-> (-> reader seq) elem_size) (* reader)))
+
+;;TODO !!!!! cast
 
 ;;;;;
 ;; Read element and move read position forward
@@ -1628,6 +1724,28 @@ typedef struct { SCM_HEADER; struct_32Byte v; }obj_32Byte;
                    (CV_REV_READ_SEQ_ELEM obj (* reader))
                    (result obj))))
 
+(define-cise-stmt (cv-read-seq-elem-setter src type)
+  `(begin
+     (set! ,src (@ reader->ptr))
+     (CV_NEXT_SEQ_ELEM (sizeof ,type) (* reader))))
+
+(define-cproc cv-read-seq-elem-cast (to-class::<class> reader::<cv-seq-reader>) ::<top>
+  (object-cast to-class (@ reader->seq->elem_size) cv-read-seq-elem-setter))
+
+(define-cise-stmt (cv-ref-seq-elem-setter src type)
+  `(set! ,src (@ reader->ptr)))
+
+(define-cproc cv-ref-seq-elem-cast (to-class::<class> reader::<cv-seq-reader>) ::<top>
+  (object-cast to-class (@ reader->seq->elem_size) cv-ref-seq-elem-setter))
+
+(define-cise-stmt (cv-rev-read-seq-elem-setter src type)
+  `(begin
+     (set! ,src (@ reader->ptr))
+     (CV_PREV_SEQ_ELEM (sizeof ,type) (* reader))))
+
+(define-cproc cv-rev-read-seq-elem-cast (to-class::<class> reader::<cv-seq-reader>) ::<top>
+  (object-cast to-class (@ reader->seq->elem_size) cv-rev-read-seq-elem-setter))
+
 ;;not support
 ;;CV_READ_CHAIN_POINT
 ;;CV_CURRENT_POINT
@@ -1650,6 +1768,10 @@ typedef struct { SCM_HEADER; struct_32Byte v; }obj_32Byte;
                  :setter #f
                  :c-name "active_count")
    ))
+
+(define-cproc cv-is-set-elem? (elem::<cv-set-elem>) :: <boolean>
+  (result (CV_IS_SET_ELEM elem)))
+  
 
 ;;;;;
 ;;  We represent a graph as a set of vertices.
@@ -3244,6 +3366,7 @@ typedef struct { SCM_HEADER; struct_32Byte v; }obj_32Byte;
 
 ;;;;;
 ;; Fills convex or monotonous polygon.
+;; @param pts {@ <vector>_or_<list>_of_<cv-point>}
 ;; @param (line-type 8) {@ 4 8 16}
 (define-cproc cv-fill-convex-poly (img::<cv-arr> pts::<top> color::<cv-scalar>
                                                  :optional (line-type::<fixnum> 8) (shift::<fixnum> 0)) ::<void>
@@ -3285,6 +3408,7 @@ typedef struct { SCM_HEADER; struct_32Byte v; }obj_32Byte;
 
 ;;;;;
 ;; Draws one or more polygonal curves 
+;; @param pts-vec {@ <vector>_of_<vector>_of_<cv-point>}
 ;; @param (thickness 1) {@ -1 <integer>}
 ;; @param (line-type 8) {@ 4 8 16}
 (define-cproc cv-poly-line (img::<cv-arr> pts-vec::<vector> 
@@ -3514,15 +3638,60 @@ typedef struct { SCM_HEADER; struct_32Byte v; }obj_32Byte;
     (cvRelease obj)
     (set! (SCM_CVOBJECT_DATA obj-scm) 0)))
 
+"
+typedef struct cast_proc_node {
+  t_cast_proc proc;
+  struct cast_proc_node* next;
+}cast_proc_node;
+
+cast_proc_node* cast_proc_list = NULL;
+
+void register_cast_proc(t_cast_proc proc)
+{
+  cast_proc_node* node = SCM_NEW(cast_proc_node);
+  node->proc = proc;
+  node->next = cast_proc_list;
+
+  cast_proc_list = node;
+}
+
+static ScmObj forEachCastProcList(ScmClass* to_class, ScmObj obj)
+{
+  cast_proc_node* node;
+  for(node = cast_proc_list; node; node = node->next)
+  {
+    ScmObj ret = (*(node->proc))(to_class, obj);
+
+    if(ret)
+    {
+      return ret;
+    }
+  }
+
+  return NULL;
+}
+"
+(define-cise-stmt (cv-cast-obj-setter src type)
+  `(set! ,src (unboxing object <cv-struct>)))
+
 ;;;;;
 ;; type cast <cv-object> instance to 'to-class' class instance.
-(define-cproc cv-cast (to-class::<class> cv-object::<cv-object>) :: <top>
-  (if (Scm_SubtypeP to-class SCM_CLASS_FOREIGN_POINTER)
-    (result (Scm_MakeForeignPointer to-class cv-object))
-    (let* ([allocator::t_allocator (allocator_getter to-class)])
-      (if allocator
-        (result (allocator cv-object))
-        (Scm_Error "invalid cast error.To %S" cv-object to-class)))))
-
+(define-cproc cv-cast (to-class::<class> object::<top>) :: <top>
+  (let* ([ret::ScmObj (forEachCastProcList to-class object)])
+    (when ret
+      (return ret)))
+  (cond
+    [(SCM_ISA object SCM_CLASS_CVOBJECT)
+     (when (Scm_SubtypeP to-class SCM_CLASS_CVOBJECT) 
+        (let* ([allocator::t_allocator (allocator_getter to-class)])
+          (when allocator
+            (return (allocator (unboxing object <cv-object>))))))]
+    [(SCM_ISA object SCM_CLASS_CVSTRUCT)
+     (when (Scm_SubtypeP to-class SCM_CLASS_CVSTRUCT)
+       (let* ([src-core-size::int (-> (Scm_ClassOf object) coreSize)]
+              [dst-core-size::int (@ to-class->coreSize)])
+         (when (<= dst-core-size src-core-size)
+           (object-cast to-class dst-core-size cv-cast-obj-setter))))])
+  (Scm_Error "invalid cast error.To %S" object to-class))
 
 ;; end:

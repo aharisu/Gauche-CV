@@ -41,6 +41,8 @@
 #include <gauche/extend.h>
 #include <gauche/class.h>
 
+#include "../gauche_cv_core.h"
+
 SCM_DECL_BEGIN
 
 #define ENSURE_NOT_NULL(data) \

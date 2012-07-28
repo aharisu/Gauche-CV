@@ -57,7 +57,7 @@ typedef double _double_t;
 (define-cclass <cv-haar-classifier-cascade>
   :built-in
   "ScmCvHaarClassifierCascade*" "Scm_CvHaarClassifierCascadeClass"
-  ()
+  ("Scm_CvObjectClass")
   (;;slot
    (count :type <fixnum>
           :setter #f)
@@ -71,8 +71,8 @@ typedef double _double_t;
 
 (define-cclass <cv-avg-comp>
   :built-in :struct
-  "ScmCvAvgComp*" "Scm_CvAvgCompClass"
-  ()
+  "ScmCvAvgComp" "Scm_CvAvgCompClass"
+  ("Scm_CvStructClass")
   (;;slot
    (rect :type <cv-rect>
          :setter #f)
@@ -81,6 +81,7 @@ typedef double _double_t;
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvAvgComp")
   )
 
 (define-cproc cv-load-haar-classifier-cascade (directory::<const-cstring> orig-window-size::<cv-size>) :: <cv-haar-classifier-cascade>
@@ -143,8 +144,8 @@ typedef double _double_t;
 ;;@slot l level in the feature pyramid
 (define-cclass <cv-lsvm-filter-position> 
   :built-in :struct
-  "ScmCvLSVMFilterPosition*" "Scm_CvLSVMFilterPositionClass"
-  ()
+  "ScmCvLSVMFilterPosition" "Scm_CvLSVMFilterPositionClass"
+  ("Scm_CvStructClass")
   (;;slot
    (x :type <int>
          :setter #f)
@@ -155,6 +156,7 @@ typedef double _double_t;
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvLSVMFilterPosition")
   )
 
 ;;;;;
@@ -165,7 +167,7 @@ typedef double _double_t;
 (define-cclass <cv-latent-svm-detector>
   :built-in
   "ScmCvLatentSvmDetector*" "Scm_CvLatentSvmDetectorClass"
-  ()
+  ("Scm_CvObjectClass")
   (;;slot
    (num-filters :type <fixnum>
                 :setter #f)
@@ -174,8 +176,6 @@ typedef double _double_t;
    (score-threshold :type <real>
                     :setter #f)
    )
-  (printer #t)
-  (compare #t)
   )
 
 ;;;;;
@@ -183,8 +183,8 @@ typedef double _double_t;
 ;;@slot score confidence level
 (define-cclass <cv-object-detection>
   :built-in :struct
-  "ScmCvObjectDetection*" "Scm_CvObjectDetectionClass"
-  ()
+  "ScmCvObjectDetection" "Scm_CvObjectDetectionClass"
+  ("Scm_CvStructClass")
   (;;slot
    (rect :type <cv-rect>
          :setter #f)
@@ -193,14 +193,18 @@ typedef double _double_t;
    )
   (printer #t)
   (compare #t)
+  (c-core-type "CvObjectDetection")
   )
 
 ;;;;;
 ;;load trained detector from a file
 ;;@param filename path to the file containing the parameters of trained Latent SVM detector
 ;;@return trained Latent SVM detector in internal representation
-(define-cproc cv-load-latent-svm-detector (filename::<const-cstring>) :: <cv-latent-svm-detector>
-  (result (cvLoadLatentSvmDetector filename)))
+(define-cproc cv-load-latent-svm-detector (filename::<const-cstring>) :: <top>
+  (let* ([detector::CvLatentSvmDetector* (cvLoadLatentSvmDetector filename)])
+    (if detector
+      (result (boxing detector <cv-latent-svm-detector>))
+      (result (boxing 0 <boolean>)))))
 
 ;;;;;
 ;;release memory allocated for CvLatentSvmDetector structure
@@ -222,12 +226,16 @@ typedef double _double_t;
                                              storage::<cv-mem-storage>
                                              :optional
                                              (overlap-threshold::<real> 0.5)
-                                             (num-threads::<fixnum> -1)) :: <cv-seq>
+                                             (num-threads::<fixnum> -1)) :: <top>
   (ENSURE_NOT_NULL image)
   (ENSURE_NOT_NULL detector)
   (ENSURE_NOT_NULL storage)
-  (.if OPENCV2_2
-       (result (cvLatentSvmDetectObjects image detector storage overlap-threshold))
-       (result (cvLatentSvmDetectObjects image detector storage overlap-threshold num-threads))))
+  (let* ([seq::CvSeq*])
+    (.if OPENCV2_2
+         (set! seq (cvLatentSvmDetectObjects image detector storage overlap-threshold))
+         (set! seq (cvLatentSvmDetectObjects image detector storage overlap-threshold num-threads)))
+    (if seq
+      (result (boxing seq <cv-seq>))
+      (result (boxing 0 <boolean>)))))
 
 

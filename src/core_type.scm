@@ -34,20 +34,6 @@
 
 (use file.util)
 
-(define (register-allocator types)
-  (for-each
-    (lambda (t)
-      (when (caddr t)
-        (cgen-init
-          (string-append
-            "allocator_register("
-            (scm-class-name (car t))
-            ",(t_allocator)"
-            (scm-allocator-name (car t))
-            ");"))
-        ))
-    types))
-
 (define (main args)
   (gen-type (simplify-path (path-sans-extension (car args)))
             structs foreign-pointer
@@ -57,6 +43,7 @@
               (cgen-extern "#include<opencv2/highgui/highgui_c.h>")
               (cgen-extern "#include<opencv2/imgproc/imgproc_c.h>")
               (cgen-extern "//pre defined header")
+              (cgen-extern "#include \"gauche_cv_core.h\"")
               (cgen-extern "#include\"cv_struct_pre_include.h\"")
               (cgen-extern "
                            //original type
@@ -70,8 +57,6 @@
                            CvPoint p1;
                            CvPoint p2;
                            }CvLineSegmentPoint;
-
-                           typedef void* CvObject;
                            ")
               (cgen-extern "
                            typedef ScmObj (*t_allocator)(void*);
@@ -189,7 +174,6 @@
                                                                    SCM_FALSE,
                                                                    NULL, 0);
                                       ")
-                           (register-allocator structs)
                            ))
 
   0)
@@ -198,8 +182,6 @@
 ;;sym-name sym-scm-type pointer? finalize-name finalize-ref
 (define structs 
   '(
-    (CvObject <cv-object> #f #f "") 
-
     (IplImage <iplimage> #t "cvReleaseImage" "&")
     (CvMat <cv-mat> #t "cvReleaseMat" "&")
     (CvMatND <cv-matnd> #t "cvReleaseMatND" "&")
@@ -239,6 +221,7 @@
     (CvMemBlock <cv-mem-block> #t #f "")
     (CvMemStorage <cv-mem-storage> #t "cvReleaseMemStorage" "&")
     (CvMemStoragePos <cv-mem-storage-pos> #t #f "")
+    (CvSetElem <cv-set-elem> #t #f "")
     (CvSeqWriter <cv-seq-writer> #t #f "")
     (CvSeqReader <cv-seq-reader> #t #f "")
     (CvLineIterator <cv-line-iterator> #t #f "")

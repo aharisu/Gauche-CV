@@ -14,6 +14,7 @@
    (allocator  :init-keyword :allocator :init-value #f)
    (printer    :init-keyword :printer   :init-value #f)
    (compare    :init-keyword :compare   :init-value #f)
+   (c-core-type :init-keyword :c-core-type :init-value #f)
    (slot-spec  :init-keyword :slot-spec :init-value '())
    (direct-supers :init-keyword :direct-supers :init-value '())
    ))
@@ -34,12 +35,16 @@
        (let* ((allocator (cond ((assq 'allocator more) => cadr) (else #f)))
               (printer   (cond ((assq 'printer more) => cadr) (else #f)))
               (compare   (cond ((assq 'compare more) => cadr) (else #f)))
+              (c-core-type   (cond ((assq 'c-core-type more) => cadr) (else #f)))
               (dsupers   (cond ((assq 'direct-supers more) => cdr) (else '())))
               (cclass (make <cclass>
                         :scheme-name scm-name :c-type c-type :c-name c-name
                         :qualifiers quals
                         :cpa cpa :direct-supers dsupers
-                        :allocator allocator :printer printer :compare compare)))
+                        :allocator allocator 
+                        :printer printer 
+                        :compare compare
+                        :c-core-type c-core-type)))
          (set! (~ cclass'slot-spec) (process-cclass-slots cclass slot-spec))
          (cgen-add! cclass))])))
 
@@ -49,7 +54,6 @@
     (cond [(c-literal-expr compare)]
       [(not compare) "NULL"]
       [else #`",(~ self'c-name)_P"])))
-
 
 (define-method cgen-emit-body ((self <cclass>))
   (when (memv :private (~ self'qualifiers))
@@ -71,7 +75,9 @@
         (errorf <cgen-stub-error> "can't use C-type ~s as a base class; C-type must be a pointer type" c-type))
       (let1 c-instance-type (string-drop-right c-type 1)
         (p "SCM_DEFINE_BASE_CLASS("(~ self'c-name)", "c-instance-type", "(c-printer-name self)", NULL, NULL, "(c-allocator-name self)", "(cpa-name self)");")))
-    (p "SCM_DEFINE_BUILTIN_CLASS("(~ self'c-name)", "(c-printer-name self)", "(c-compare-name self) ", NULL, "(c-allocator-name self)", "(cpa-name self)");"))
+    (if (~ self 'c-core-type)
+      (p "SCM__DEFINE_CLASS_COMMON("(~ self'c-name)", sizeof(" (~ self 'c-core-type)"), SCM_CLASS_BUILTIN, "(c-printer-name self)", "(c-compare-name self) ", NULL, "(c-allocator-name self)", "(cpa-name self)");")
+      (p "SCM_DEFINE_BUILTIN_CLASS("(~ self'c-name)", "(c-printer-name self)", "(c-compare-name self) ", NULL, "(c-allocator-name self)", "(cpa-name self)");")))
   (p "")
   (when (pair? (~ self'slot-spec))
     (for-each emit-getter-n-setter (~ self'slot-spec))

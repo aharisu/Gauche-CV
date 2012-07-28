@@ -34,6 +34,26 @@
 
 #include <opencv2/core/core_c.h>
 
+//---------------
+//CvObject
+//---------------
+ScmObj Scm_MakeCvObject(CvObject data) {
+	ScmCvObject* obj = SCM_NEW(ScmCvObject);
+	SCM_SET_CLASS(obj, SCM_CLASS_CVOBJECT);
+	obj->data = data;
+	SCM_RETURN(SCM_OBJ(obj));
+}
+
+//---------------
+//CvStruct
+//---------------
+ScmObj Scm_MakeCvStruct(CvStruct data) {
+	ScmCvStruct* obj = SCM_NEW(ScmCvStruct);
+	SCM_SET_CLASS(obj, SCM_CLASS_CVSTRUCT);
+	obj->data = data;
+	SCM_RETURN(SCM_OBJ(obj));
+}
+
 static int CV_CDECL cv_error_handler(int status, const char* func_name,
 								const char* err_msg, const char* file_name, int line, void* userdata)
 {

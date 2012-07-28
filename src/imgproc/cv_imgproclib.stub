@@ -30,11 +30,9 @@
 ;;;
 
 "
-
 #include \"gauche_cv_imgproc.h\"
 #include <opencv2/imgproc/imgproc_c.h>
 
-#include \"../core_type.gen.h\"
 #include \"imgproc_type.gen.h\"
 
 typedef void* _pvoid_t;
@@ -731,9 +729,11 @@ typedef double _double_t;
 (define-cclass <cv-moments>
   :built-in :struct
   "ScmCvMoments" "Scm_CvMomentsClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    )
+
+  (c-core-type "CvMoments")
   )
 
 ;;;;;
@@ -766,7 +766,7 @@ typedef double _double_t;
 (define-cclass <cv-hu-moments>
   :built-in :struct
   "ScmCvHuMoments" "Scm_CvHuMomentsClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (hu1 :type <real>
         :setter #f)
@@ -783,6 +783,9 @@ typedef double _double_t;
    (hu7 :type <real>
         :setter #f)
    )
+  (printer #t)
+  (compare #t)
+  (c-core-type "CvHuMoments")
   )
 
 ;;;;;
@@ -988,10 +991,42 @@ return (x < y) ? y : x;
 ;; @@class-c->scm Scm_CvSeqClass <cv-seq>
 ;; @@class-c->scm Scm_CvTreeNodeClass <cv-tree-node>
 
+
+;;---------------
+;;CvSubdiv2DEdge
+;;
+(define-cclass <cv-subdiv-2d-edge>
+  :built-in :struct
+  "ScmCvSubdiv2DEdge" "Scm_CvSubdiv2DEdgeClass"
+  ("Scm_CvStructClass")
+  (
+   (value :type <top>
+          :setter "
+            if (!SCM_INTP(value)) Scm_Error(\"int required, but got %S\", value);
+            SCM_CVSUBDIV2DEDGE_DATA(OBJARG) = Scm_GetInteger(value);"
+          :getter "
+            return Scm_MakeInteger(SCM_CVSUBDIV2DEDGE_DATA(OBJARG));")
+  )
+  (compare "
+           if(!equalp) Scm_Error(\"cannot compare <cv-subdiv-2d-edge>:%S and :%S\", x, y);
+           return !(SCM_CVSUBDIV2DEDGE_DATA(x) == SCM_CVSUBDIV2DEDGE_DATA(y));")
+)
+
+(define-cproc cv-add-subdiv-2d-edge (edge::<cv-subdiv-2d-edge> right-value::<int>) :: <cv-subdiv-2d-edge>
+  (result (+ edge right-value)))
+
+(define-cclass <cv-quad-edge-2d>
+  :built-in
+  "ScmCvQuadEdge2D*" "Scm_CvQuadEdge2DClass"
+  ("Scm_CvSetElemClass" "Scm_CvObjectClass")
+  (
+   )
+  )
+
 (define-cclass <cv-subdiv-2d>
   :built-in
-  "ScmSubdiv2D*" "Scm_CvSubdiv2DClass"
-  ("Scm_CvGraphClass" "Scm_CvSetClass" "Scm_CvSeqClass" "Scm_CvTreeNodeClass")
+  "ScmCvSubdiv2D*" "Scm_CvSubdiv2DClass"
+  ("Scm_CvGraphClass" "Scm_CvSetClass" "Scm_CvSeqClass" "Scm_CvTreeNodeClass" "Scm_CvObjectClass")
   (;;slot
    (quad-edges :type <int>
                :setter #f
@@ -1012,8 +1047,8 @@ return (x < y) ? y : x;
 
 (define-cclass <cv-subdiv-2d-point>
   :built-in
-  "ScmSubdiv2DPoint*" "Scm_CvSubdiv2DPointClass"
-  ()
+  "ScmCvSubdiv2DPoint*" "Scm_CvSubdiv2DPointClass"
+  ("Scm_CvObjectClass")
   (;;slot
    (flags :type <fixnum>
           :setter #f)
@@ -1057,7 +1092,7 @@ return (x < y) ? y : x;
 ;;;;;
 ;; Locates a point within the Delaunay triangulation (finds the edge
 ;; the point is left to or belongs to, or the triangulation point the given point coinsides with
-(define-cproc cv-subdiv-2d-locate (subdiv::<cv-subdiv-2d> pt::<cv-point-2d32f>) ::(<fixnum> <int>)
+(define-cproc cv-subdiv-2d-locate (subdiv::<cv-subdiv-2d> pt::<cv-point-2d32f>) ::(<fixnum> <cv-subdiv-2d-edge>)
   (let* ([e::CvSubdiv2DEdge]
          [ret::CvSubdiv2DPointLocation (cvSubdiv2DLocate subdiv pt (& e) 0)])
     (result ret e)))
@@ -1077,13 +1112,14 @@ return (x < y) ? y : x;
 (define-cproc cv-find-nearest-point-2d (subdiv::<cv-subdiv-2d> pt::<cv-point-2d32f>) ::<cv-subdiv-2d-point>
   (result (cvFindNearestPoint2D subdiv pt)))
 
-(define-cproc cv-subdiv-2d-next-edge (edge::<fixnum>) ::<int>
+
+(define-cproc cv-subdiv-2d-next-edge (edge::<cv-subdiv-2d-edge>) ::<cv-subdiv-2d-edge>
   (result (cvSubdiv2DNextEdge edge)))
 
-(define-cproc cv-subdiv-2d-rotate-edge (edge::<fixnum> rotate::<fixnum>) ::<int>
+(define-cproc cv-subdiv-2d-rotate-edge (edge::<cv-subdiv-2d-edge> rotate::<fixnum>) ::<cv-subdiv-2d-edge>
   (result (cvSubdiv2DRotateEdge edge rotate)))
 
-(define-cproc cv-subdiv-2d-sym-edge (edge::<fixnum>) ::<int>
+(define-cproc cv-subdiv-2d-sym-edge (edge::<cv-subdiv-2d-edge>) ::<cv-subdiv-2d-edge>
   (result (cvSubdiv2DSymEdge edge)))
 
 
@@ -1098,14 +1134,20 @@ return (x < y) ? y : x;
 (define-enum CV_NEXT_AROUND_RIGHT)
 (define-enum CV_PREV_AROUND_LEFT)
 (define-enum CV_PREV_AROUND_RIGHT)
-(define-cproc cv-subdiv-2d-get-edge (edge::<fixnum> type::<fixnum>) ::<int>
+(define-cproc cv-subdiv-2d-get-edge (edge::<cv-subdiv-2d-edge> type::<fixnum>) ::<cv-subdiv-2d-edge>
   (result (cvSubdiv2DGetEdge edge type)))
 
-(define-cproc cv-subdiv-2d-edge-org (edge::<fixnum>) ::<cv-subdiv-2d-point>
-  (result (cvSubdiv2DEdgeOrg edge)))
+(define-cproc cv-subdiv-2d-edge-org (edge::<cv-subdiv-2d-edge>)::<top>
+  (let* ([pt::CvSubdiv2DPoint* (cvSubdiv2DEdgeOrg edge)])
+    (if pt
+      (result (boxing pt <cv-subdiv-2d-point>))
+      (result (boxing 0 <boolean>)))))
 
-(define-cproc cv-subdiv-2d-edge-dst (edge::<fixnum>) ::<cv-subdiv-2d-point>
-  (result (cvSubdiv2DEdgeDst edge)))
+(define-cproc cv-subdiv-2d-edge-dst (edge::<cv-subdiv-2d-edge>)::<top>
+  (let* ([pt::CvSubdiv2DPoint* (cvSubdiv2DEdgeDst edge)])
+    (if pt
+      (result (boxing pt <cv-subdiv-2d-point>))
+      (result (boxing 0 <boolean>)))))
 
 (define-cproc cv-triangle-area (a::<cv-point-2d32f> b::<cv-point-2d32f> c::<cv-point-2d32f>) ::<real>
   (result (cvTriangleArea a b c)))
@@ -1753,7 +1795,7 @@ Scm_Error(\"internal error\");
 (define-cclass <cv-connected-comp>
   :built-in :struct
   "ScmCvConnectedComp" "Scm_CvConnectedCompClass"
-  ()
+  ("Scm_CvStructClass")
   (;;slot
    (area :type <double>
          :setter #f)
@@ -1765,6 +1807,7 @@ Scm_Error(\"internal error\");
             :setter #f)
    )
   (print #t)
+  (c-core-type "CvConnectedComp")
   )
 
 ;;-------------
@@ -2105,5 +2148,4 @@ Scm_Error(\"internal error\");
   (ENSURE_NOT_NULL indices)
   (ENSURE_NOT_NULL dist)
   (cvLSHQuery lsh query-points indices dist k emax))
-
 

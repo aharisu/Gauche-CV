@@ -37,10 +37,9 @@
 #include <gauche/extend.h>
 #include <gauche/class.h>
 
-SCM_DECL_BEGIN
+#include "../gauche_cv_core.h"
 
-#define ENSURE_NOT_NULL(data) \
-				if(!(data)) Scm_Error("already been released. object is invalied.");
+SCM_DECL_BEGIN
 
 /* Epilogue */
 SCM_DECL_END

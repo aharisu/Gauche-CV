@@ -40,8 +40,45 @@
 
 SCM_DECL_BEGIN
 
+typedef void* CvObject;
+typedef void* CvStruct;
+
+//---------------
+//CvObject
+//---------------
+typedef struct ScmCvObjectRec {
+	SCM_HEADER;
+	CvObject data;
+}ScmCvObject;
+SCM_CLASS_DECL(Scm_CvObjectClass);
+#define SCM_CLASS_CVOBJECT (&Scm_CvObjectClass)
+#define SCM_CVOBJECT(obj) ((ScmCvObject*)(obj))
+#define SCM_CVOBJECT_P(obj) SCM_ISA(obj, SCM_CLASS_CVOBJECT)
+#define SCM_CVOBJECT_DATA(obj) (SCM_CVOBJECT(obj)->data)
+#define SCM_MAKE_CVOBJECT(data) (Scm_MakeCvObject(data))
+extern ScmObj Scm_MakeCvObject(CvObject data);
+
+//---------------
+//CvStruct
+//---------------
+typedef struct ScmCvStructRec {
+	SCM_HEADER;
+	CvStruct data;
+}ScmCvStruct;
+SCM_CLASS_DECL(Scm_CvStructClass);
+#define SCM_CLASS_CVSTRUCT (&Scm_CvStructClass)
+#define SCM_CVSTRUCT(obj) ((ScmCvStruct*)(obj))
+#define SCM_CVSTRUCT_P(obj) SCM_ISA(obj, SCM_CLASS_CVSTRUCT)
+#define SCM_CVSTRUCT_DATA(obj) (SCM_CVSTRUCT(obj)->data)
+#define SCM_MAKE_CVSTRUCT(data) (Scm_MakeCvStruct(data))
+extern ScmObj Scm_MakeCvStruct(CvStruct data);
+
+
 #define ENSURE_NOT_NULL(data) \
 				if(!(data)) Scm_Error("already been released. object is invalied.");
+
+typedef ScmObj (*t_cast_proc)(ScmClass* to_class, ScmObj object);
+void register_cast_proc(t_cast_proc proc);
 
 /* Epilogue */
 SCM_DECL_END

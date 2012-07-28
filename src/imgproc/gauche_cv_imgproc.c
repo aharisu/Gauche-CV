@@ -31,6 +31,18 @@
 
 
 #include "gauche_cv_imgproc.h"
+#include "imgproc_type.gen.h"
+
+static ScmObj imgproc_cast(ScmClass* to_class, ScmObj obj)
+{
+  if(to_class == SCM_CLASS_CVSUBDIV2DEDGE &&
+      Scm_ClassOf(obj) == SCM_CLASS_CVQUADEDGE2D)
+  { 
+    return SCM_MAKE_CVSUBDIV2DEDGE((CvSubdiv2DEdge)SCM_CVQUADEDGE2D_DATA(obj));
+  }
+
+  return NULL;
+}
 
 /*
  * Module initialization function.
@@ -50,4 +62,6 @@ void Scm_Init_gauche_cv_imgproc(void)
 				/* Register stub-generated procedures */
 				Scm_Init_cv_imgproclib(mod);
 				Scm_Init_imgproc_type(mod);
+
+                                register_cast_proc(imgproc_cast);
 }

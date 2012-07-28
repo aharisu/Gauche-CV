@@ -33,31 +33,17 @@
 
 (use file.util)
 
-(define (register-allocator types)
-  (for-each
-    (lambda (t)
-      (when (caddr t)
-        (cgen-init
-          (string-append
-            "allocator_register("
-            (scm-class-name (car t))
-            ",(t_allocator)"
-            (scm-allocator-name (car t))
-            ");"))
-        ))
-    types))
-
 (define (main args)
   (gen-type (simplify-path (path-sans-extension (car args)))
             structs foreign-pointer
             (lambda () ;;prologue
               (cgen-extern "#include \"../core_type.gen.h\"")
+              (cgen-extern "#include \"../gauche_cv_core.h\"")
               (cgen-extern "//opencv2 header")
               (cgen-extern "#include <opencv2/objdetect/objdetect.hpp>")
               (cgen-extern "")
               )
               (lambda () ;;epilogue
-                (register-allocator structs)
                 ))
             0)
 

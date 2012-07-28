@@ -23,6 +23,20 @@
                          :init-epilogue "}"
                          )])
 
+    (define (register-allocator types)
+      (for-each
+        (lambda (t)
+          (when (caddr t)
+            (cgen-init
+              (string-append
+                "allocator_register("
+                (scm-class-name (car t))
+                ",(t_allocator)"
+                (scm-allocator-name (car t))
+                ");"))
+            ))
+        types))
+
     (define (gen-stub-type c-name pointer? scm-name up-name)
       (cgen-stub "(define-type")
       (cgen-stub (format "	~a" scm-name))
@@ -87,48 +101,22 @@
         ))
 
     (define (gen-foreign-pointer sym-name sym-scm-type pointer? finalize finalize-ref)
+      (gen-struct sym-name sym-scm-type pointer? finalize finalize-ref)
       (let* ([name (symbol->string sym-name)]
              [scm-type (symbol->string sym-scm-type)]
              [scm-name (string-append "Scm" name)]
              [ster (if pointer? "*" "")]
              [up-name (string-upcase name)])
 
-        ;;stub file
-        (gen-stub-type name pointer? scm-type up-name)
-
-        ;;h file
-        (cgen-extern "//---------------")
-        (cgen-extern (format "//~a" name))
-        (cgen-extern "//---------------")
-        (cgen-extern (format "extern ScmClass* Scm_~aClass;" name))
-        (cgen-extern (format "#define SCM_~a_P(obj) SCM_XTYPEP(obj, Scm_~aClass)" up-name name))
-        (cgen-extern (format "#define SCM_~a_DATA(obj) SCM_FOREIGN_POINTER_REF(~a~a, obj)" up-name name ster))
-        (cgen-extern (format "#define SCM_MAKE_~a(data) Scm_MakeForeignPointer(Scm_~aClass, data)" up-name name))
-        (cgen-body "")
-
-        ;;c file
+        ;;define-cclass
         (cgen-body "//---------------")
         (cgen-body (format "//~a" name))
-        (cgen-body "//---------------")
-        (when (string? finalize)
-          (cgen-body (format "static void Scm_cleanup_~a(ScmObj obj){" name))
-          (cgen-body (format "	~a~a o = SCM_~a_DATA(obj);" name ster up-name))
-          (cgen-body "	if(o) {")
-          (cgen-body (format "		~a(~ao);" finalize finalize-ref))
-          (cgen-body "		SCM_FOREIGN_POINTER(obj)->ptr = NULL;")
-          (cgen-body "	}")
-          (cgen-body "}")
-          (cgen-body ""))
-
-        (cgen-decl (format "ScmClass* Scm_~aClass;" name))
-        (cgen-init (format "Scm_~aClass = 
-                           Scm_MakeForeignPointerClass(mod, \"~a\",
-                                                            NULL,
-                                                            ~a,
-                                                            SCM_FOREIGN_POINTER_KEEP_IDENTITY|SCM_FOREIGN_POINTER_MAP_NULL);"
-                           name scm-type (if (string? finalize)
-                                           (string-append "Scm_cleanup_" name)
-                                           "NULL")))
+        (cgen-body "//")
+        (cgen-body (format "static ScmClass *Scm_~aClass_CPL[] = {" name))
+        (cgen-body (format "  SCM_CLASS_STATIC_PTR(~a)," (if pointer? "Scm_CvObjectClass" "Scm_CvStructClass")))
+        (cgen-body (format "  SCM_CLASS_STATIC_PTR(Scm_TopClass),"))
+        (cgen-body "NULL};")
+        (cgen-body (format "SCM_DEFINE_BUILTIN_CLASS(Scm_~aClass, NULL, NULL, NULL, NULL, Scm_~aClass_CPL);" name name))
         ))
 
     ;;h file header
@@ -158,9 +146,11 @@
       (lambda (s) (gen-foreign-pointer (car s) (cadr s) (caddr s) (cadddr s) (car (cddddr s))))
       forign-struct-name-list)
 
-
     ;;call epilogue
     (epilogue)
+
+    (register-allocator struct-name-list)
+    (register-allocator forign-struct-name-list)
 
     (cgen-extern "")
     (cgen-extern "SCM_DECL_END")
