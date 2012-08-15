@@ -53,6 +53,8 @@ all : $(TARGET)
 	cd highgui; $(MAKE) all
 	cd imgproc; $(MAKE) all
 	cd objdetect; $(MAKE) all
+	cd features2d; $(MAKE) all
+	cd calib3d; $(MAKE) all
 
 only : $(TARGET)
 
@@ -82,18 +84,24 @@ check :
 	cd highgui; $(MAKE) check
 	cd imgproc; $(MAKE) check
 	cd objdetect; $(MAKE) check
+	cd features2d; $(MAKE) check
+	cd calib3d; $(MAKE) check
 
 install :
 	$(INSTALL) -m 555 -T $(GAUCHE_PKGARCHDIR) $(ARCHFILES)
 	cd highgui; $(MAKE) install
 	cd imgproc; $(MAKE) install
 	cd objdetect; $(MAKE) install
+	cd features2d; $(MAKE) install
+	cd calib3d; $(MAKE) install
 
 uninstall :
 	$(INSTALL) -U $(GAUCHE_PKGARCHDIR) $(ARCHFILES)
 	cd highgui; $(MAKE) uninstall
 	cd imgproc; $(MAKE) uninstall
 	cd objdetect; $(MAKE) uninstall
+	cd features2d; $(MAKE) uninstall
+	cd calib3d; $(MAKE) uninstall
 
 clean :
 	$(GAUCHE_PACKAGE) compile --clean $(cv_CORE_SRCS) 
@@ -101,22 +109,30 @@ clean :
 	cd highgui; $(MAKE) clean
 	cd imgproc; $(MAKE) clean
 	cd objdetect; $(MAKE) clean
+	cd features2d; $(MAKE) clean
+	cd calib3d; $(MAKE) clean
 
 distclean : clean
 	rm -rf $(CONFIG_GENERATED)
 	cd highgui; $(MAKE) distclean
 	cd imgproc; $(MAKE) distclean
 	cd objdetect; $(MAKE) distclean
+	cd features2d; $(MAKE) distclean
+	cd calib3d; $(MAKE) distclean
 
 maintainer-clean : clean
 	rm -rf $(CONFIG_GENERATED) configure VERSION
 	cd highgui; $(MAKE) maintainer-clean
 	cd imgproc; $(MAKE) maintainer-clean
 	cd objdetect; $(MAKE) maintainer-clean
+	cd features2d; $(MAKE) maintainer-clean
+	cd calib3d; $(MAKE) maintainer-clean
 
 collect :
 	@if test "$(ARCHFILES)" != ""; then (cp -p -u $(ARCHFILES) $(OUTDIR)/dll/); fi
 	cd highgui; $(MAKE) collect
 	cd imgproc; $(MAKE) collect
 	cd objdetect; $(MAKE) collect
+	cd features2d; $(MAKE) collect
+	cd calib3d; $(MAKE) collect
 

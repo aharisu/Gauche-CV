@@ -1,0 +1,789 @@
+;;;
+;;; cv_calib3dlib.stub
+;;;
+;;; MIT License
+;;; Copyright 2011-2012 aharisu
+;;; All rights reserved.
+;;;
+;;; Permission is hereby granted, free of charge, to any person obtaining a copy
+;;; of this software and associated documentation files (the "Software"), to deal
+;;; in the Software without restriction, including without limitation the rights
+;;; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+;;; copies of the Software, and to permit persons to whom the Software is
+;;; furnished to do so, subject to the following conditions:
+;;;
+;;; The above copyright notice and this permission notice shall be included in all
+;;; copies or substantial portions of the Software.
+;;;
+;;;
+;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+;;; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+;;; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+;;; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+;;; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+;;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+;;; SOFTWARE.
+;;;
+;;;
+;;; aharisu
+;;; foo.yobina@gmail.com
+;;;
+
+"
+#include \"gauche_cv_calib3d.h\"
+#include <opencv2/calib3d/calib3d.hpp>
+
+#include \"../core_type.gen.h\"
+#include \"calib3d_type.gen.h\"
+
+typedef void* _pvoid_t;
+typedef unsigned char _char_t;
+typedef signed char _schar_t;
+typedef signed short _short_t;
+typedef unsigned short _ushort_t;
+typedef int _int_t;
+typedef unsigned int _uint_t;
+typedef float _float_t;
+typedef double _double_t;
+"
+
+(include "calib3d_type.gen.stub.header")
+(include "../cv_type.stub.header")
+(include "../core_type.gen.stub.header")
+(include "../macro.stub.header")
+
+;;****************************************************************************************\
+;;                      Camera Calibration, Pose Estimation and Stereo                    *
+;;****************************************************************************************/
+
+"
+#define TMP_ARY_SIZE 30
+"
+
+(eval-in-current-module
+  (gen-elem-assign <cv-point-2d32f>)
+  (gen-elem-assign <cv-point-3d32f>)
+  )
+;;;;;
+;; Allocates and initializes <cv-posit-object> structure before doing cv-posit
+;; @param points {@ list_or_vector_of_<cv-point-3d32f>}
+(define-cproc make-cv-posit-object (points::<top>) :: <cv-posit-object>
+  (let* ([pts-cnt::int]
+         [pts-arr::CvPoint3D32f*]
+         [pts-tmp :: (.array CvPoint3D32f* (TMP_ARY_SIZE))])
+    (cond
+      [(is-type? points <vector>)
+       (set! pts-cnt (SCM_VECTOR_SIZE points))
+       (vector-to-ary points pts-arr pts-tmp TMP_ARY_SIZE CvPoint3D32f <cv-point-3d32f>-elem-assign)]
+      [(is-type? points <list>)
+       (list-to-ary points pts-arr pts-tmp TMP_ARY_SIZE pts-cnt CvPoint3D32f <cv-point-3d32f>-elem-assign)]
+      [else (Scm_Error "<list> or <vector> required, but got %S" points)])
+    (result (cvCreatePOSITObject pts-arr pts-cnt))))
+
+;;;;;
+;; Runs POSIT (POSe from ITeration) algorithm for determining 3d position of
+;; an object given its model and projection in a weak-perspective case
+;; @param image-points {@ list_or_vector_of_<cv-point-2d32f>}
+(define-cproc cv-posit (posit-object::<cv-posit-object> image-points::<top> focal-length::<real> 
+                                                        criteria::<cv-term-criteria>) :: (<f32vector> <f32vector>)
+  (ENSURE_NOT_NULL posit-object)
+  ;;TODO ENSURE_NOT_NULL? criteria
+  (let* ([pts-cnt::int]
+         [pts-arr::CvPoint2D32f*]
+         [pts-tmp :: (.array CvPoint2D32f* (TMP_ARY_SIZE))]
+         [rotation::ScmF32Vector* (cast ScmF32Vector*(Scm_MakeF32Vector 9 0))]
+         [translation::ScmF32Vector* (cast ScmF32Vector* (Scm_MakeF32Vector 3 0))])
+    (cond
+      [(is-type? image-points <vector>)
+       (set! pts-cnt (SCM_VECTOR_SIZE image-points))
+       (vector-to-ary image-points pts-arr pts-tmp TMP_ARY_SIZE CvPoint2D32f <cv-point-2d32f>-elem-assign)]
+      [(is-type? image-points <list>)
+       (list-to-ary image-points pts-arr pts-tmp TMP_ARY_SIZE pts-cnt CvPoint2D32f <cv-point-2d32f>-elem-assign)]
+      [else (Scm_Error "<list> or <vector> required, but got %S" image-points)])
+    (cvPOSIT posit-object pts-arr focal-length criteria 
+             (SCM_F32VECTOR_ELEMENTS rotation) (SCM_F32VECTOR_ELEMENTS translation))
+    (result rotation translation)))
+
+;;;;;
+;; Releases <cv-posit-object> structure
+(define-cproc cv-release-posit-object (posit-object::<cv-posit-object>)
+  (when posit-object
+    (cvReleasePOSITObject (& posit-object))
+    (set! (SCM_CVPOSITOBJECT_DATA posit-object-scm) 0)))
+
+;;;;;
+;; updates the number of RANSAC iterations
+(define-cproc cv-ransac-update-num-iters (p::<real> err-prob::<real> 
+                                                    model-points::<fixnum> max-iters::<fixnum>) :: <fixnum>
+  (result (cvRANSACUpdateNumIters p err-prob model-points max-iters)))
+
+(define-cproc cv-convert-points-homogeneous (src::<cv-mat> dst::<cv-mat>) :: <void>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
+  (cvConvertPointsHomogeneous src dst))
+
+
+;;Calculates fundamental matrix given a set of corresponding points
+(define-enum CV_FM_7POINT)
+(define-enum CV_FM_8POINT)
+
+(define-enum CV_LMEDS)
+(define-enum CV_RANSAC)
+
+(define-enum CV_FM_LMEDS_ONLY)
+(define-enum CV_FM_RANSAC_ONLY)
+(define-enum CV_FM_LMEDS)
+(define-enum CV_FM_RANSAC)
+
+;;;;;
+;; @param ((method 8) >> (method CV_FM_RANSAC)) {@ 
+;; CV_FM_7POINT CV_FM_8POINT 
+;; CV_FM_LMEDS_ONLY CV_FM_RANSAC_ONLY
+;; CV_FM_LMEDS CV_FM_RANSAC
+;; }
+;; @param ((status (c "SCM_UNDEFINED")) >> (status c:null))
+(define-cproc cv-find-foundamental-mat (points1::<cv-mat> points2::<cv-mat> fundamental-matrix::<cv-mat>
+                                                          :optional
+                                                          (method::<fixnum> 8) ;CV_RANSAC
+                                                          (param1::<real> 3.0)
+                                                          (param2::<real> 0.99)
+                                                          (status::<top> (c "SCM_UNDEFINED"))
+                                                          ) :: <int>
+  (ENSURE_NOT_NULL points1)
+  (ENSURE_NOT_NULL points2)
+  (let* ([status-obj::CvMat*])
+    (undef-or-obj-null-check status status-obj <cv-mat>)
+    (result (cvFindFundamentalMat points1 points2 fundamental-matrix
+                                   method param1 param2 status-obj))))
+
+;;;;;
+;; For each input point on one of images computes parameters of the corresponding epipolar line on the other image
+(define-cproc cv-compute-correspond-epilines (points::<cv-mat> which-image::<fixnum> 
+                                                               fundamental-matrix::<cv-mat>) :: <cv-mat>
+  (ENSURE_NOT_NULL points)
+  (ENSURE_NOT_NULL fundamental-matrix)
+  (let* ([mat::CvMat* (cvCreateMat 3 (MAX (@ points->rows) (@ points->cols))
+                                   CV_32FC1)])
+    (cvComputeCorrespondEpilines points which-image fundamental-matrix mat)
+    (result mat)))
+
+;;----------
+;;Triangulation functions
+;;----------
+
+(define-cproc cv-triangulate-points (proj-matr1::<cv-mat> proj-matr2::<cv-mat>
+                                                          proj-points1::<cv-mat> proj-points2::<cv-mat>
+                                                          points4d::<cv-mat>) :: <void>
+  (ENSURE_NOT_NULL proj-matr1)
+  (ENSURE_NOT_NULL proj-matr2)
+  (ENSURE_NOT_NULL proj-points1)
+  (ENSURE_NOT_NULL proj-points2)
+  (ENSURE_NOT_NULL points4d)
+  (cvTriangulatePoints proj-matr1 proj-matr2 proj-points1 proj-points2 points4d))
+
+(define-cproc cv-correct-matches (f::<cv-mat> points1::<cv-mat> points2::<cv-mat>
+                                              new-points1::<top> new-points2::<top>) :: <void>
+  (ENSURE_NOT_NULL f)
+  (ENSURE_NOT_NULL points1)
+  (ENSURE_NOT_NULL points2)
+  (let* ([new-points1-obj::CvMat*]
+         [new-points2-obj::CvMat*])
+    (undef-or-obj-null-check new-points1 new-points1-obj <cv-mat>)
+    (undef-or-obj-null-check new-points2 new-points2-obj <cv-mat>)
+    (cvCorrectMatches f points1 points2 new-points1-obj new-points2-obj)))
+
+;;;;;
+;; Computes the optimal new camera matrix according to the free scaling parameter alpha:
+;; alpha=0 - only valid pixels will be retained in the undistorted image
+;; alpha=1 - all the source image pixels will be retained in the undistorted image
+;; @param ((new-img-size (c "SCM_UNDEFINED")) >> (new-img-size c:null))
+;; @param ((valid-pix-roi (c "SCM_UNDEFINED")) >> (valid-pix-roi c:null))
+(define-cproc cv-get-optimal-new-camera-matrix (camera-matrix::<cv-mat> dist-coeffs::<cv-mat> img-size::<cv-size> alpha::<real>
+                                                                        new-camera-matrix::<cv-mat> 
+                                                                        :optional
+                                                                        (new-img-size::<top> (c "SCM_UNDEFINED"))
+                                                                        (valid-pix-roi::<top> (c "SCM_UNDEFINED"))) :: <void>
+  (ENSURE_NOT_NULL camera-matrix)
+  (ENSURE_NOT_NULL dist-coeffs)
+  (ENSURE_NOT_NULL new-camera-matrix)
+  (let* ([size::CvSize])
+    (undef-or-obj new-img-size size <cv-size> (cvSize 0 0))
+    (cond
+      [(undefined? valid-pix-roi) 
+       (cvGetOptimalNewCameraMatrix camera-matrix dist-coeffs img-size alpha
+                                    new-camera-matrix size NULL)]
+      [(is-type? valid-pix-roi <cv-rect>)
+       (cvGetOptimalNewCameraMatrix camera-matrix dist-coeffs img-size alpha
+                                    new-camera-matrix size (& (unboxing valid-pix-roi <cv-rect>)))]
+      [else (Scm_Error "<cv-rect> or c:null required, but got %S" valid-pix-roi)])))
+
+;;;;;
+;; Converts rotation vector to rotation matrix or vice versa
+;; @param ((jacobian (c "SCM_UNDEFINED")) >> (jacobian c:null))
+(define-cproc cv-rodrigues2 (src::<cv-mat> dst::<cv-mat>
+                                           :optional
+                                           (jacobian::<top> (c "SCM_UNDEFINED"))) :: <fixnum>
+  (ENSURE_NOT_NULL src)
+  (ENSURE_NOT_NULL dst)
+  (let* ([jacobian-obj::CvMat*])
+    (undef-or-obj-null-check jacobian jacobian-obj <cv-mat>)
+    (result (cvRodrigues2 src dst jacobian-obj))))
+
+;;;;;
+;; Finds perspective transformation between the object plane and image (view) plane
+;; @param ((mask (c "SCM_UNDEFINED")) >> (mask c:null))
+(define-cproc cv-find-homography (src-points::<cv-mat> dst-points::<cv-mat> homography::<cv-mat>
+                                                       :optional
+                                                       (method::<fixnum> 0)
+                                                       (ransac-reproj-threshold::<real> 3)
+                                                       (mask::<top> (c "SCM_UNDEFINED"))) :: <boolean>
+  (ENSURE_NOT_NULL src-points)
+  (ENSURE_NOT_NULL dst-points)
+  (ENSURE_NOT_NULL homography)
+  (let* ([mask-obj::CvMat*])
+    (undef-or-obj-null-check mask mask-obj <cv-mat>)
+    (result (cvFindHomography src-points dst-points homography 
+                      method ransac-reproj-threshold mask-obj))))
+
+;;;;;
+;; Computes RQ decomposition for 3x3 matrices
+;; @param ((matrix-qx (c "SCM_UNDEFINED")) >> (matrix-qx c:null))
+;; @param ((matrix-qy (c "SCM_UNDEFINED")) >> (matrix-qy c:null))
+;; @param ((matrix-qz (c "SCM_UNDEFINED")) >> (matrix-qz c:null))
+(define-cproc cv-rqdecomp3x3 (matrix-m::<cv-mat> matrix-r::<cv-mat> matrix-q::<cv-mat>
+                                                 :optional
+                                                 (matrix-qx::<top> (c "SCM_UNDEFINED"))
+                                                 (matrix-qy::<top> (c "SCM_UNDEFINED"))
+                                                 (matrix-qz::<top> (c "SCM_UNDEFINED"))) :: <cv-point-3d64f>
+  (ENSURE_NOT_NULL matrix-m)
+  (ENSURE_NOT_NULL matrix-r)
+  (ENSURE_NOT_NULL matrix-q)
+  (let* ([matrix-qx-obj :: CvMat*]
+         [matrix-qy-obj :: CvMat*]
+         [matrix-qz-obj :: CvMat*]
+         [euler-angles :: CvPoint3D64f])
+    (undef-or-obj-null-check matrix-qx matrix-qx-obj <cv-mat>)
+    (undef-or-obj-null-check matrix-qy matrix-qy-obj <cv-mat>)
+    (undef-or-obj-null-check matrix-qz matrix-qz-obj <cv-mat>)
+    (cvRQDecomp3x3 matrix-m matrix-r matrix-q 
+                   matrix-qx-obj matrix-qy-obj matrix-qz-obj
+                   (& euler-angles))
+    (result euler-angles)))
+
+;;;;;
+;; Computes projection matrix decomposition
+;; @param ((rot-matr-x (c "SCM_UNDEFINED")) >> (rot-matr-x c:null))
+;; @param ((rot-matr-y (c "SCM_UNDEFINED")) >> (rot-matr-y c:null))
+;; @param ((rot-matr-z (c "SCM_UNDEFINED")) >> (rot-matr-z c:null))
+(define-cproc cv-decompose-projection-matrix (proj-matr::<cv-mat> calib-matr::<cv-mat> rot-matr::<cv-mat> pos-vect::<cv-mat>
+                                                                  :optional
+                                                                  (rot-matr-x (c "SCM_UNDEFINED"))
+                                                                  (rot-matr-y (c "SCM_UNDEFINED"))
+                                                                  (rot-matr-z (c "SCM_UNDEFINED"))) :: <cv-point-3d64f>
+  (ENSURE_NOT_NULL proj-matr)
+  (ENSURE_NOT_NULL calib-matr)
+  (ENSURE_NOT_NULL rot-matr)
+  (ENSURE_NOT_NULL pos-vect)
+  (let* ([rot-matr-x-obj :: CvMat*]
+         [rot-matr-y-obj :: CvMat*]
+         [rot-matr-z-obj :: CvMat*]
+         [euler-angles :: CvPoint3D64f])
+    (undef-or-obj-null-check rot-matr-x rot-matr-x-obj <cv-mat>)
+    (undef-or-obj-null-check rot-matr-y rot-matr-y-obj <cv-mat>)
+    (undef-or-obj-null-check rot-matr-z rot-matr-z-obj <cv-mat>)
+    (cvDecomposeProjectionMatrix proj-matr calib-matr rot-matr pos-vect
+                                 rot-matr-x-obj rot-matr-y-obj rot-matr-z-obj 
+                                 (& euler-angles))
+    (result euler-angles)))
+
+;;;;;
+;; Computes d(AB)/dA and d(AB)/dB
+(define-cproc cv-calc-mat-mul-deriv (a::<cv-mat> b::<cv-mat> dABdA::<cv-mat> dABdB::<cv-mat>) :: <cv-mat>
+  (ENSURE_NOT_NULL a)
+  (ENSURE_NOT_NULL b)
+  (ENSURE_NOT_NULL dABdA)
+  (ENSURE_NOT_NULL dABdB)
+  (cvCalcMatMulDeriv a b dABdA dABdB))
+
+;;;;;
+;; Computes r3 = rodrigues(rodrigues(r2)*rodrigues(r1)),
+;;   t3 = rodrigues(r2)*t1 + t2 and the respective derivatives */
+;; @param ((dr3dr1 (c "SCM_UNDEFINED")) >> (dr3dr1 c:null))
+;; @param ((dr3dt1 (c "SCM_UNDEFINED")) >> (dr3dt1 c:null))
+;; @param ((dr3dr2 (c "SCM_UNDEFINED")) >> (dr3dr2 c:null))
+;; @param ((dr3dt2 (c "SCM_UNDEFINED")) >> (dr3dt2 c:null))
+;; @param ((dt3dr1 (c "SCM_UNDEFINED")) >> (dr3dr1 c:null))
+;; @param ((dt3dt1 (c "SCM_UNDEFINED")) >> (dr3dt1 c:null))
+;; @param ((dt3dr2 (c "SCM_UNDEFINED")) >> (dr3dr2 c:null))
+;; @param ((dt3dt2 (c "SCM_UNDEFINED")) >> (dr3dt2 c:null))
+(define-cproc cv-compose-rt (_rvec1::<cv-mat> _tvec1::<cv-mat> 
+                                              _rvec2::<cv-mat> _tvec2::<cv-mat> 
+                                              _rvec3::<cv-mat> _tvec3::<cv-mat> 
+                                              :optional
+                                              (dr3dr1 (c "SCM_UNDEFINED")) (dr3dt1 (c "SCM_UNDEFINED"))
+                                              (dr3dr2 (c "SCM_UNDEFINED")) (dr3dt2 (c "SCM_UNDEFINED"))
+                                              (dt3dr1 (c "SCM_UNDEFINED")) (dt3dt1 (c "SCM_UNDEFINED"))
+                                              (dt3dr2 (c "SCM_UNDEFINED")) (dt3dt2 (c "SCM_UNDEFINED"))) :: <void>
+  (ENSURE_NOT_NULL _rvec1) (ENSURE_NOT_NULL _tvec1)
+  (ENSURE_NOT_NULL _rvec2) (ENSURE_NOT_NULL _tvec2)
+  (ENSURE_NOT_NULL _rvec3) (ENSURE_NOT_NULL _tvec3)
+  (let* ([dr3dr1-obj :: CvMat*] [dr3dt1-obj :: CvMat*]
+         [dr3dr2-obj :: CvMat*] [dr3dt2-obj :: CvMat*]
+         [dt3dr1-obj :: CvMat*] [dt3dt1-obj :: CvMat*]
+         [dt3dr2-obj :: CvMat*] [dt3dt2-obj :: CvMat*])
+    (undef-or-obj-null-check dr3dr1 dr3dr1-obj <cv-mat>)
+    (undef-or-obj-null-check dr3dt1 dr3dt1-obj <cv-mat>)
+    (undef-or-obj-null-check dr3dr2 dr3dr2-obj <cv-mat>)
+    (undef-or-obj-null-check dr3dt2 dr3dt2-obj <cv-mat>)
+    (undef-or-obj-null-check dt3dr1 dt3dr1-obj <cv-mat>)
+    (undef-or-obj-null-check dt3dt1 dt3dt1-obj <cv-mat>)
+    (undef-or-obj-null-check dt3dr2 dt3dr2-obj <cv-mat>)
+    (undef-or-obj-null-check dt3dt2 dt3dt2-obj <cv-mat>)
+    (cvComposeRT _rvec1 _tvec1 _rvec2 _tvec2 _rvec3 _tvec3
+                 dr3dr1-obj dr3dt1-obj dr3dr2-obj dr3dt2-obj
+                 dt3dr1-obj dt3dt1-obj dt3dr2-obj dt3dt2-obj)))
+
+;;;;;
+;; Projects object points to the view plane using the specified extrinsic and intrinsic camera parameters
+;; @param ((dpdrot (c "SCM_UNDEFINED")) >> (dpdrot c:null))
+;; @param ((dpdt (c "SCM_UNDEFINED")) >> (dpdt c:null))
+;; @param ((dpdf (c "SCM_UNDEFINED")) >> (dpdf c:null))
+;; @param ((dpdc (c "SCM_UNDEFINED")) >> (dpdc c:null))
+;; @param ((dpddist (c "SCM_UNDEFINED")) >> (dpddist c:null))
+(define-cproc cv-project-points2 (object-points::<cv-mat> rotation-vector::<cv-mat> translation-vector::<cv-mat>
+                                                          camera-matrix::<cv-mat> distortion-coeffs::<cv-mat>
+                                                          image-points::<cv-mat>
+                                                          :optional
+                                                          (dpdrot (c "SCM_UNDEFINED")) (dpdt (c "SCM_UNDEFINED"))
+                                                          (dpdf (c "SCM_UNDEFINED")) (dpdc (c "SCM_UNDEFINED"))
+                                                          (dpddist (c "SCM_UNDEFINED"))
+                                                          (aspect-ratio::<real> 0)) :: <void>
+  (ENSURE_NOT_NULL object-points)
+  (ENSURE_NOT_NULL rotation-vector)
+  (ENSURE_NOT_NULL translation-vector)
+  (ENSURE_NOT_NULL camera-matrix)
+  (ENSURE_NOT_NULL distortion-coeffs)
+  (ENSURE_NOT_NULL image-points)
+  (let* ([dpdrot-obj :: CvMat*]
+         [dpdt-obj :: CvMat*]
+         [dpdf-obj :: CvMat*]
+         [dpdc-obj :: CvMat*]
+         [dpddist-obj :: CvMat*])
+    (undef-or-obj-null-check dpdrot dpdrot-obj <cv-mat>)
+    (undef-or-obj-null-check dpdt dpdt-obj <cv-mat>)
+    (undef-or-obj-null-check dpdf dpdf-obj <cv-mat>)
+    (undef-or-obj-null-check dpdc dpdc-obj <cv-mat>)
+    (undef-or-obj-null-check dpddist dpddist-obj <cv-mat>)
+    (cvProjectPoints2 object-points rotation-vector translation-vector
+                      camera-matrix distortion-coeffs image-points
+                      dpdrot-obj dpdt-obj dpdf-obj dpdc-obj dpddist-obj
+                      aspect-ratio)))
+
+;;;;;
+;; Finds extrinsic camera parameters from a few known corresponding point pairs and intrinsic parameters
+(define-cproc cv-find-extrinsic-camera-params2 (object-points::<cv-mat> image-points::<cv-mat>
+                                                                        camera-matrix::<cv-mat> distortion-coeffs::<cv-mat>
+                                                                        rotation-vector::<cv-mat> translation-vector::<cv-mat>
+                                                                        :optional
+                                                                        (use-extrinsic-guess::<fixnum> 0)) :: <void>
+  (ENSURE_NOT_NULL object-points)
+  (ENSURE_NOT_NULL image-points)
+  (ENSURE_NOT_NULL camera-matrix)
+  (ENSURE_NOT_NULL distortion-coeffs)
+  (ENSURE_NOT_NULL rotation-vector)
+  (ENSURE_NOT_NULL translation-vector)
+  (cvFindExtrinsicCameraParams2 object-points image-points camera-matrix distortion-coeffs
+                               rotation-vector translation-vector use-extrinsic-guess))
+
+;;;;;
+;; Computes initial estimate of the intrinsic camera parameters in case of planar calibration target (e.g. chessboard)
+(define-cproc cv-init-interinsic-params-2d (object-points::<cv-mat> image-points::<cv-mat>
+                                                                    npoints::<cv-mat> image-size::<cv-size>
+                                                                    camera-matrix::<cv-mat>
+                                                                    :optional
+                                                                    (aspect-ratio::<real> 1.0)) :: <void>
+  (ENSURE_NOT_NULL object-points)
+  (ENSURE_NOT_NULL image-points)
+  (ENSURE_NOT_NULL npoints)
+  (ENSURE_NOT_NULL camera-matrix)
+  (cvInitIntrinsicParams2D object-points image-points npoints image-size
+                            camera-matrix aspect-ratio))
+
+(define-enum CV_CALIB_CB_ADAPTIVE_THRESH)
+(define-enum CV_CALIB_CB_NORMALIZE_IMAGE)
+(define-enum CV_CALIB_CB_FILTER_QUADS)
+(define-enum CV_CALIB_CB_FAST_CHECK)
+
+;;;;;
+;; Performs a fast check if a chessboard is in the input image. This is a workaround to 
+;; a problem of cvFindChessboardCorners being slow on images with no chessboard
+;; @param src input image
+;; @param size chessboard size
+;; @return #t if a chessboard can be in this image and findChessboardCorners should be called, 
+;; #f if there is no chessboard, other in case of raise error.
+(define-cproc cv-check-chessboard (src::<iplimage> size::<cv-size>) :: <boolean>
+  (ENSURE_NOT_NULL src)
+  (case (cvCheckChessboard src size)
+    [(1) (result 1)]
+    [(0) (result 0)]
+    [else (Scm_Error "cv-check-chessboard Error")]))
+
+;;;;;
+;; Detects corners on a chessboard calibration pattern
+;;@return list of <cv-point-2d32f> or #f
+(define-cproc cv-find-chessboard-corners (image::<iplimage> pattern-size::<cv-size>
+                                                            :optional
+                                                            (flags::<fixnum> 3)) :: <top>
+  (ENSURE_NOT_NULL image)
+  (let* ([corners::CvPoint2D32f* (SCM_NEW_ARRAY CvPoint2D32f (* (@ pattern-size.width) (@ pattern-size.height)))]
+         [corner-count::int]
+         [c :: ScmObj SCM_NIL]
+         [ret :: int (cvFindChessboardCorners image pattern-size
+                                              corners (& corner-count) flags)])
+    (if ret
+      (begin
+        (dotimes [i corner-count]
+          (set! c (Scm_Cons (boxing (aref corners (- corner-count i 1)) <cv-point-2d32f>) c)))
+        (result c))
+      (result (boxing 0 <boolean>)))))
+
+"
+#define TMP_CORNERS_ARY_SIZE 100
+"
+;;;;;
+;; Draws individual chessboard corners or the whole chessboard detected
+(define-cproc cv-draw-chessboard-corners (image::<iplimage> pattern_size::<cv-size> corners::<top>
+                                                            pattern-was-found::<boolean>) :: <void>
+  (ENSURE_NOT_NULL image)
+  (let* ([pts-cnt::int]
+         [pts-arr::CvPoint2D32f*]
+         [pts-tmp :: (.array CvPoint2D32f* (TMP_CORNERS_ARY_SIZE))])
+    (cond
+      [(is-type? corners <vector>)
+       (set! pts-cnt (SCM_VECTOR_SIZE corners))
+       (vector-to-ary corners pts-arr pts-tmp TMP_CORNERS_ARY_SIZE CvPoint2D32f <cv-point-2d32f>-elem-assign)]
+      [(is-type? corners <list>)
+       (list-to-ary corners pts-arr pts-tmp TMP_CORNERS_ARY_SIZE pts-cnt CvPoint2D32f <cv-point-2d32f>-elem-assign)]
+      [else (Scm_Error "<list> or <vector> required, but got %S" corners)])
+    (cvDrawChessboardCorners image pattern-size pts-arr pts-cnt pattern-was-found)))
+
+
+(define-enum CV_CALIB_USE_INTRINSIC_GUESS)
+(define-enum CV_CALIB_FIX_ASPECT_RATIO)
+(define-enum CV_CALIB_FIX_PRINCIPAL_POINT)
+(define-enum CV_CALIB_ZERO_TANGENT_DIST)
+(define-enum CV_CALIB_FIX_FOCAL_LENGTH)
+(define-enum CV_CALIB_FIX_K1)
+(define-enum CV_CALIB_FIX_K2)
+(define-enum CV_CALIB_FIX_K3)
+(define-enum CV_CALIB_FIX_K4)
+(define-enum CV_CALIB_FIX_K5)
+(define-enum CV_CALIB_FIX_K6)
+(define-enum CV_CALIB_RATIONAL_MODEL)
+
+;;;;;
+;; Finds intrinsic and extrinsic camera parameters from a few views of known calibration pattern
+;; @param ((rotation-vectors (c "SCM_UNDEFINED")) >> (rotation-vectors c:null))
+;; @param ((translation-vectors (c "SCM_UNDEFINED")) >> (translation-vectors c:null))
+(define-cproc cv-calibrate-camera2 (object-points::<cv-mat> image-points::<cv-mat> points-counts::<cv-mat>
+                                                            image-size::<cv-size> 
+                                                            camera-matrix::<cv-mat> distortion-coeffs::<cv-mat>
+                                                            :optional
+                                                            (rotation-vectors (c "SCM_UNDEFINED")) 
+                                                            (translation-vectors (c "SCM_UNDEFINED")) 
+                                                            (flags::<fixnum> 0)) :: <real>
+  (ENSURE_NOT_NULL object-points)
+  (ENSURE_NOT_NULL image-points)
+  (ENSURE_NOT_NULL points-counts)
+  (ENSURE_NOT_NULL camera-matrix)
+  (ENSURE_NOT_NULL distortion-coeffs)
+  (let* ([rotation-vectors-obj :: CvMat*]
+         [translation-vectors-obj :: CvMat*])
+    (undef-or-obj-null-check rotation-vectors rotation-vectors-obj <cv-mat>)
+    (undef-or-obj-null-check translation-vectors translation-vectors-obj <cv-mat>)
+    (result (cvCalibrateCamera2 object-points image-points points-counts image-size
+                                camera-matrix distortion-coeffs
+                                rotation-vectors-obj translation-vectors-obj flags))))
+
+;;;;;
+;; Computes various useful characteristics of the camera from the data computed by cv-calibrate-camera2
+;; @return (fovx::<real> fovy::<real> focal-length::<real> principal-point::<cv-point-2d64f> pixel-aspect-ratio::<real>)
+(define-cproc cv-calibration-matrix-values (camera-matrix::<cv-mat> image-size::<cv-size>
+                                                                    :optional
+                                                                    (aperture-width::<real> 0)
+                                                                    (aperture-height::<real> 0)) 
+  :: (<real> <real> <real> <cv-point-2d64f> <real>)
+  (ENSURE_NOT_NULL camera-matrix)
+  (let* ([fovx::double]
+         [fovy::double]
+         [focal-length::double]
+         [principal-point::CvPoint2D64f]
+         [pixel-aspect-ratio::double])
+    (cvCalibrationMatrixValues camera-matrix image-size aperture-width aperture-height
+                               (& fovx) (& fovy) (& focal-length) (& principal-point) (& pixel-aspect-ratio))
+    (result fovx fovy focal-length principal-point pixel-aspect-ratio)))
+
+(define-enum CV_CALIB_FIX_INTRINSIC)
+(define-enum CV_CALIB_SAME_FOCAL_LENGTH)
+
+;;;;;
+;; Computes the transformation from one camera coordinate system to another one
+;; from a few correspondent views of the same calibration target. Optionally, calibrates both cameras
+;; @param ((e (c "SCM_UNDEFINED")) >> (e c:null))
+;; @param ((f (c "SCM_UNDEFINED")) >> (f c:null))
+;; @param ((termcrit (c "SCM_UNDEFINED")) >> (termcrit c:null))
+(define-cproc cv-stereo-calibrate (object-points::<cv-mat> image-points1::<cv-mat> image-points2::<cv-mat> npoints::<cv-mat>
+                                                           camera-matrix1::<cv-mat> dist-coeffs1::<cv-mat>
+                                                           camera-matrix2::<cv-mat> dist-coeffs2::<cv-mat>
+                                                           image-size::<cv-size> r::<cv-mat> t::<cv-mat>
+                                                           :optional
+                                                           (e (c "SCM_UNDEFINED"))
+                                                           (f (c "SCM_UNDEFINED"))
+                                                           (termcrit (c "SCM_UNDEFINED"))
+                                                           (flags::<fixnum> 256)) :: <real>
+  (ENSURE_NOT_NULL object-points)
+  (ENSURE_NOT_NULL image-points1)
+  (ENSURE_NOT_NULL image-points2)
+  (ENSURE_NOT_NULL npoints)
+  (ENSURE_NOT_NULL camera-matrix1)
+  (ENSURE_NOT_NULL dist-coeffs1)
+  (ENSURE_NOT_NULL camera-matrix2)
+  (ENSURE_NOT_NULL dist-coeffs2)
+  (ENSURE_NOT_NULL r)
+  (ENSURE_NOT_NULL t)
+  (let* ([e-obj::CvMat*]
+         [f-obj::CvMat*]
+         [termcrit-obj::CvTermCriteria])
+    (undef-or-obj-null-check e e-obj <cv-mat>)
+    (undef-or-obj-null-check f f-obj <cv-mat>)
+    (undef-or-obj termcrit termcrit-obj <cv-term-criteria> (cvTermCriteria (+ CV_TERMCRIT_ITER CV_TERMCRIT_EPS) 30 1e-6))
+    (result (cvStereoCalibrate object-points image-points1 image-points2 npoints
+                               camera-matrix1 dist-coeffs1 camera-matrix2 dist-coeffs2
+                               image-size
+                               r t
+                               e-obj f-obj
+                               termcrit-obj
+                               flags))))
+
+(define-enum CV_CALIB_ZERO_DISPARITY)
+
+;;;;;
+;; Computes 3D rotations (+ optional shift) for each camera coordinate system to make both
+;; views parallel (=> to make all the epipolar lines horizontal or vertical)
+;; @param ((q (c "SCM_UNDEFINED")) >> (q c:null))
+;; @param ((new-image-size (c "SCM_UNDEFINED")) >> (new-image-size c:null))
+;; @param ((valid-pix-roi1 (c "SCM_UNDEFINED")) >> (valid-pix-roi1 c:null))
+;; @param ((valid-pix-roi2 (c "SCM_UNDEFINED")) >> (valid-pix-roi2 c:null))
+(define-cproc cv-stereo-rectify 
+              (camera-matrix1::<cv-mat> camera-matrix2::<cv-mat>
+                                        dist-coeffs1::<cv-mat> dist-coeffs2::<cv-mat>
+                                        image-size::<cv-size> r::<cv-mat> t::<cv-mat>
+                                        r1::<cv-mat> r2::<cv-mat> p1::<cv-mat> p2::<cv-mat>
+                                        :optional
+                                        (q (c "SCM_UNDEFINED"))
+                                        (flags::<fixnum> 1024)
+                                        (alpha::<real> -1)
+                                        (new-image-size (c "SCM_UNDEFINED"))
+                                        (valid-pix-roi1 (c "SCM_UNDEFINED"))
+                                        (valid-pix-roi2 (c "SCM_UNDEFINED")))
+              :: <void>
+  (ENSURE_NOT_NULL camera-matrix1)
+  (ENSURE_NOT_NULL camera-matrix2)
+  (ENSURE_NOT_NULL dist-coeffs1)
+  (ENSURE_NOT_NULL dist-coeffs2)
+  (ENSURE_NOT_NULL r)
+  (ENSURE_NOT_NULL t)
+  (ENSURE_NOT_NULL r1)
+  (ENSURE_NOT_NULL r2)
+  (ENSURE_NOT_NULL p1)
+  (ENSURE_NOT_NULL p2)
+  (let* ([q-obj::CvMat*]
+         [new-image-size-obj :: CvSize]
+         [valid-pix-roi1-ptr :: CvRect* NULL]
+         [valid-pix-roi2-ptr :: CvRect* NULL])
+    (undef-or-obj-null-check q q-obj <cv-mat>)
+    (undef-or-obj new-image-size new-image-size-obj <cv-size> (cvSize 0 0))
+    (unless (undefined? valid-pix-roi1)
+      (if (is-type? valid-pix-roi1 <cv-rect>)
+        (set! valid-pix-roi1-ptr (& (unboxing valid-pix-roi1 <cv-rect>)))
+        (Scm_Error "c:null or <cv-rect> required, but got %S" valid-pix-roi1)))
+    (unless (undefined? valid-pix-roi2)
+      (if (is-type? valid-pix-roi2 <cv-rect>)
+        (set! valid-pix-roi2-ptr (& (unboxing valid-pix-roi2 <cv-rect>)))
+        (Scm_Error "c:null or <cv-rect> required, but got %S" valid-pix-roi2)))
+    (cvStereoRectify camera-matrix1 camera-matrix2 dist-coeffs1 dist-coeffs2
+                     image-size r t r1 r2 p1 p2
+                     q-obj flags alpha new-image-size-obj
+                     valid-pix-roi1-ptr valid-pix-roi2-ptr)))
+
+;;;;;
+;; Computes rectification transformations for uncalibrated pair of images using a set of point correspondences
+(define-cproc cv-stereo-rectify-uncalibrated 
+  (points1::<cv-mat> points2::<cv-mat> f::<cv-mat> img-size::<cv-size>
+                     h1::<cv-mat> h2::<cv-mat>
+                     :optional
+                     (threshold::<real> 5)) :: <fixnum>
+  (ENSURE_NOT_NULL points1)
+  (ENSURE_NOT_NULL points2)
+  (ENSURE_NOT_NULL f)
+  (ENSURE_NOT_NULL h1)
+  (ENSURE_NOT_NULL h2)
+  (result (cvStereoRectifyUncalibrated points1 points2
+                                       f img-size h1 h2 threshold)))
+
+;;----------
+;; stereo correspondence parameters and functions
+;;----------
+
+
+(define-enum CV_STEREO_BM_NORMALIZED_RESPONSE)
+(define-enum CV_STEREO_BM_XSOBEL)
+
+;;;;;
+;; Block matching algorithm structure
+;; @slot pre-filter-type = CV_STEREO_BM_NORMALIZED_RESPONSE now
+;; @slot pre-filter-size averaging window size: ~5x5..21x21
+;; @slot pre-filter-cap the output of pre-filtering is clipped by [-pre-filter-cap,pre-filter-cap]
+;; @slot sad-window-size ~5x5..21x21
+;; @slot min-disparity minimum disparity (can be negative)
+;; @slot number-of-disparities maximum disparity - minimum disparity (> 0)
+;; @slot texture-threshold  the disparity is only computed for pixels with textured enough neighborhood
+;; @slot uniiqueness-ratio accept the computed disparity d* only if
+;; SAD(d) >= SAD(d*)*(1 + uniquenessRatio/100.) for any d != d*+/-1 within the search range.
+;; @slot speckle-window-size disparity variation window
+;; @slot speckle-range acceptable range of variation in window
+;; @slot try-smaller-windows if #t, the results may be more accurate, at the expense of slower processing 
+(define-cclass <cv-stereo-bm-state>
+  :built-in
+  "ScmCvStereoBMState*" "Scm_CvStereoBMStateClass"
+  ("Scm_CvObjectClass")
+  (;;slot
+   ;; pre-filtering (normalization of input images)
+   (pre-filter-type :type <fixnum>
+                    :c-name "preFilterType")
+   (pre-filter-size :type <fixnum>
+                    :c-name "preFilterSize")
+   (pre-filter-cap :type <fixnum>
+                    :c-name "preFilterCap")
+
+   ;;correspondence using Sum of Absolute Difference (SAD)
+   (sad-window-size :type <fixnum>
+                    :c-name "SADWindowSize")
+   (min-disparity :type <fixnum>
+                  :c-name "minDisparity")
+   (number-of-disparities :type <fixnum>
+                          :c-name "numberOfDisparities")
+
+   ;;post-filtering
+   (texture-threshold :type <fixnum>
+                      :c-name "textureThreshold")
+   (uniqueness-ratio :type <fixnum>
+                     :c-name "uniquenessRatio")
+   (speckle-window-size :type <fixnum>
+                        :c-name "speckleWindowSize")
+   (speckle-range :type <fixnum>
+                  :c-name "speckleRange")
+
+   (try-smaller-windows :type <boolean>
+                        :c-name "trySmallerWindows")
+
+   (roi1 :type <cv-rect>)
+   (roi2 :type <cv-rect>)
+   (disp12-max-diff :type <fixnum>
+                    :c-name "disp12MaxDiff")
+
+   ))
+
+
+(define-enum CV_STEREO_BM_BASIC)
+(define-enum CV_STEREO_BM_FISH_EYE)
+(define-enum CV_STEREO_BM_NARROW)
+
+;;;;;
+;; @param (preset 0) {@ CV_STEREO_BM_BASIC CV_STEREO_BM_FISH_EYE CV_STEREO_BM_NARROW}
+(define-cproc make-cv-stereo-bm-state (:optional
+                                        (preset::<fixnum> 0) ; CV_STEREO_BM_BASIC
+                                        (number-of-disparities::<fixnum> 0)) :: <cv-stereo-bm-state>
+  (result (cvCreateStereoBMState preset number-of-disparities)))
+
+(define-cproc cv-release-stereo-bm-state (state::<cv-stereo-bm-state>)
+  (when state
+    (cvReleaseStereoBMState (& state))
+    (set! (unboxing state-scm <cv-stereo-bm-state>) NULL)))
+
+(define-cproc cv-find-stereo-correspndence-bm (left::<cv-arr> right::<cv-arr> disparity::<cv-arr> state::<cv-stereo-bm-state>) :: <void>
+  (ENSURE_NOT_NULL left)
+  (ENSURE_NOT_NULL right)
+  (ENSURE_NOT_NULL disparity)
+  (ENSURE_NOT_NULL state)
+  (cvFindStereoCorrespondenceBM left right disparity state))
+
+(define-cproc cv-get-valid-disparity-roi (roi1::<cv-rect> roi2::<cv-rect> min-disparity::<fixnum>
+                                                          number-of-disparities::<fixnum> sad-window-size::<fixnum>) :: <cv-rect>
+  (result (cvGetValidDisparityROI roi1 roi2 min-disparity number-of-disparities sad-window-size)))
+
+(define-cproc cv-validate-disparity (disparity::<cv-arr> cost::<cv-arr>
+                                                         min-disparity::<fixnum> number-of-disparities::<fixnum>
+                                                         :optional
+                                                         (disp12-max-diff::<fixnum> 1)) :: <void>
+  (ENSURE_NOT_NULL disparity)
+  (ENSURE_NOT_NULL cost)
+  (cvValidateDisparity disparity cost min-disparity number-of-disparities disp12-max-diff))
+
+(define-enum CV_STEREO_GC_OCCLUDED)
+
+(define-cclass <cv-stereo-gc-state>
+  :built-in
+  "ScmCvStereoGCState*" "Scm_CvStereoGCStateClass"
+  ("Scm_CvObjectClass")
+  (;;slot
+   (i-threshold :type <fixnum>
+                :c-name "Ithreshold")
+   (interaction-radius :type <fixnum>
+                       :c-name "interactionRadius")
+   (k :type <real>
+      :c-name "K")
+   (lambda :type <real>)
+   (lambda1 :type <real>)
+   (lambda2 :type <real>)
+   (occlusion-cost :type <fixnum>
+                   :c-name "occlusionCost")
+   (min-disparity :type <fixnum>
+                  :c-name "minDisparity")
+   (number-of-disparities :type <fixnum>
+                          :c-name "numberOfDisparities")
+   (max-iters :type <fixnum>
+              :c-name "maxIters")
+
+   ))
+
+(define-cproc make-cv-stereo-gc-state (number-of-disparities::<fixnum> max-iters::<fixnum>) :: <cv-stereo-gc-state>
+  (result (cvCreateStereoGCState number-of-disparities max-iters)))
+
+(define-cproc cv-release-stereo-gc-state (state::<cv-stereo-gc-state>) :: <void>
+  (when state
+    (cvReleaseStereoGCState (& state))
+    (set! (unboxing state-scm <cv-stereo-gc-state>) NULL)))
+
+(define-cproc cv-find-stereo-correspndence-gc (left::<cv-arr> right::<cv-arr> 
+                                                              disparity-left::<cv-arr> disparity-right::<cv-arr>
+                                                              state::<cv-stereo-gc-state>
+                                                              :optional
+                                                              (use-disparigy-guess::<boolean> #f)) :: <void>
+  (ENSURE_NOT_NULL left)
+  (ENSURE_NOT_NULL right)
+  (ENSURE_NOT_NULL disparity-left)
+  (ENSURE_NOT_NULL disparity-right)
+  (ENSURE_NOT_NULL state)
+  (cvFindStereoCorrespondenceGC left right disparity-left disparity-right state use-disparigy-guess))
+
+;;;;;
+;;Reprojects the computed disparity image to the 3D space using the specified 4x4 matrix
+(define-cproc cv-reproject-image-to-3d (disparity-image::<cv-arr> image-3d::<cv-arr> q::<cv-mat>
+                                                                  :optional
+                                                                  (handle-missing-values::<boolean> #f)) :: <void>
+  (ENSURE_NOT_NULL disparity-image)
+  (ENSURE_NOT_NULL image-3d)
+  (ENSURE_NOT_NULL q)
+  (cvReprojectImageTo3D disparity-image image-3d q handle-missing-values))
+

@@ -26,8 +26,8 @@ OUTDIR = "@OUTDIR@"
 
 
 
-SCMFILES = core.scm highgui.scm imgproc.scm objdetect.scm
-GENERATED = core.scm highgui.scm imgproc.scm objdetect.scm
+SCMFILES = core.scm highgui.scm imgproc.scm objdetect.scm features2d.scm calib3d.scm
+GENERATED = core.scm highgui.scm imgproc.scm objdetect.scm features2d.scm calib3d.scm
 
 CONFIG_GENERATED = Makefile
 
@@ -44,6 +44,12 @@ imgproc.scm: $(STUBDIR)/imgproc/cv_imgproclib.stub imgproc.template
 
 objdetect.scm: $(STUBDIR)/objdetect/cv_objdetectlib.stub objdetect.template
 	$(GOSH) -I$(SCRIPTDIR) $(GENDOC) -s $(STUBDIR)/objdetect/cv_objdetectlib.stub -t objdetect.template -o objdetect.scm
+
+features2d.scm: $(STUBDIR)/features2d/cv_features2dlib.stub features2d.template
+	$(GOSH) -I$(SCRIPTDIR) $(GENDOC) -s $(STUBDIR)/features2d/cv_features2dlib.stub -t features2d.template -o features2d.scm
+
+calib3d.scm: $(STUBDIR)/calib3d/cv_calib3dlib.stub calib3d.template
+	$(GOSH) -I$(SCRIPTDIR) $(GENDOC) -s $(STUBDIR)/calib3d/cv_calib3dlib.stub -t calib3d.template -o calib3d.scm
 
 test :
 

@@ -191,6 +191,8 @@
        (set! ,var (SCM_F32VECTOR_ELEMENTS (,(string->symbol (~ type 'unboxer)) ,obj)))
        (Scm_Error ,#`",(~ type 'description) required, but got %S" ,obj))))
 
+(define-cise-expr (eq? obj1 obj2)
+  `(== ,obj1 ,obj2))
 
 (define-cise-expr (null? obj)
   `(SCM_NULLP ,obj))

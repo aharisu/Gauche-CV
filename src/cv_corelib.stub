@@ -1724,19 +1724,76 @@ def_byte_struct(60)
                    (CV_REV_READ_SEQ_ELEM obj (* reader))
                    (result obj))))
 
+(define-cise-stmt (to-uvector to-class reader)
+  (let ([vec (gensym "vec_")])
+    `(let* ([,vec :: ScmObj])
+       (cond
+         [(eq? ,to-class (& Scm_S8VectorClass))
+          (set! ,vec (Scm_MakeS8VectorFromArrayShared 
+                       (@ reader->seq->elem-size)
+                       (cast (signed char*) (-> ,reader ptr))))]
+         [(eq? ,to-class (& Scm_U8VectorClass))
+          (set! ,vec (Scm_MakeU8VectorFromArrayShared 
+                       (@ reader->seq->elem-size)
+                       (cast (unsigned char*) (-> ,reader ptr))))]
+         [(eq? ,to-class (& Scm_S16VectorClass))
+          (set! ,vec (Scm_MakeS16VectorFromArrayShared 
+                       (/ (@ reader->seq->elem-size) 2)
+                       (cast (signed short*) (-> ,reader ptr))))]
+         [(eq? ,to-class (& Scm_U16VectorClass))
+          (set! ,vec (Scm_MakeU16VectorFromArrayShared 
+                       (/ (@ reader->seq->elem-size) 2)
+                       (cast (unsigned short*) (-> ,reader ptr))))]
+         [(eq? ,to-class (& Scm_S32VectorClass))
+          (set! ,vec (Scm_MakeS32VectorFromArrayShared 
+                       (/ (@ reader->seq->elem-size) 4)
+                       (cast ScmInt32* (-> ,reader ptr))))]
+         [(eq? ,to-class (& Scm_U32VectorClass))
+          (set! ,vec (Scm_MakeU32VectorFromArrayShared 
+                       (/ (@ reader->seq->elem-size) 4)
+                       (cast ScmUInt32* (-> ,reader ptr))))]
+         [(eq? ,to-class (& Scm_S64VectorClass))
+          (set! ,vec (Scm_MakeS64VectorFromArrayShared 
+                       (/ (@ reader->seq->elem-size) 8)
+                       (cast ScmInt64* (-> ,reader ptr))))]
+         [(eq? ,to-class (& Scm_U64VectorClass))
+          (set! ,vec (Scm_MakeU64VectorFromArrayShared 
+                       (/ (@ reader->seq->elem-size) 8)
+                       (cast ScmUInt64* (-> ,reader ptr))))]
+         [(eq? ,to-class (& Scm_F16VectorClass))
+          (set! ,vec (Scm_MakeF16VectorFromArrayShared 
+                       (/ (@ reader->seq->elem-size) 2)
+                       (cast ScmHalfFloat* (-> ,reader ptr))))]
+         [(eq? ,to-class (& Scm_F32VectorClass))
+          (set! ,vec (Scm_MakeF32VectorFromArrayShared 
+                       (/ (@ reader->seq->elem-size) 4)
+                       (cast float* (-> ,reader ptr))))]
+         [(eq? ,to-class (& Scm_F64VectorClass))
+          (set! ,vec (Scm_MakeF64VectorFromArrayShared 
+                       (/ (@ reader->seq->elem-size) 4)
+                       (cast double* (-> ,reader ptr))))]
+         [else (Scm_Error "Can't be cast class")])
+       (result (SCM_OBJ ,vec)))))
+
 (define-cise-stmt (cv-read-seq-elem-setter src type)
   `(begin
      (set! ,src (@ reader->ptr))
      (CV_NEXT_SEQ_ELEM (sizeof ,type) (* reader))))
 
 (define-cproc cv-read-seq-elem-cast (to-class::<class> reader::<cv-seq-reader>) ::<top>
-  (object-cast to-class (@ reader->seq->elem_size) cv-read-seq-elem-setter))
+  (if (Scm_SubtypeP to-class SCM_CLASS_UVECTOR)
+    (begin
+      (to-uvector to-class reader)
+      (CV_NEXT_SEQ_ELEM (@ reader->seq->elem-size) (* reader)))
+    (object-cast to-class (@ reader->seq->elem_size) cv-read-seq-elem-setter)))
 
 (define-cise-stmt (cv-ref-seq-elem-setter src type)
   `(set! ,src (@ reader->ptr)))
 
 (define-cproc cv-ref-seq-elem-cast (to-class::<class> reader::<cv-seq-reader>) ::<top>
-  (object-cast to-class (@ reader->seq->elem_size) cv-ref-seq-elem-setter))
+  (if (Scm_SubtypeP to-class SCM_CLASS_UVECTOR)
+    (to-uvector to-class reader) 
+  (object-cast to-class (@ reader->seq->elem_size) cv-ref-seq-elem-setter)))
 
 (define-cise-stmt (cv-rev-read-seq-elem-setter src type)
   `(begin
@@ -1744,7 +1801,11 @@ def_byte_struct(60)
      (CV_PREV_SEQ_ELEM (sizeof ,type) (* reader))))
 
 (define-cproc cv-rev-read-seq-elem-cast (to-class::<class> reader::<cv-seq-reader>) ::<top>
-  (object-cast to-class (@ reader->seq->elem_size) cv-rev-read-seq-elem-setter))
+  (if (Scm_SubtypeP to-class SCM_CLASS_UVECTOR)
+    (begin
+      (to-uvector to-class reader) 
+      (CV_PREV_SEQ_ELEM (@ reader->seq->elem-size) (* reader)))
+  (object-cast to-class (@ reader->seq->elem_size) cv-rev-read-seq-elem-setter)))
 
 ;;not support
 ;;CV_READ_CHAIN_POINT

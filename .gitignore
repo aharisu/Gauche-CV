@@ -29,3 +29,5 @@ TODO.txt
 /lib/cv/core.scm
 /lib/cv/highgui.scm
 /lib/cv/objdetect.scm
+/lib/cv/calib3d.scm
+/lib/cv/features2d.scm
