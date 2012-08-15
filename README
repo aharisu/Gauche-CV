@@ -9,12 +9,11 @@ OpenCV-2.2.0に対応しています
 
 Windows環境でのコンパイルはまだ未対応
 
-現状の完成度 15%ほど
-opencv2/coreの関数はほとんどサポート済み
-opencv2/imgprocの関数はほとんどサポート済み
-opencv2/highguiのいくつかの関数をサポート
+opencv2/coreをサポート
+opencv2/imgprocをサポート
+opencv2/highguiの一部をサポート
+opencv2/objdetectをサポート
+opencv2/calib3dをサポート
+opencv2/features2dの一部をサポート
 他、未サポート
-
-まだ関数をラップしただけで、
-各々のテストはできていません。
 
