@@ -67,8 +67,11 @@ case `pkg-config --modversion opencv` in
   2.2.*)
     OPENCV_VERSION=OPENCV2_2
   ;;
-  2.3.*)
+  2.3.0)
     OPENCV_VERSION=OPENCV2_3
+  ;;
+  2.3.1)
+    OPENCV_VERSION=OPENCV2_3_1
   ;;
   *)
     AC_MSG_ERROR([The version of the OpenCV does not support])

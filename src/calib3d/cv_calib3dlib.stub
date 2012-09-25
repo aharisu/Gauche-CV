@@ -202,7 +202,8 @@ typedef double _double_t;
                                                                         new-camera-matrix::<cv-mat> 
                                                                         :optional
                                                                         (new-img-size::<top> (c "SCM_UNDEFINED"))
-                                                                        (valid-pix-roi::<top> (c "SCM_UNDEFINED"))) :: <void>
+                                                                        (valid-pix-roi::<top> (c "SCM_UNDEFINED"))
+                                                                        (center-principal-point::<fixnum> 0)) :: <void>
   (ENSURE_NOT_NULL camera-matrix)
   (ENSURE_NOT_NULL dist-coeffs)
   (ENSURE_NOT_NULL new-camera-matrix)
@@ -210,11 +211,17 @@ typedef double _double_t;
     (undef-or-obj new-img-size size <cv-size> (cvSize 0 0))
     (cond
       [(undefined? valid-pix-roi) 
-       (cvGetOptimalNewCameraMatrix camera-matrix dist-coeffs img-size alpha
-                                    new-camera-matrix size NULL)]
+       (.if OPENCV2_3_1
+            (cvGetOptimalNewCameraMatrix camera-matrix dist-coeffs img-size alpha
+                                         new-camera-matrix size NULL center-principal-point)
+            (cvGetOptimalNewCameraMatrix camera-matrix dist-coeffs img-size alpha
+                                         new-camera-matrix size NULL))]
       [(is-type? valid-pix-roi <cv-rect>)
-       (cvGetOptimalNewCameraMatrix camera-matrix dist-coeffs img-size alpha
-                                    new-camera-matrix size (& (unboxing valid-pix-roi <cv-rect>)))]
+       (.if OPENCV2_3_1
+            (cvGetOptimalNewCameraMatrix camera-matrix dist-coeffs img-size alpha
+                                         new-camera-matrix size (& (unboxing valid-pix-roi <cv-rect>)) center-principal-point)
+            (cvGetOptimalNewCameraMatrix camera-matrix dist-coeffs img-size alpha
+                                         new-camera-matrix size (& (unboxing valid-pix-roi <cv-rect>))))]
       [else (Scm_Error "<cv-rect> or c:null required, but got %S" valid-pix-roi)])))
 
 ;;;;;
